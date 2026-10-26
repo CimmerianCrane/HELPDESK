@@ -3,6 +3,8 @@
 System of record for crane servicing, breakdown repairs, inspections, load testing, parts and compliance
 documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 
+- **Starting a fresh session, or want the original brief?** [`KICKOFF.md`](KICKOFF.md) — the brief
+  verbatim, the phase plan, the slice table, and where the build stands
 - Conventions, stack and rules that must never be violated: [`CLAUDE.md`](CLAUDE.md)
 - Architecture, data model, screens and the phase plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
