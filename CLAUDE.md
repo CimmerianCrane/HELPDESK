@@ -97,8 +97,10 @@ cimmerian-crane/
     app/
       (auth)/login/        # unauthenticated
       (office)/            # desktop-first: customers, cranes, tickets, jobs, schedule, reports, admin
-      (tech)/m/            # mobile-first technician PWA: my jobs, report form, photos, signatures
-      api/                 # route handlers: sync, file upload, health, PDF, webhooks
+      (tech)/m/            # mobile-first technician PWA: my jobs, job detail, report form (slice 8)
+      offline/             # the /offline fallback: renders the deep-linked job from the Dexie cache
+      sw.ts                # Serwist worker source (built to public/sw.js, which is gitignored)
+      api/                 # route handlers: tech/sync, file upload, health, PDF, webhooks
     server/
       auth/                # session, password hashing, permission map, row-level scope
       users/               # user administration service
@@ -106,11 +108,13 @@ cimmerian-crane/
       sla/                 # SLA computation
       schedule/            # crane next-due recomputation
       documents/           # numbering, PDF render, email-on-close
+      tech/                # the field phone's read layer and its one-call sync bundle
       storage/             # StorageAdapter: disk | supabase (signed upload/download URLs)
       email/               # EmailAdapter: console | smtp
       notify/              # notification fan-out to channel adapters
     lib/
       db.ts                # Prisma client singleton
+      templates/           # TemplateSchema — the declared shape Report.data must satisfy
       validation/          # Zod schemas, shared by forms, actions and API
       utils.ts
     components/
@@ -209,6 +213,29 @@ await withAudit(context, async (tx, log) => { ... }, client)
 - Route handlers translate `AppError` to its `status`; anything else is a 500 and reaches the logger.
 - A new entity gets a `xxxReadWhere` in `scope.ts` **before** its first service, so the fail-closed
   default is in place from the start rather than retrofitted.
+
+## How the offline phone is wired
+
+The technician PWA is four pieces. New work extends these; it does not add a fifth way of doing the same
+thing (see `KICKOFF.md`, "Pick up here: slice 8").
+
+1. **Read layer** — `src/server/tech/my-jobs.ts`. Every query spreads `jobReadWhere(context)` and every
+   function calls `assertCan` first. A technician's own job list is the only list; another technician's
+   job returns `NotFoundError`, not `ForbiddenError`, because a 403 confirms the job exists.
+2. **One sync call** — `GET /api/tech/sync` returns a single bundle: open jobs with site details, crane
+   history and checklist, plus reference rows (cranes, checklist items, parts, that technician's site
+   contacts) and the operating `timezone`. Not one request per thing: a phone at a site gate is the worst
+   place to run eight sequential requests, and a half-finished sync is worse than none.
+3. **Client cache** — `src/offline/db.ts` (Dexie) writes the bundle in one multi-table transaction,
+   clearing the old rows first. Components read from Dexie only in `src/components/tech/offline-shell.tsx`,
+   which is what the `/offline` fallback renders.
+4. **One component, two renderers** — the server pages (`/m/jobs`, `/m/jobs/[id]`) and the offline shell
+   render the same `JobList` / `JobSheet`. Never fork them: a cached screen that drifts from the live one
+   is a support call you cannot reproduce.
+
+Also fixed by design: the service worker is disabled under `npm run dev`; the manifest lives at
+`/m/manifest` because Next reserves `manifest.webmanifest`; signing out clears the Dexie cache before the
+session ends, because site phones are shared.
 
 ## Working agreement
 

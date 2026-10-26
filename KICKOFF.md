@@ -94,6 +94,68 @@ technician → offline report with photos and both signatures → sync → appro
 
 ---
 
+## Pick up here: slice 8 — completing the report on the phone
+
+**Goal:** a technician completes an entire report on the phone with no signal — checklist with
+measurements, photos, parts used, findings, both signatures — and it reaches the office correctly
+**once**, even though the phone retried the upload four times on the way back into coverage.
+
+This section exists so that a fresh session can start work without re-reading everything above.
+
+### Already built, and what slice 8 must reuse
+
+| Need | Where it is |
+|---|---|
+| The phone's read layer, and its one-request sync bundle | `src/server/tech/my-jobs.ts`, `src/app/api/tech/sync/route.ts` |
+| IndexedDB tables and the single-transaction cache write | `src/offline/db.ts` |
+| Sync state, the "No signal" panel, retry | `src/offline/use-tech-sync.tsx` |
+| The screens the report form sits beside | `src/components/tech/job-sheet.tsx`, `job-list.tsx` |
+| The checklist the phone already receives | `TechChecklistItem` in `my-jobs.ts` — `section`, `code`, `label`, `resultType`, `unit`, `requiresMeasurement` |
+| The shape `Report.data` has to satisfy | `src/lib/templates/schema.ts` — `fields` sections are one answer map keyed by field `key`; `layout: 'table'` sections are arrays of row objects, also keyed by field `key`. `Report.data` is validated against the **template version** stored on the report |
+| Storage for photos and signatures | `Report`, `Finding`, `File`, `SyncReceipt`, `ConflictLog`, `StockMovement` are **already in the schema** — no migration needed for the core shapes |
+
+### Not built yet — slice 8 creates these
+
+- **A storage adapter** — `disk` | `supabase`, both already declared in `src/lib/env.ts` — and a file
+  service behind it. Photos and signatures are `File` rows. Upload **direct from the browser with a
+  signed URL**; never through a server action, because Vercel caps a function request body at 4.5 MB.
+- **A report service** (`src/server/reports/`): load or create a draft, validate `data` against the
+  template version, attach findings, issue parts, submit. Add `reportReadWhere` to `src/server/auth/scope.ts`
+  **before** the first service, so the fail-closed default is in place from the start.
+- **An outbox** — client-generated ids, one idempotent sync endpoint, `SyncReceipt` keyed by the
+  client's id so a replay upserts rather than duplicates.
+- **A Dexie draft table** and the form that autosaves into it every few seconds.
+
+### Suggested order
+
+1. `reportReadWhere` + report service + Zod schemas; integration tests for draft/submit/scope.
+2. Storage adapter + file service + a signed-upload route; test the adapter, not Supabase.
+3. The phone form: checklist renderer from `TemplateSchema`, findings, parts, signatures; autosave to Dexie.
+4. The outbox and the sync endpoint, with the idempotency test that replays the same payload twice.
+5. Playwright: complete a report offline, come back online, assert exactly one report exists.
+
+### Decisions already locked that slice 8 must respect
+
+- **Never lose field data.** Drafts are written to IndexedDB every few seconds, and the outbox
+  survives a reload and a closed tab.
+- **Field data wins.** The technician's own report beats office edits; office scheduling edits never
+  overwrite field data. Every automatic resolution goes to `ConflictLog`.
+- **Parts used on a job are `StockMovement`s**, not a JSON list on the report — stock quantities only
+  ever change that way (CLAUDE.md rule 10).
+- **Company inspection, never a statutory certificate.** The wording on the form and the PDF must not
+  imply the AE's certificate; that distinction is CLAUDE.md rule 3.
+- **Signatures carry a name and a timestamp**, and "customer unavailable / declined" is a reason, not
+  a blank signature.
+- **Photos are compressed on the phone** before upload, and the type and size are validated again on
+  the server — the client is not a trust boundary.
+- The service worker is **off under `npm run dev`**, so offline behaviour is checked against
+  `npm run build && npm start`.
+
+Then the gate is the same four commands as every slice (see "Where the build stands" above), and the
+commit must update this file, `README.md`, `docs/PLAN.md` and `docs/ASSUMPTIONS.md` alongside the code.
+
+---
+
 ## The kickoff brief (verbatim)
 
 Everything below this line is the brief as it was given. It has not been edited.

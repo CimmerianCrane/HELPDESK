@@ -1169,6 +1169,32 @@ fallback). The server pages and the offline shell render the same two components
 cannot drift from the live one. Offline is proved against a production build, not the dev server; see
 `docs/ASSUMPTIONS.md` items 46–50.
 
+*Slice 8* — **the next slice**, so its shape is settled here before it is written. It fills in the phone's
+report form: checklist with measurements, photos, parts used, findings, both signatures, autosave, and an
+outbox that survives a dropped connection. The four decisions that constrain everything after it:
+
+1. **`Report.data` is the answer map the template already declares** (`src/lib/templates/schema.ts`), not a
+   bag of prose. A `fields` section contributes keys to one flat answer map; a `layout: 'table'` section
+   stores an array of row objects under its own section key, so table columns may reuse a name without
+   colliding with a form field. The report stores the **template version** it was filled under, and
+   submission validates against that version, not against whatever the template says today. This is what
+   makes slice 9 able to re-render an old report exactly as issued.
+2. **The outbox is a client table, and the server deduplicates by the client's id.** Every queued item
+   carries a client-generated uuid; the sync endpoint writes a `SyncReceipt` keyed by that id inside the
+   same transaction as the data it applied. A replay is therefore a no-op, not a second report. The test
+   for this is a payload posted twice asserting a single report.
+3. **Parts used on a job are `StockMovement` rows**, written when the report is submitted, and the
+   report's parts list is read back from them. A JSON array of part numbers on the report would be a
+   second source of truth for stock, which CLAUDE.md rule 10 exists to prevent.
+4. **Photos and signatures are `File` rows behind a storage adapter**, uploaded directly from the browser
+   to Supabase Storage with a signed URL, compressed on the phone first and re-validated on the server.
+   The adapter interface is `disk | supabase` because the tests and the dev machine must not need the
+   bucket.
+
+Build order: `reportReadWhere` → report service + validation tests → storage adapter and file service →
+the form with Dexie autosave → the outbox endpoint with the replay test → Playwright offline completion.
+`KICKOFF.md` carries the same list with the file paths, as the entry point for the next session.
+
 *Slice 0* — typecheck, lint, unit, integration and end-to-end tests all pass. Two deviations from the plan as
 written, both recorded in the schema and migration rather than left implicit: the CHECK constraints live in their
 own migration (`20261026103300_reason_required_constraints`) instead of being appended to the init migration,
