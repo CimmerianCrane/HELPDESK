@@ -15,7 +15,7 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1, slice 7 next.** Slices 0–6 are built, verified against the live Supabase database and
+**Phase 1, slice 8 next.** Slices 0–7 are built, verified against the live Supabase database and
 committed. Phases 2–4 have not been started.
 
 | Slice | State |
@@ -27,7 +27,8 @@ committed. Phases 2–4 have not been started.
 | 4 Job types, templates, tickets | done |
 | 5 Ticket → job, lifecycle, SLA snapshots | done |
 | 6 Scheduling & dispatch | done |
-| 7–11 | not started |
+| 7 Technician PWA shell | done |
+| 8–11 | not started |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -37,9 +38,12 @@ side of the same work — creation by hand or from a ticket, the enforced status
 scheduling: a day/week board with drag-to-move, technician assignment with competency checks and
 warn-then-override clashes, leave, the on-call roster with gap detection, resource booking, priority
 bumps with a reason, and dispatch notifications built from the site, the crane history and the job
-type's checklist.
-**Not yet built:** the technician PWA (7), reports and PDFs (8–9), broader lists and dashboards (10),
-and the end-to-end happy path (11).
+type's checklist; and the technician's phone — an installable PWA at `/m/jobs` with a job list and job
+detail, an IndexedDB cache of the jobs, cranes, checklist items, parts and contacts, an offline
+indicator with retry, an `/offline` fallback that opens the deep-linked job from the cache, and a
+sign-out that wipes it.
+**Not yet built:** offline report completion (8), reports and PDFs (9), broader lists and dashboards
+(10), and the end-to-end happy path (11).
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
@@ -62,7 +66,9 @@ npm run build              # production build
 **Local notes.** Node is installed but not on `PATH` in this shell, so prefix commands with
 `export PATH="/c/Program Files/nodejs:$PATH" &&`. Git identity is set for this repository only. Each
 database round trip is ~700–900 ms (Seoul), so round-trip count in hot paths matters, and
-`test:e2e` runs a single worker for that reason.
+`test:e2e` runs a single worker for that reason. The service worker is off under `npm run dev` on
+purpose, so offline behaviour — including the offline half of the technician e2e test — is checked
+against `npm run build && npm start`.
 
 ### The Phase 1 slices
 

@@ -9,7 +9,8 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Architecture, data model, screens and the phase plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
-**Status:** Slice 6 (scheduling, dispatch and the on-call roster). See "What works today" below.
+**Status:** Slice 7 (the technician's phone: installable, cached, readable with no signal). See "What works
+today" below.
 
 ---
 
@@ -21,8 +22,8 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 | **PostgreSQL** | Either a hosted Supabase project (what this team uses) or the bundled Docker Compose service. |
 | **Docker** | Optional — only if you prefer a local database over Supabase. |
 
-There is nothing else to install. Playwright's browser is fetched by npm when the end-to-end tests
-first run (slice 9).
+There is nothing else to install. Playwright's Chromium is fetched by npm the first time the end-to-end
+tests run.
 
 ---
 
@@ -127,6 +128,40 @@ separate worker process. The full command list is in [`CLAUDE.md`](CLAUDE.md).
 ---
 
 ## What works today
+
+### Slice 7 — the technician's phone
+
+- **`/m/jobs`** is a phone screen: today's work first, then tomorrow, then the rest of the week by day,
+  then anything still waiting for a date. Each job opens **`/m/jobs/<id>`** — when and where, who to
+  ask for with a tap-to-call number, access and induction notes, the cranes with their recent reports
+  and certificates, a red **Do Not Operate** block for a restricted crane, and the job type's
+  checklist.
+- **It is offline-first.** A service worker (Serwist) caches the pages you have visited, and a sync
+  call downloads the technician's next jobs, cranes, checklist items, parts and site contacts into
+  IndexedDB (Dexie). With the network cut, the list still loads, and a deep link to a job you never
+  opened before renders from the cache behind a "No signal — showing what was saved on this phone"
+  panel. It re-syncs when the signal returns.
+- **It is installable.** `/m/manifest` declares the app with `start_url` and `scope` under `/m/`, so an
+  installed shortcut opens the phone screen rather than the office app. There is a theme colour, an
+  SVG icon, and the iOS-specific metadata Safari needs.
+- **Office logins are turned away.** `/m/jobs` is for somebody with a technician record; a dispatcher
+  who lands there is redirected to `/dashboard`, because an empty job list reads as "no work today".
+- **Signing out clears the cache first.** Site phones are shared, so the next person must not open the
+  app onto the previous technician's jobs.
+- **Offline is a production-only behaviour.** The service worker is deliberately disabled under
+  `npm run dev` — a worker that survives the dev server serves an hour-old page while you edit, and
+  the dev overlay cannot tell you that. To try it:
+  ```bash
+  npm run build
+  npm start            # http://localhost:3000
+  ```
+  Sign in as `ahmad@cimmeriancrane.example`, open `/m/jobs`, then in DevTools → Network choose
+  **Offline** and reload. `npm run test:e2e` includes this reload test and skips it against the dev
+  server, saying why.
+- **Tests** — 10 integration tests for the phone's read layer (own work only, finished work excluded,
+  another technician's job is a 404 rather than a 403, restricted cranes surfaced as warnings, the
+  sync bundle scoped to the technician's sites) and 4 end-to-end tests for the phone shell, the
+  office-login redirect, the manifest and the offline reload.
 
 ### Slice 6 — scheduling, dispatch and the on-call roster
 

@@ -5,7 +5,7 @@ import type { Capability } from '@/server/auth/permissions'
 import { getAuthContext } from '@/server/auth/context'
 import { can } from '@/server/auth/permissions'
 import { ROLE_LABELS } from '@/server/users/labels'
-import { signOutAction } from './actions'
+import { signOutAction } from '@/app/actions'
 
 /**
  * The office shell, and the real gate for everything inside it: `getAuthContext()` reads the user

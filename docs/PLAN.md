@@ -1155,8 +1155,19 @@ job, crane, report or customer reads.
 Each slice runs **database → service → API/action → UI → tests**, ends with `npm run verify`, a commit, and a
 3–5 line summary. Each is independently demoable.
 
-**Progress:** Slices 0–5 are **done**, each verified against the live Supabase database. Slices 4 and 5 are
-summarised below; the rest of this section is the plan as written.
+**Progress:** Slices 0–7 are **done**, each verified against the live Supabase database. Slice 7 (the
+technician PWA shell) is summarised below; the earlier slices are summarised in their own commits. The
+rest of this section is the plan as written.
+
+*Slice 7* — installable phone shell with a real offline story, split in three so that each part can be
+tested on its own: a **read layer** (`src/server/tech/my-jobs.ts`) that scopes every query through
+`jobReadWhere` and refuses anyone without a technician record; a **sync endpoint** (`/api/tech/sync`)
+that returns one bundle — jobs with their site details, crane history and checklist, plus the crane,
+checklist-item, part and contact reference rows — so the phone makes one round trip, not eight; and the
+**client** (Dexie cache, `SyncProvider`, `JobList`/`JobSheet`, Serwist worker with an `/offline`
+fallback). The server pages and the offline shell render the same two components, so the cached screen
+cannot drift from the live one. Offline is proved against a production build, not the dev server; see
+`docs/ASSUMPTIONS.md` items 46–50.
 
 *Slice 0* — typecheck, lint, unit, integration and end-to-end tests all pass. Two deviations from the plan as
 written, both recorded in the schema and migration rather than left implicit: the CHECK constraints live in their

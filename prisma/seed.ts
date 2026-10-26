@@ -1,6 +1,8 @@
 import { PrismaClient, type Role } from '@prisma/client'
+import { nextDocumentNumber } from '../src/server/documents/sequence'
 import { hashPassword } from '../src/server/auth/password'
 import { DEFAULT_SLA_POLICIES } from '../src/server/sla/sla'
+import { wallTimeToUtc } from '../src/lib/time'
 import { seedJobTypesAndTemplates } from './seed-templates'
 
 const db = new PrismaClient()
@@ -264,6 +266,262 @@ async function seedScheduling(): Promise<void> {
   console.log(`Seeded ${shifts} on-call shift(s).`)
 }
 
+/**
+ * A day's worth of real work for the demo: customers, sites, cranes, contacts and scheduled jobs.
+ *
+ * Only ever seeded into an *empty* database. Once the office has entered a customer of its own,
+ * anything this function added would be indistinguishable from their data — a demo crane at a demo
+ * site, sitting in with the real register. The count is the guard, not a flag somebody can forget to
+ * remove.
+ *
+ * Dates are relative to the day the seed runs, in the operating timezone, so the phone and the
+ * board are never empty no matter when somebody first opens the app.
+ */
+async function seedWork(): Promise<void> {
+  if ((await db.customer.count()) > 0) return
+
+  const technicians = await db.technician.findMany({
+    select: { id: true, employeeNo: true },
+  })
+  const ahmad = technicians.find((entry) => entry.employeeNo === 'T-001')
+  const raj = technicians.find((entry) => entry.employeeNo === 'T-002')
+  if (!ahmad || !raj) return
+
+  const settings = await db.setting.findUnique({ where: { key: 'timezone' } })
+  const timeZone = typeof settings?.value === 'string' ? settings.value : 'Asia/Singapore'
+
+  const jobType = async (code: string) => {
+    const row = await db.jobType.findUnique({ where: { code }, select: { id: true } })
+    if (!row) throw new Error(`Seed needs the ${code} job type; run the template seed first.`)
+    return row.id
+  }
+
+  const pmType = await jobType('PM')
+  const breakdownType = await jobType('BREAKDOWN')
+  const inspectionType = await jobType('VISUAL_INSPECTION')
+  const loadTestType = await jobType('LOAD_TEST')
+
+  const customers = [
+    {
+      legalName: 'Jurong Port Engineering Pte Ltd',
+      tradingName: 'Jurong Port Engineering',
+      uen: '200812345K',
+      site: {
+        name: 'Jurong Pier Works',
+        address: { line1: '31 Jurong Pier Road', city: 'Singapore', postalCode: '619195' },
+        accessNotes: 'Report to the guardhouse on the left of the gate. Bring photo ID.',
+        inductionRequirements: 'Site induction (15 min) before the first visit.',
+        operatingHours: '07:00–18:00, Monday to Saturday',
+      },
+      contact: {
+        name: 'Mei Ling Tan',
+        role: 'SITE_CONTACT' as const,
+        phone: '+65 9123 4567',
+        email: 'meiling.tan@jurongport.example',
+      },
+      cranes: [
+        {
+          assetTag: 'JPE-001',
+          type: 'OVERHEAD' as const,
+          swlKg: 10000,
+          brand: 'Konecranes',
+          locationOnSite: 'Bay 3, north aisle',
+          status: 'IN_SERVICE' as const,
+        },
+        {
+          assetTag: 'JPE-002',
+          type: 'GANTRY' as const,
+          swlKg: 25000,
+          brand: 'Demag',
+          locationOnSite: 'Container yard',
+          status: 'RESTRICTED' as const,
+          restrictedReason: 'Long travel brake failed its test. Do not operate until rectified.',
+        },
+      ],
+    },
+    {
+      legalName: 'Tuas Marine Works Pte Ltd',
+      tradingName: 'Tuas Marine',
+      uen: '201534567A',
+      site: {
+        name: 'Tuas Yard',
+        address: { line1: '8 Tuas Avenue 12', city: 'Singapore', postalCode: '639601' },
+        accessNotes: 'Hard hat and safety boots required past the barrier.',
+        inductionRequirements: null,
+        operatingHours: '24 hours',
+      },
+      contact: {
+        name: 'Ramasamy Perumal',
+        role: 'SITE_CONTACT' as const,
+        phone: '+65 9777 1234',
+        email: 'ram@tuasmarine.example',
+      },
+      cranes: [
+        {
+          assetTag: 'TMW-014',
+          type: 'MOBILE' as const,
+          swlKg: 40000,
+          brand: 'Liebherr',
+          locationOnSite: 'Quay 2',
+          status: 'IN_SERVICE' as const,
+        },
+      ],
+    },
+  ]
+
+  const created: Array<{ craneIds: string[]; siteId: string; customerId: string }> = []
+
+  for (const customer of customers) {
+    const customerRow = await db.customer.create({
+      data: {
+        legalName: customer.legalName,
+        tradingName: customer.tradingName,
+        uen: customer.uen,
+        status: 'ACTIVE',
+      },
+    })
+
+    const site = await db.site.create({
+      data: {
+        customerId: customerRow.id,
+        name: customer.site.name,
+        address: customer.site.address,
+        accessNotes: customer.site.accessNotes,
+        inductionRequirements: customer.site.inductionRequirements,
+        operatingHours: customer.site.operatingHours,
+      },
+    })
+
+    await db.contact.create({
+      data: {
+        customerId: customerRow.id,
+        siteId: site.id,
+        name: customer.contact.name,
+        role: customer.contact.role,
+        phone: customer.contact.phone,
+        email: customer.contact.email,
+        isPrimary: true,
+      },
+    })
+
+    const craneIds: string[] = []
+    for (const crane of customer.cranes) {
+      const craneRow = await db.crane.create({
+        data: {
+          siteId: site.id,
+          customerId: customerRow.id,
+          assetTag: crane.assetTag,
+          qrValue: crane.assetTag.toLowerCase(),
+          type: crane.type,
+          swlKg: crane.swlKg,
+          brand: crane.brand,
+          locationOnSite: crane.locationOnSite,
+          status: crane.status,
+          restrictedReason: 'restrictedReason' in crane ? crane.restrictedReason : null,
+          restrictedAt: crane.status === 'RESTRICTED' ? new Date() : null,
+        },
+      })
+      craneIds.push(craneRow.id)
+    }
+
+    created.push({ craneIds, siteId: site.id, customerId: customerRow.id })
+  }
+
+  // Wall-clock times in the operating zone on the given day offset, so "tomorrow at 08:00" means
+  // that wherever the seed is run from.
+  const at = (dayOffset: number, hour: number, minute = 0): Date => {
+    const today = new Date()
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(today)
+    const [year, month, day] = parts.split('-').map(Number) as [number, number, number]
+    return wallTimeToUtc(year, month, day + dayOffset, hour, minute, timeZone)
+  }
+
+  const jobs = [
+    {
+      customer: 0,
+      craneIndex: 0,
+      jobTypeId: pmType,
+      technicianId: ahmad.id,
+      status: 'SCHEDULED' as const,
+      priority: 'P3' as const,
+      description:
+        'Annual PM on the bay 3 overhead crane: brake adjustment, wire rope inspection, limit switches.',
+      start: at(1, 8),
+      end: at(1, 11),
+    },
+    {
+      customer: 1,
+      craneIndex: 0,
+      jobTypeId: breakdownType,
+      technicianId: ahmad.id,
+      status: 'DISPATCHED' as const,
+      priority: 'P1' as const,
+      description:
+        'Hoist will not lift above half load. Operator reports a burning smell from the panel.',
+      start: at(0, 14),
+      end: at(0, 17),
+    },
+    {
+      customer: 0,
+      craneIndex: 0,
+      jobTypeId: inspectionType,
+      technicianId: raj.id,
+      status: 'SCHEDULED' as const,
+      priority: 'P4' as const,
+      description: 'Six-monthly visual inspection, crane 1.',
+      start: at(2, 9),
+      end: at(2, 11),
+    },
+    {
+      customer: 1,
+      craneIndex: 0,
+      jobTypeId: loadTestType,
+      technicianId: raj.id,
+      status: 'SCHEDULED' as const,
+      priority: 'P3' as const,
+      description: 'Proof load test at 125% SWL with the 40 t weight set.',
+      start: at(3, 9),
+      end: at(3, 13),
+    },
+  ]
+
+  for (const job of jobs) {
+    const target = created[job.customer]
+    if (!target) continue
+    const craneId = target.craneIds[job.craneIndex]
+
+    const number = await nextDocumentNumber(db, 'JOB', { timeZone })
+    const jobRow = await db.job.create({
+      data: {
+        number,
+        jobTypeId: job.jobTypeId,
+        customerId: target.customerId,
+        siteId: target.siteId,
+        status: job.status,
+        priority: job.priority,
+        description: job.description,
+        scheduledStart: job.start,
+        scheduledEnd: job.end,
+      },
+    })
+
+    await db.jobTechnician.create({
+      data: { jobId: jobRow.id, technicianId: job.technicianId, isLead: true },
+    })
+
+    if (craneId) {
+      await db.jobCrane.create({ data: { jobId: jobRow.id, craneId } })
+    }
+  }
+
+  console.log(`Seeded ${customers.length} demo customer(s) and ${jobs.length} demo job(s).`)
+}
+
 async function main() {
   const defaults: Array<{ key: string; value: unknown; description: string }> = [
     {
@@ -326,6 +584,7 @@ async function main() {
 
   await seedUsers()
   await seedScheduling()
+  await seedWork()
 }
 
 main()

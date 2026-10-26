@@ -173,6 +173,39 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     itself is rendered from rows — access notes, the site contact, recent approved reports and certificates, the job
     type's checklist — so what the technician receives is assembled once rather than remembered under pressure.
 
+46. **The phone's sync is one request, not one per thing.** `/api/tech/sync` returns a single bundle: the
+    technician's open jobs with site details, crane history and checklist, plus the reference rows (cranes,
+    checklist items, parts, that technician's site contacts). A phone on one bar of signal at a site gate is
+    the worst place to run eight sequential requests, and a half-finished sync is worse than none — so the
+    bundle is fetched whole and written to IndexedDB in a single transaction that clears the old rows first.
+    The bundle carries the operating `timezone`, so a cached page formats dates as the office does rather than
+    in the phone's own zone.
+47. **The service worker is off in development.** A worker that survives `npm run dev` serves the page you were
+    looking at an hour ago while you edit, and the dev overlay cannot tell you that is why. So
+    `next.config.ts` disables Serwist when `NODE_ENV === 'development'`, and offline behaviour is verified
+    against `npm run build && npm start`. The Playwright offline test skips in dev with an explicit reason
+    rather than passing vacuously.
+48. **`/offline` reads `window.location` instead of being a generic apology.** A deep link to a job the phone
+    had never opened as its own document still must show *that* job, so the service worker's fallback serves
+    `/offline`, which parses the pathname and renders the job from Dexie. A static page that said "you are
+    offline" would technically satisfy the brief and would be useless on a site with no signal.
+49. **The manifest lives at `/m/manifest`, not `/manifest.webmanifest`.** Next reserves the conventional
+    filename: a route directory named `manifest.webmanifest` breaks the build outright
+    (`Invariant: no direct app page entry found for /_not-found`). Nothing requires the conventional name —
+    browsers read whatever the page's `<link rel="manifest">` points at. The icons are SVG with
+    `sizes: "any"`, which Chrome, Android and iOS all accept for vector art; a PNG ladder would be a binary
+    nobody here can edit.
+50. **Signing out on the phone clears the IndexedDB cache first.** Site phones are shared between technicians
+    and handed over at a shift change, so a cache that outlives the session would show the next person the
+    previous one's jobs. The cache is cleared, then the session ends. The service worker's document cache is
+    not purged, but those documents were fetched with a session and the server gate still applies to anything
+    it re-fetches.
+
+51. **Demo customers, cranes and jobs are seeded only into an empty register.** `seedWork()` returns
+    immediately if any customer exists, because the seed also runs against the real hosted database: demo
+    rows must never appear mixed into a live customer list. Dates are seeded through the same wall-clock
+    conversion the services use, so "tomorrow 08:00" is 00:00 UTC in Singapore, not 08:00 UTC.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

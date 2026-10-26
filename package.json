@@ -33,11 +33,14 @@
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@prisma/client": "^6.2.1",
+    "@serwist/next": "^9.5.13",
+    "dexie": "^4.4.7",
     "next": "^15.1.6",
     "next-auth": "^5.0.0-beta.32",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "serwist": "^9.5.13",
     "zod": "^3.24.1"
   },
   "devDependencies": {

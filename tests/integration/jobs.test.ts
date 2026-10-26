@@ -408,6 +408,10 @@ describe('reading jobs', () => {
       const finance = await makeUser(tx, 'FINANCE')
       const base = await craneFixtures(tx)
 
+      // Counts are taken as a delta: the hosted database carries seeded demo jobs, so an absolute
+      // length would be asserting how full the database is rather than whether listing works.
+      const before = await listJobs(contextFor(finance), {}, tx)
+
       const job = await createJob(
         contextFor(dispatcher),
         jobInput(base, { craneIds: [base.crane.id] }),
@@ -416,7 +420,9 @@ describe('reading jobs', () => {
 
       const seen = await getJob(contextFor(finance), job.id, tx)
       expect(seen.number).toBe(job.number)
-      expect(await listJobs(contextFor(finance), {}, tx)).toHaveLength(1)
+      const after = await listJobs(contextFor(finance), {}, tx)
+      expect(after).toHaveLength(before.length + 1)
+      expect(after.map((row) => row.id)).toContain(job.id)
 
       await expect(
         updateJob(contextFor(finance), job.id, { description: 'Changed by finance' }, tx),
@@ -445,6 +451,10 @@ describe('reading jobs', () => {
       const base = await craneFixtures(tx)
       const context = contextFor(dispatcher)
 
+      // Same reason as above: the dashboard tiles count every open job in the database, which
+      // includes the seeded demo work. The baseline makes this a test of the counting rules.
+      const before = await openJobStats(context, tx)
+
       await createJob(context, jobInput(base, { craneIds: [base.crane.id], priority: 'P1' }), tx)
       const settled = await createJob(
         context,
@@ -457,9 +467,10 @@ describe('reading jobs', () => {
       })
 
       const stats = await openJobStats(context, tx)
-      expect(stats.open).toBe(1)
-      expect(stats.p1Open).toBe(1)
-      expect(stats.onHold).toBe(0)
+      // The P1 is open and counts as a P1; the cancelled one is gone; nothing is on hold.
+      expect(stats.open).toBe(before.open + 1)
+      expect(stats.p1Open).toBe(before.p1Open + 1)
+      expect(stats.onHold).toBe(before.onHold)
     })
   })
 })
