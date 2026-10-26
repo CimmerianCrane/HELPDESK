@@ -1195,6 +1195,19 @@ Build order: `reportReadWhere` → report service + validation tests → storage
 the form with Dexie autosave → the outbox endpoint with the replay test → Playwright offline completion.
 `KICKOFF.md` carries the same list with the file paths, as the entry point for the next session.
 
+*Slice 8 as built* — the four decisions above held, with five details worth recording because slice 9 inherits
+them. **No server-side drafts:** a draft is a Dexie row until submit, so the phone is the only place one exists
+and the server never holds a report the technician has not signed. **Files attach to the job, not the report:**
+photos and signatures are uploaded before the report exists (`File.entity = 'Job'`, `jobId` set), and the report
+refers to them by id; a client-generated file id makes a retried upload an upsert. **Checklist answers live in a
+reserved `Report.data.checklist` key** keyed by `ChecklistItem.code`, validated against the checklist template
+the job type points at, because the checklist and report templates are versioned independently. **The outbox
+item id is the report id**, so re-queuing after a failed upload replaces the item rather than adding a second;
+the server's `SyncReceipt` uses the same id inside the submission transaction. **Disk uploads are signed with an
+HMAC token** (`/api/files/store?key=…&token=…`) because the disk driver has no bucket to issue its own URL, and
+`verifyUploadToken` is unit-tested for tampering and expiry. A template version mismatch is refused rather than
+migrated; the phone detects the drift when it loads the draft and starts the form again with a notice.
+
 *Slice 0* — typecheck, lint, unit, integration and end-to-end tests all pass. Two deviations from the plan as
 written, both recorded in the schema and migration rather than left implicit: the CHECK constraints live in their
 own migration (`20261026103300_reason_required_constraints`) instead of being appended to the init migration,

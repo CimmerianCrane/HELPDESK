@@ -10,14 +10,33 @@ import { useTechSync } from '@/offline/use-tech-sync'
  * them can still be trusted.
  */
 export function SyncStatus() {
-  const { online, syncing, lastSynced, error, sync } = useTechSync()
+  const { online, syncing, lastSynced, pending, error, sync } = useTechSync()
 
   const stamp = lastSynced
     ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(lastSynced)
     : null
 
   if (syncing) {
-    return <p className="text-xs text-slate-500">Syncing…</p>
+    return (
+      <p className="text-xs text-slate-500">
+        {pending > 0 ? `Sending ${pending} report${pending === 1 ? '' : 's'}…` : 'Syncing…'}
+      </p>
+    )
+  }
+
+  // Finished field work that has not reached the office is the one thing a technician must not miss.
+  if (pending > 0) {
+    return (
+      <p className="flex items-center gap-2 text-xs text-amber-800">
+        <span className="inline-block h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+        <span>
+          {pending} report{pending === 1 ? '' : 's'} waiting to upload
+        </span>
+        <button type="button" onClick={() => void sync()} className="underline underline-offset-2">
+          Retry
+        </button>
+      </p>
+    )
   }
 
   if (!online || error) {

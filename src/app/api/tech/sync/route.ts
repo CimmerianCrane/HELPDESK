@@ -2,6 +2,7 @@ import { errorMessage } from '@/lib/logger'
 import { getAuthContext } from '@/server/auth/context'
 import { isAppError } from '@/server/auth/errors'
 import { syncBundle } from '@/server/tech/my-jobs'
+import { applyTechSync, parseSyncRequest } from '@/server/tech/outbox'
 
 /**
  * One call that fills a technician's phone.
@@ -26,6 +27,29 @@ export async function GET() {
     return Response.json(bundle, {
       headers: { 'Cache-Control': 'no-store' },
     })
+  } catch (error) {
+    if (isAppError(error)) {
+      return Response.json({ error: error.message, code: error.code }, { status: error.status })
+    }
+    return Response.json({ error: errorMessage(error) }, { status: 500 })
+  }
+}
+
+/**
+ * Applies the phone's queued work. The answer is 200 even when individual items were refused: the
+ * phone needs a per-item reason it can show against the right report, and retrying the whole batch
+ * because one was rejected would resend work the server already accepted.
+ */
+export async function POST(request: Request) {
+  const context = await getAuthContext()
+  if (!context) {
+    return Response.json({ error: 'You must sign in to sync.' }, { status: 401 })
+  }
+
+  try {
+    const { items } = parseSyncRequest(await request.json())
+    const results = await applyTechSync(context, items)
+    return Response.json({ results }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     if (isAppError(error)) {
       return Response.json({ error: error.message, code: error.code }, { status: error.status })

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { JobList } from '@/components/tech/job-list'
 import { JobSheet } from '@/components/tech/job-sheet'
+import { ReportForm } from '@/components/tech/report-form'
 import { cachedJobs, cachedTimeZone } from '@/offline/db'
 
 /**
@@ -20,12 +21,22 @@ export function OfflineShell() {
     jobs: Awaited<ReturnType<typeof cachedJobs>>
     timeZone: string
     jobId: string | null
+    craneId: string | null
   } | null>(null)
 
   useEffect(() => {
-    const match = /^\/m\/jobs\/([^/]+)\/?$/.exec(window.location.pathname)
+    const path = window.location.pathname
+    const report = /^\/m\/jobs\/([^/]+)\/report\/?$/.exec(path)
+    const match = report ?? /^\/m\/jobs\/([^/]+)\/?$/.exec(path)
     void Promise.all([cachedJobs(), cachedTimeZone()]).then(([jobs, timeZone]) => {
-      setState({ jobs, timeZone: timeZone ?? 'UTC', jobId: match?.[1] ?? null })
+      setState({
+        jobs,
+        timeZone: timeZone ?? 'UTC',
+        jobId: match?.[1] ?? null,
+        craneId: report
+          ? new URLSearchParams(window.location.search).get('crane')
+          : null,
+      })
     })
   }, [])
 
@@ -34,6 +45,8 @@ export function OfflineShell() {
   }
 
   const job = state.jobId ? state.jobs.find((entry) => entry.id === state.jobId) : undefined
+  const reportCrane =
+    job && state.craneId ? job.cranes.find((crane) => crane.id === state.craneId) : undefined
 
   return (
     <div className="space-y-5">
@@ -51,7 +64,21 @@ export function OfflineShell() {
         </button>
       </div>
 
-      {job ? (
+      {job && state.craneId ? (
+        reportCrane ? (
+          <div className="space-y-5">
+            <a
+              href={`/m/jobs/${job.id}`}
+              className="text-sm font-medium text-blue-700 underline underline-offset-2"
+            >
+              ← {job.number}
+            </a>
+            <ReportForm job={job} crane={reportCrane} />
+          </div>
+        ) : (
+          <p className="text-slate-700">That crane is not saved on this phone.</p>
+        )
+      ) : job ? (
         <JobSheet job={job} timeZone={state.timeZone} />
       ) : state.jobId ? (
         <>

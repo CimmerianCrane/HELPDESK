@@ -9,7 +9,7 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Architecture, data model, screens and the phase plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
-**Status:** Slice 7 (the technician's phone: installable, cached, readable with no signal). See "What works
+**Status:** Slice 8 (offline report completion, queued and synced exactly once). See "What works
 today" below.
 
 ---
@@ -128,6 +128,34 @@ separate worker process. The full command list is in [`CLAUDE.md`](CLAUDE.md).
 ---
 
 ## What works today
+
+### Slice 8 — completing a report on the phone
+
+- **Fill report** on a job's crane opens `/m/jobs/<id>/report?crane=<craneId>`. The form is built from
+  the job type's report template: fields, repeated table rows (findings, parts), the checklist with
+  measurements, photos, both signatures, and the "is it safe to operate?" question every report ends
+  with. It is the company's inspection, never an AE's statutory certificate.
+- **Nothing is lost between taps.** The draft is written to IndexedDB every couple of seconds, and a
+  photo or signature is kept on the phone until the office has the report. Closing the tab, losing
+  signal or reloading reopens the same draft.
+- **Submitting queues before it sends.** The report goes into an outbox with ids generated on the
+  phone. The sync endpoint uploads each photo and signature to storage, then writes the report,
+  findings, stock movements and audit entries in one transaction with a `SyncReceipt` keyed by the
+  phone's id — so a retry after a dropped connection returns the first result instead of creating a
+  second report. A second report for the same job and crane is recorded in `ConflictLog` and the
+  technician's data wins.
+- **The header says what is happening:** "N reports waiting to upload" with Retry, which is also the
+  pending badge. A report already on the server shows as submitted rather than offering a second one.
+- **Parts are stock movements.** Choosing a part in the form writes an `ISSUE` `StockMovement` when
+  the report lands, never a JSON list. Photos are compressed to 1600px JPEG on the phone and the size
+  and type are checked again on the server.
+- **To try it:** sign in as `ahmad@cimmeriancrane.example` / `cimmerian-dev-2026`, open his breakdown
+  job, tap **Fill report**, answer the checklist, sign, then DevTools → Network → **Offline** and
+  submit. Turn the network back on and the header flushes the queue.
+- **Tests** — 20 unit tests for report validation and upload-token signing, 8 integration tests
+  (template drift refused, another technician's job is a 404, replay creates one report, conflicts
+  logged, parts become movements) and one end-to-end test that submits offline and asserts exactly one
+  report with an audit entry once the signal returns.
 
 ### Slice 7 — the technician's phone
 

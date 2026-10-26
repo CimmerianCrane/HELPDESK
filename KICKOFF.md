@@ -15,7 +15,7 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1, slice 8 next.** Slices 0–7 are built, verified against the live Supabase database and
+**Phase 1, slice 9 next.** Slices 0–8 are built, verified against the live Supabase database and
 committed. Phases 2–4 have not been started.
 
 | Slice | State |
@@ -28,7 +28,8 @@ committed. Phases 2–4 have not been started.
 | 5 Ticket → job, lifecycle, SLA snapshots | done |
 | 6 Scheduling & dispatch | done |
 | 7 Technician PWA shell | done |
-| 8–11 | not started |
+| 8 Offline report completion | done |
+| 9–11 | not started |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -41,8 +42,11 @@ bumps with a reason, and dispatch notifications built from the site, the crane h
 type's checklist; and the technician's phone — an installable PWA at `/m/jobs` with a job list and job
 detail, an IndexedDB cache of the jobs, cranes, checklist items, parts and contacts, an offline
 indicator with retry, an `/offline` fallback that opens the deep-linked job from the cache, and a
-sign-out that wipes it.
-**Not yet built:** offline report completion (8), reports and PDFs (9), broader lists and dashboards
+sign-out that wipes it; and the report form behind **Fill report** — template-driven sections and
+tables, the checklist with measurements, photos compressed on the phone, parts issued as stock
+movements, findings, both signatures (or a reason the customer did not sign), autosave into Dexie,
+and an outbox flushed by a single idempotent sync endpoint with a pending badge and retry.
+**Not yet built:** report approval, locking, amendment and PDF (9), broader lists and dashboards
 (10), and the end-to-end happy path (11).
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
@@ -94,65 +98,27 @@ technician → offline report with photos and both signatures → sync → appro
 
 ---
 
-## Pick up here: slice 8 — completing the report on the phone
+## Slice 8 is done — next is slice 9
 
-**Goal:** a technician completes an entire report on the phone with no signal — checklist with
-measurements, photos, parts used, findings, both signatures — and it reaches the office correctly
-**once**, even though the phone retried the upload four times on the way back into coverage.
+**Goal of the next slice (9):** approval, locking and PDF — a submitted report becomes a document with a
+number, an approval trail and an amendment path. The canonical description is `docs/PLAN.md` §6 (slice 9)
+and the slice table above; the brief section is §12.7.
 
-This section exists so that a fresh session can start work without re-reading everything above.
-
-### Already built, and what slice 8 must reuse
+What slice 8 added, so slice 9 builds on it rather than beside it:
 
 | Need | Where it is |
 |---|---|
-| The phone's read layer, and its one-request sync bundle | `src/server/tech/my-jobs.ts`, `src/app/api/tech/sync/route.ts` |
-| IndexedDB tables and the single-transaction cache write | `src/offline/db.ts` |
-| Sync state, the "No signal" panel, retry | `src/offline/use-tech-sync.tsx` |
-| The screens the report form sits beside | `src/components/tech/job-sheet.tsx`, `job-list.tsx` |
-| The checklist the phone already receives | `TechChecklistItem` in `my-jobs.ts` — `section`, `code`, `label`, `resultType`, `unit`, `requiresMeasurement` |
-| The shape `Report.data` has to satisfy | `src/lib/templates/schema.ts` — `fields` sections are one answer map keyed by field `key`; `layout: 'table'` sections are arrays of row objects, also keyed by field `key`. `Report.data` is validated against the **template version** stored on the report |
-| Storage for photos and signatures | `Report`, `Finding`, `File`, `SyncReceipt`, `ConflictLog`, `StockMovement` are **already in the schema** — no migration needed for the core shapes |
+| Report validation and submission | `src/server/reports/reports.ts`, `src/lib/validation/reports.ts` |
+| Outbox application and idempotency | `src/server/tech/outbox.ts`, `POST /api/tech/sync` |
+| Photo and signature storage | `src/server/storage/storage.ts`, `src/server/storage/files.ts` |
+| The phone form, its draft and its queue | `src/components/tech/report-form.tsx`, `src/offline/db.ts`, `src/offline/outbox.ts` |
+| The template shape a PDF must render | `src/lib/templates/schema.ts` |
 
-### Not built yet — slice 8 creates these
-
-- **A storage adapter** — `disk` | `supabase`, both already declared in `src/lib/env.ts` — and a file
-  service behind it. Photos and signatures are `File` rows. Upload **direct from the browser with a
-  signed URL**; never through a server action, because Vercel caps a function request body at 4.5 MB.
-- **A report service** (`src/server/reports/`): load or create a draft, validate `data` against the
-  template version, attach findings, issue parts, submit. Add `reportReadWhere` to `src/server/auth/scope.ts`
-  **before** the first service, so the fail-closed default is in place from the start.
-- **An outbox** — client-generated ids, one idempotent sync endpoint, `SyncReceipt` keyed by the
-  client's id so a replay upserts rather than duplicates.
-- **A Dexie draft table** and the form that autosaves into it every few seconds.
-
-### Suggested order
-
-1. `reportReadWhere` + report service + Zod schemas; integration tests for draft/submit/scope.
-2. Storage adapter + file service + a signed-upload route; test the adapter, not Supabase.
-3. The phone form: checklist renderer from `TemplateSchema`, findings, parts, signatures; autosave to Dexie.
-4. The outbox and the sync endpoint, with the idempotency test that replays the same payload twice.
-5. Playwright: complete a report offline, come back online, assert exactly one report exists.
-
-### Decisions already locked that slice 8 must respect
-
-- **Never lose field data.** Drafts are written to IndexedDB every few seconds, and the outbox
-  survives a reload and a closed tab.
-- **Field data wins.** The technician's own report beats office edits; office scheduling edits never
-  overwrite field data. Every automatic resolution goes to `ConflictLog`.
-- **Parts used on a job are `StockMovement`s**, not a JSON list on the report — stock quantities only
-  ever change that way (CLAUDE.md rule 10).
-- **Company inspection, never a statutory certificate.** The wording on the form and the PDF must not
-  imply the AE's certificate; that distinction is CLAUDE.md rule 3.
-- **Signatures carry a name and a timestamp**, and "customer unavailable / declined" is a reason, not
-  a blank signature.
-- **Photos are compressed on the phone** before upload, and the type and size are validated again on
-  the server — the client is not a trust boundary.
-- The service worker is **off under `npm run dev`**, so offline behaviour is checked against
-  `npm run build && npm start`.
-
-Then the gate is the same four commands as every slice (see "Where the build stands" above), and the
-commit must update this file, `README.md`, `docs/PLAN.md` and `docs/ASSUMPTIONS.md` alongside the code.
+Facts slice 9 needs that slice 8 settled (also in `docs/ASSUMPTIONS.md` items 52–60): a submitted report is
+`SUBMITTED` and immutable; `Report.data` holds the template answers plus a reserved `checklist` key;
+findings exist as rows and inside `data.findings`; parts used are `StockMovement` rows; photos and
+signatures are `File` rows attached to the job; and the disk storage driver has no download URL yet, which
+slice 9's PDF embedding is the first thing to need.
 
 ---
 

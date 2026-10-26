@@ -1,6 +1,7 @@
 'use client'
 
 import Dexie, { type Table } from 'dexie'
+import type { ChecklistAnswer } from '@/lib/validation/reports'
 import type {
   SyncBundle,
   TechChecklistItem,
@@ -43,6 +44,67 @@ export interface CachedMeta {
   value: string
 }
 
+export interface DraftPart {
+  partNumber: string
+  description: string
+  quantity: number
+  serialOrBatch: string | null
+}
+
+/** Everything one report needs, kept in the same shape whether it is a draft or queued. */
+export interface DraftPayload {
+  /** Client-generated before the phone has any signal; the server stores it as `Report.id`. */
+  id: string
+  jobId: string
+  craneId: string
+  templateId: string
+  templateVersion: number
+  data: Record<string, unknown>
+  checklist: Record<string, ChecklistAnswer>
+  parts: DraftPart[]
+  /** Local file ids, resolved to server File ids only when the item is flushed. */
+  photoIds: string[]
+  technicianSignerName: string
+  technicianSignatureId: string | null
+  customerSignerName: string
+  customerSignerDesignation: string
+  customerSignatureId: string | null
+  customerDeclinedReason: string
+}
+
+export interface ReportDraft extends DraftPayload {
+  updatedAt: string
+}
+
+/**
+ * A photo or signature as it exists on the phone. `dataUrl` is the compressed image; it is a Blob in
+ * spirit and is kept out of `jobs` so a sync replaces the server data without touching field work.
+ */
+export interface LocalFile {
+  id: string
+  jobId: string
+  kind: 'PHOTO' | 'SIGNATURE'
+  filename: string
+  mimeType: string
+  sizeBytes: number
+  dataUrl: string
+  /** Set once the bytes are in storage, so a retry does not upload them again. */
+  uploadedAs: string | null
+  createdAt: string
+}
+
+export interface OutboxItem {
+  /** The mutation id: the server's `SyncReceipt` key, which is what makes a replay a no-op. */
+  id: string
+  kind: 'report.submit'
+  jobId: string
+  reportId: string
+  payload: DraftPayload
+  createdAt: string
+  attempts: number
+  lastError: string | null
+}
+
 class TechDatabase extends Dexie {
   jobs!: Table<CachedJob, string>
   cranes!: Table<TechCrane, string>
@@ -50,6 +112,9 @@ class TechDatabase extends Dexie {
   parts!: Table<CachedPart, string>
   contacts!: Table<CachedContact, string>
   meta!: Table<CachedMeta, string>
+  drafts!: Table<ReportDraft, string>
+  files!: Table<LocalFile, string>
+  outbox!: Table<OutboxItem, string>
 
   constructor() {
     super('cimmerian-tech')
@@ -63,6 +128,13 @@ class TechDatabase extends Dexie {
       contacts: 'id, siteId',
       meta: 'key',
     })
+
+    // Slice 8: field work that must survive a failed upload, a reload and a closed tab.
+    this.version(2).stores({
+      drafts: 'id, jobId, craneId, updatedAt',
+      files: 'id, jobId, kind',
+      outbox: 'id, createdAt',
+    })
   }
 }
 
@@ -74,6 +146,7 @@ export const techDb = new TechDatabase()
 
 export const LAST_SYNCED_KEY = 'lastSyncedAt'
 export const TIMEZONE_KEY = 'timeZone'
+export const TECHNICIAN_NAME_KEY = 'technicianName'
 
 /**
  * Replaces the cache in one transaction.
@@ -110,6 +183,8 @@ export async function storeBundle(bundle: SyncBundle): Promise<void> {
       await techDb.meta.bulkPut([
         { key: LAST_SYNCED_KEY, value: bundle.generatedAt },
         { key: TIMEZONE_KEY, value: bundle.timeZone },
+        // Kept so a report signed offline carries the name the server would have put on it.
+        { key: TECHNICIAN_NAME_KEY, value: bundle.technicianName },
       ])
     },
   )
@@ -150,7 +225,17 @@ export async function cachedTimeZone(): Promise<string | null> {
 export async function clearCache(): Promise<void> {
   await techDb.transaction(
     'rw',
-    [techDb.jobs, techDb.cranes, techDb.checklistItems, techDb.parts, techDb.contacts, techDb.meta],
+    [
+      techDb.jobs,
+      techDb.cranes,
+      techDb.checklistItems,
+      techDb.parts,
+      techDb.contacts,
+      techDb.meta,
+      techDb.drafts,
+      techDb.files,
+      techDb.outbox,
+    ],
     async () => {
       await Promise.all([
         techDb.jobs.clear(),
@@ -159,6 +244,9 @@ export async function clearCache(): Promise<void> {
         techDb.parts.clear(),
         techDb.contacts.clear(),
         techDb.meta.clear(),
+        techDb.drafts.clear(),
+        techDb.files.clear(),
+        techDb.outbox.clear(),
       ])
     },
   )

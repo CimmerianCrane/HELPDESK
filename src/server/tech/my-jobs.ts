@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { db, type Tx } from '@/lib/db'
+import { templateSchema, type TemplateSchema } from '@/lib/templates/schema'
 import { ForbiddenError, NotFoundError } from '@/server/auth/errors'
 import { assertCan } from '@/server/auth/permissions'
 import { jobReadWhere } from '@/server/auth/scope'
@@ -22,6 +23,8 @@ import { getSettings } from '@/server/settings/settings'
 const OPEN_STATUSES = ['TRIAGED', 'SCHEDULED', 'DISPATCHED', 'IN_PROGRESS'] as const
 
 export interface TechCrane {
+  /** The report form records one report per crane, so the phone needs the id as well as the tag. */
+  id: string
   assetTag: string
   type: string
   swlKg: string
@@ -57,6 +60,20 @@ export interface TechChecklistItem {
   requiresMeasurement: boolean
 }
 
+export interface TechReportTemplate {
+  id: string
+  version: number
+  name: string
+  schema: TemplateSchema
+}
+
+export interface TechReportSummary {
+  id: string
+  craneId: string
+  status: string
+  submittedAt: string | null
+}
+
 export interface TechJobDetail extends TechJobSummary {
   description: string | null
   accessNotes: string | null
@@ -67,6 +84,10 @@ export interface TechJobDetail extends TechJobSummary {
   crew: Array<{ name: string; isLead: boolean }>
   cranes: TechCrane[]
   checklist: TechChecklistItem[]
+  /** The report the technician fills in. Null when the job type has no template attached. */
+  reportTemplate: TechReportTemplate | null
+  /** Already submitted for this job, so the phone can say so instead of offering a second one. */
+  reports: TechReportSummary[]
   /** Everything the phone must say out loud before somebody climbs: restrictions, missing access. */
   warnings: string[]
 }
@@ -117,7 +138,9 @@ const jobSelect = {
   description: true,
   scheduledStart: true,
   scheduledEnd: true,
-  jobType: { select: { name: true, defaultChecklistTemplateId: true } },
+  jobType: {
+    select: { name: true, defaultChecklistTemplateId: true, defaultReportTemplateId: true },
+  },
   customer: { select: { legalName: true, tradingName: true } },
   site: {
     select: {
@@ -237,22 +260,49 @@ async function toDetail(
     row.cranes.map((entry) => entry.crane.id),
   )
 
-  const checklist = row.jobType.defaultChecklistTemplateId
-    ? await client.checklistItem.findMany({
-        where: { templateId: row.jobType.defaultChecklistTemplateId },
-        orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
-        select: {
-          section: true,
-          code: true,
-          label: true,
-          resultType: true,
-          unit: true,
-          requiresMeasurement: true,
-        },
-      })
-    : []
+  const [checklist, templateRow, reports] = await Promise.all([
+    row.jobType.defaultChecklistTemplateId
+      ? client.checklistItem.findMany({
+          where: { templateId: row.jobType.defaultChecklistTemplateId },
+          orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
+          select: {
+            section: true,
+            code: true,
+            label: true,
+            resultType: true,
+            unit: true,
+            requiresMeasurement: true,
+          },
+        })
+      : Promise.resolve([]),
+    row.jobType.defaultReportTemplateId
+      ? client.reportTemplate.findUnique({
+          where: { id: row.jobType.defaultReportTemplateId },
+          select: { id: true, version: true, name: true, schema: true },
+        })
+      : Promise.resolve(null),
+    client.report.findMany({
+      where: { jobId: row.id },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, craneId: true, status: true, submittedAt: true },
+    }),
+  ])
+
+  // A template that no longer parses is shown as absent rather than crashing the whole sync. The
+  // form then says the office needs to check it, which is the actionable truth.
+  const parsedTemplate = templateRow ? templateSchema.safeParse(templateRow.schema) : null
+  const reportTemplate: TechReportTemplate | null =
+    templateRow && parsedTemplate?.success
+      ? {
+          id: templateRow.id,
+          version: templateRow.version,
+          name: templateRow.name,
+          schema: parsedTemplate.data,
+        }
+      : null
 
   const cranes: TechCrane[] = row.cranes.map(({ crane }) => ({
+    id: crane.id,
     assetTag: crane.assetTag,
     type: crane.type,
     swlKg: crane.swlKg.toString(),
@@ -299,6 +349,13 @@ async function toDetail(
       isLead: entry.isLead,
     })),
     checklist,
+    reportTemplate,
+    reports: reports.map((report) => ({
+      id: report.id,
+      craneId: report.craneId,
+      status: report.status,
+      submittedAt: iso(report.submittedAt),
+    })),
     warnings,
   }
 }

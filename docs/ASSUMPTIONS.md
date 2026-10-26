@@ -206,6 +206,46 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     rows must never appear mixed into a live customer list. Dates are seeded through the same wall-clock
     conversion the services use, so "tomorrow 08:00" is 00:00 UTC in Singapore, not 08:00 UTC.
 
+52. **A report draft exists only on the phone.** There is no `DRAFT` row in Postgres while the technician is
+    filling the form: the draft is a Dexie row, written every couple of seconds, and submitting creates the
+    report with the id the phone generated before it went offline. The office therefore never sees a
+    half-finished report, and the server never holds a report the technician has not signed.
+53. **Checklist answers are stored in a reserved `Report.data.checklist` key**, keyed by `ChecklistItem.code`.
+    The checklist template and the report template are versioned independently, so answers cannot be keyed by
+    report field key. The submission validates them against the checklist template the **job type** points at,
+    and the key is reserved: a report template may not declare a form field called `checklist`.
+54. **Photos and signatures attach to the job, not to the report.** They are uploaded before the report row
+    exists, so `File.entity = 'Job'` with `jobId` set; the report refers to them by id. The id is generated on
+    the phone, which makes a retried upload upsert the same `File` row instead of leaving an orphan. Storage
+    keys are `jobs/<jobId>/<fileId>.<ext>`.
+55. **The outbox item id is the report id.** Re-queueing after a failed upload therefore replaces the item
+    rather than adding a second, and the server's `SyncReceipt` is keyed by the same id inside the submission
+    transaction. Once the server has accepted a report, editing and resubmitting on the phone is a no-op that
+    returns the first result: a submitted report is immutable (CLAUDE.md rule 5).
+56. **A rejected queued report stays queued, with the server's reason on screen.** The form does not discard
+    field data it cannot yet explain; the technician can reopen the draft, correct it and submit again, and
+    the queue retries the same id. A validation rule that will never pass is treated the same way — the
+    message is the actionable part, and the data is not thrown away to clear the badge.
+57. **The disk storage driver has no download URL yet.** `signedDownloadUrl` throws for `disk` on purpose:
+    nothing in slice 8 reads a file back (the phone keeps the bytes until upload, and the office has no report
+    viewer). Slice 9's PDF embedding is the first caller, and adding it is a route plus a token extension
+    rather than a redesign.
+58. **Issuing a part writes a `StockMovement` with no source location.** The van bins and the
+    `StockLevel` reconciliation arrive in Phase 3; until then the movement records what left stock, for which
+    job and report, at what cost — which is the audit trail, even though no on-hand count moves yet.
+59. **Supabase uploads are not size-checked server-side.** The browser PUTs straight to Storage with a signed
+    URL, so the server never sees the bytes; it checks the declared type and size and re-checks them on the
+    disk driver, which does receive them. A bucket-level file size limit is the production control, and is
+    noted here because it is a real difference between the two drivers rather than an oversight.
+60. **A draft started under an older report template is restarted.** Submission refuses a template version the
+    phone did not render, so the form detects the mismatch when it loads the draft and starts again with a
+    notice. The old answers cannot be submitted against the new shape, and keeping them on screen would let a
+    technician finish a form that cannot be sent.
+61. **The technician's name is prefilled from the signed-in session, not from the cache.** The online report
+    page passes the authenticated user's name into the form; the offline shell falls back to the name saved
+    with the sync bundle. The bundle can land after the form opens, and depending on it for a required field
+    left the name blank and the submit refused with no explanation of why.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

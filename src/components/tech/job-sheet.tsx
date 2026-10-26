@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { formatDate, formatDateTime } from '@/lib/format'
 import { JOB_STATUS_LABELS } from '@/server/jobs/labels'
 import type { TechJobDetail } from '@/server/tech/my-jobs'
@@ -145,7 +146,10 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
             Cranes
           </h2>
           <ul className="mt-2 space-y-4">
-            {job.cranes.map((crane) => (
+            {job.cranes.map((crane) => {
+              // A bundle cached before slice 8 has neither field; it gets no link rather than an error.
+              const report = (job.reports ?? []).find((entry) => entry.craneId === crane.id)
+              return (
               <li key={crane.assetTag} className="border-t border-slate-100 pt-3 first:border-0 first:pt-0">
                 <p className="font-medium text-slate-900">{crane.assetTag}</p>
                 <p className="text-sm text-slate-600">
@@ -169,8 +173,24 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
                     Nothing on record for this machine.
                   </p>
                 )}
+                {job.reportTemplate && crane.id && (
+                  report ? (
+                    <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900">
+                      Report {report.status.toLowerCase().replace(/_/g, ' ')}
+                      {report.submittedAt && ` · ${formatDate(new Date(report.submittedAt), timeZone)}`}
+                    </p>
+                  ) : (
+                    <Link
+                      href={`/m/jobs/${job.id}/report?crane=${crane.id}`}
+                      className="mt-3 inline-block rounded-lg bg-slate-900 px-4 py-2 font-medium text-white"
+                    >
+                      Fill report
+                    </Link>
+                  )
+                )}
               </li>
-            ))}
+              )
+            })}
           </ul>
         </section>
       )}

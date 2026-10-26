@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactNode } from 'react'
 import type { SyncBundle } from '@/server/tech/my-jobs'
 import { lastSyncedAt, storeBundle } from './db'
+import { flushOutbox, pendingCount } from './outbox'
 
 /**
  * Keeps the phone's cache up to date and tells the screens how stale it is.
@@ -22,8 +23,11 @@ export interface TechSyncState {
   online: boolean
   syncing: boolean
   lastSynced: Date | null
+  /** Reports finished on this phone and not yet accepted by the server. */
+  pending: number
   error: string | null
   sync: () => Promise<void>
+  refreshPending: () => Promise<void>
 }
 
 const TechSyncContext = createContext<TechSyncState | null>(null)
@@ -34,6 +38,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
+  const [pending, setPending] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   // One sync at a time. The mount sync and the "back online" event can otherwise overlap after a
@@ -50,6 +55,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     inFlight.current = true
     setSyncing(true)
     try {
+      // Queue first: the bundle fetched below is what tells the phone a report is already in, so
+      // sending before reading means a report just completed shows as submitted rather than as an
+      // empty form for a second visit.
+      const flushed = await flushOutbox()
+      setPending(await pendingCount())
+      if (flushed.errors.length > 0) {
+        // Deliberately not fatal: a refused report must not stop the rest of the day's work from
+        // syncing, and the queue is still on the phone for the next attempt.
+        setError(flushed.errors[0])
+      }
+
       const response = await fetch('/api/tech/sync', {
         cache: 'no-store',
         headers: { accept: 'application/json' },
@@ -68,7 +84,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const bundle = (await response.json()) as SyncBundle
       await storeBundle(bundle)
       setLastSynced(new Date(bundle.generatedAt))
-      setError(null)
+      if (flushed.errors.length === 0) setError(null)
     } catch {
       // A network failure is not a bug: it is the normal state of a lift shaft.
       setError('No signal. Showing what was saved on this phone.')
@@ -78,8 +94,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const refreshPending = useCallback(async () => {
+    setPending(await pendingCount())
+  }, [])
+
   useEffect(() => {
     setOnline(navigator.onLine)
+    void refreshPending()
 
     // The stored timestamp is what the page shows before the first sync of this visit finishes.
     void lastSyncedAt().then((value) => {
@@ -104,10 +125,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('online', onOnline)
       window.removeEventListener('offline', onOffline)
     }
-  }, [sync])
+  }, [refreshPending, sync])
 
   return (
-    <TechSyncContext.Provider value={{ online, syncing, lastSynced, error, sync }}>
+    <TechSyncContext.Provider
+      value={{ online, syncing, lastSynced, pending, error, sync, refreshPending }}
+    >
       {children}
     </TechSyncContext.Provider>
   )
