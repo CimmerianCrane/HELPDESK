@@ -117,3 +117,50 @@ export function customerReadWhere(ctx: AuthContext): Prisma.CustomerWhereInput {
   if (ctx.customerId) return { ...LIVE, id: ctx.customerId }
   return DENY
 }
+
+/**
+ * Filter for `Technician` — the scheduling roster (brief §4.4).
+ *
+ * Whoever builds the board sees the whole roster; that is what `job.schedule` is for. A technician
+ * sees only their own row, because their competencies, leave and on-call shifts are theirs — the
+ * board shows a colleague's availability as a coloured block, not as a list of reasons.
+ */
+export function technicianReadWhere(ctx: AuthContext): Prisma.TechnicianWhereInput {
+  if (can(ctx.role, 'job.schedule')) return {}
+  if (ctx.technicianId) return { id: ctx.technicianId }
+  return DENY
+}
+
+/**
+ * Filter for `Unavailability`. Same shape as the roster: the dispatcher needs everybody's leave to
+ * see the board at all, and a technician needs their own so the PWA can say why they are off.
+ */
+export function unavailabilityReadWhere(ctx: AuthContext): Prisma.UnavailabilityWhereInput {
+  if (can(ctx.role, 'job.schedule')) return {}
+  if (ctx.technicianId) return { technicianId: ctx.technicianId }
+  return DENY
+}
+
+/** Filter for `OnCallShift`. The roster is a dispatch tool; a technician sees their own shifts. */
+export function onCallShiftReadWhere(ctx: AuthContext): Prisma.OnCallShiftWhereInput {
+  if (can(ctx.role, 'job.schedule')) return {}
+  if (ctx.technicianId) return { technicianId: ctx.technicianId }
+  return DENY
+}
+
+/**
+ * Filter for `Resource` — vehicles, test weights and load cells (brief §4.4).
+ *
+ * `resource.read` is the store's and dispatch's: they are the people who know a test weight is out
+ * for calibration. A technician sees only the resources booked onto their own jobs, which is all
+ * they need to know what to collect — and what not to turn up without.
+ */
+export function resourceReadWhere(ctx: AuthContext): Prisma.ResourceWhereInput {
+  if (can(ctx.role, 'resource.read')) return {}
+  if (ctx.technicianId) {
+    return {
+      jobResources: { some: { job: assignedTo(ctx.technicianId) } },
+    }
+  }
+  return DENY
+}

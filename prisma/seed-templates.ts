@@ -92,6 +92,7 @@ export async function seedJobTypesAndTemplates(db: PrismaClient): Promise<void> 
           defaultPriority: jobType.defaultPriority,
           sortOrder: jobType.sortOrder,
           requiredDocumentTypes: jobType.requiredDocumentTypes ?? [],
+          requiredCompetencies: jobType.requiredCompetencies ?? [],
           defaultChecklistTemplateId: templates?.checklistId ?? null,
           defaultReportTemplateId: templates?.reportId ?? null,
         },
@@ -112,6 +113,20 @@ export async function seedJobTypesAndTemplates(db: PrismaClient): Promise<void> 
           defaultChecklistTemplateId: existing.defaultChecklistTemplateId ?? templates.checklistId,
           defaultReportTemplateId: existing.defaultReportTemplateId ?? templates.reportId,
         },
+      })
+      updatedLinks += 1
+    }
+
+    // Competency requirements were added in slice 6, so job types seeded before it have an empty
+    // list. Empty means "nothing recorded", not "the office deliberately requires nothing", so it is
+    // filled once — and never overwritten afterwards.
+    if (
+      existing.requiredCompetencies.length === 0 &&
+      (jobType.requiredCompetencies ?? []).length > 0
+    ) {
+      await db.jobType.update({
+        where: { id: existing.id },
+        data: { requiredCompetencies: jobType.requiredCompetencies },
       })
       updatedLinks += 1
     }

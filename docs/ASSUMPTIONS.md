@@ -128,6 +128,51 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     assigned jobs and are covered by isolation tests, but the phone UI arrives with the PWA in slice 7. Office roles
     hold `job.read.all`; the `/jobs` list asserts it, so a technician is refused rather than shown a redirect.
 
+37. **On-call is a list of shifts, not an `isOnCall` flag on the technician.** A flag answers "who is on call now",
+    which is the one question a dispatcher can answer by looking out of the window; what is actually needed is
+    "who was on call at 02:00 on Sunday, and is there an hour nobody was". Shifts may overlap deliberately (a
+    handover where both are reachable is safer than a clean cut), and the gaps are computed by `onCallGaps` from the
+    merged spans. *Cost if wrong:* a flag plus a shift history would be two records of the same fact.
+38. **`JobType.requiredCompetencies` is a list of names, matched case-insensitively against `Competency.name`.** Both
+    are typed by people in different screens, so a join table of competency ids would require an admin screen for
+    competency types before the first job could be scheduled. A name that matches nothing is a *gap*, which is the
+    safe direction. The existing `blockAssignmentOnExpiredCompetency` setting decides whether a gap blocks or warns:
+    when it is on, a missing competency blocks; when it is off, nothing does. A blocked competency is never
+    overridable through the form — that is the whole point of it being a block — while a double-booking or a clash
+    with leave is a warning that needs `override` **and** a written reason, and writes its own audit row.
+39. **A priority bump is recorded twice: as a `ScheduleBump` row and as an audit entry.** The row answers "why did
+    Tuesday's service move" without reading an audit diff and keeps the previous dates, so the move can be undone;
+    the audit entry answers "who decided". The bump frees the slot and returns the displaced job to `APPROVED` with
+    its dates cleared. It deliberately does **not** place the incoming job: doing both in one call would hide one
+    refusal (the incoming job's competency or travel check) inside the other.
+40. **A `datetime-local` value means wall time in the operating timezone, never UTC.** The browser input carries no
+    zone, so the schema validates its shape only and the service converts it with `localWallToUtc` using the
+    `timezone` setting. Reading it as UTC in a schema — the obvious implementation — makes every visit depend on the
+    server's locale and moves everything by the zone offset with nothing looking broken. `src/lib/time.ts` is the
+    only place the conversion exists, and it is unit-tested against a zone with daylight saving (a week across the
+    change is 169 hours, not 168).
+41. **Dragging a card on the board is one service call, not two.** A drop says who and which day at once, so
+    `moveJobCard` composes the assignment and reschedule services inside a single transaction: if the competency
+    check refuses the person, the date does not move either. The card keeps its wall-clock time when it changes day
+    (Tuesday 08:00 becomes Wednesday 08:00), because that is the slot the dispatcher chose. A drop that would
+    double-book refuses with the same message the form would give; an override needs a reason, so it is only
+    available through the form.
+42. **A board card belongs to one technician.** Dropping a card onto a named technician replaces the crew rather
+    than adding to it, because a card is drawn in one cell and showing it in two would misrepresent what is booked.
+    Multi-person visits are staffed through the job screen. Dropping on the unassigned rail takes everybody off.
+43. **Leave that clashes with scheduled work is recorded, not refused,** and the job numbers it clashes with are
+    named in its audit entry. People book leave after a visit was planned; refusing the leave would push the office
+    to keep the diary and lose the record. The board marks the card and the dispatcher moves it.
+44. **A resource booking with no span follows its job's dates.** A test weight is on site for the visit, so making
+    the office type the visit's own start and end again would be a second place for them to disagree. A job with no
+    dates cannot lend one, so that booking needs its own span. An expired calibration or a maintenance status is a
+    warning requiring confirmation, not a refusal — the office may be booking it in order to send it away.
+45. **Dispatch is its own lifecycle step, and only `SCHEDULED` can be dispatched.** Dispatching moves the job to
+    `DISPATCHED` with a `JobStatusHistory` row; re-dispatching an already-dispatched job re-sends the details (a
+    technician who lost the email) without pretending it is a new step, and without re-stamping anything. The message
+    itself is rendered from rows — access notes, the site contact, recent approved reports and certificates, the job
+    type's checklist — so what the technician receives is assembled once rather than remembered under pressure.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

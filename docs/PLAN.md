@@ -3,8 +3,8 @@
 Architecture, data model, screens and build plan. Conventions and non-negotiables live in `../CLAUDE.md`.
 Assumptions where the brief was silent live in `ASSUMPTIONS.md`.
 
-**Status: Phase 1, slices 0–5 built and verified against the live database, on Vercel hosting.
-Slice 6 is next.**
+**Status: Phase 1, slices 0–6 built and verified against the live database, on Vercel hosting.
+Slice 7 is next.**
 
 ---
 

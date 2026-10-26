@@ -9,7 +9,7 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Architecture, data model, screens and the phase plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
-**Status:** Slice 5 (tickets become jobs, the job lifecycle and SLA snapshots). See "What works today" below.
+**Status:** Slice 6 (scheduling, dispatch and the on-call roster). See "What works today" below.
 
 ---
 
@@ -128,6 +128,44 @@ separate worker process. The full command list is in [`CLAUDE.md`](CLAUDE.md).
 
 ## What works today
 
+### Slice 6 — scheduling, dispatch and the on-call roster
+
+- **The board** at `/schedule` shows a day or a week: technicians down the side, days across the top,
+  visits in the cells. Drag a visit onto another technician or another day and it moves — the
+  assignment and the date change in one transaction, so a refused competency also leaves the date
+  alone. The clock time travels with the card: Tuesday 08:00 dropped on Wednesday is Wednesday 08:00.
+- **Conflicts are shown where they happen.** A card already double-booked, or falling in somebody's
+  leave, is marked, and the warning is computed by the same pure function the assignment service
+  refuses with — a board that warns differently from the service would be worse than one that does
+  not warn at all.
+- **Assignment** from the job screen: a missing competency blocks (when the setting says so) and is
+  never overridable; a double-booking or a leave clash warns and needs an explicit override **and** a
+  written reason, which gets its own audit row. Assigning a dated job moves `TRIAGED`/`APPROVED` to
+  `SCHEDULED` through the normal status machine.
+- **Leave** and the **on-call roster** are at `/schedule/roster`. On-call is a list of shifts, so
+  overlapping handovers are fine and the page names the hours nobody is covering. Leave is recorded
+  even when it clashes with booked work; the clash is named in the audit entry and marked on the board.
+- **Resources** — vans, test weights, load cells, tools — can be booked onto a job for the visit's own
+  span or a span of its own. An overdue calibration or a maintenance status warns; a retired item is
+  refused; two jobs wanting the same weight at once is flagged on the board.
+- **Priority bumps** send a scheduled visit back to `APPROVED` with its dates cleared, recording a
+  `ScheduleBump` row (with the old dates, so it can be undone) and an audit entry naming who decided,
+  what took the slot, and why. The reason is mandatory. The bump frees the slot; it does not place the
+  incoming job.
+- **Dispatch** from the job screen builds the message from rows: address, who to ask for, access and
+  induction notes, the cranes with their recent approved reports and certificates (restricted ones
+  flagged Do Not Operate), and the job type's checklist. It writes an in-app and an email notification
+  per technician, each with its own send state, and moves `SCHEDULED` to `DISPATCHED` through
+  `JobStatusHistory`.
+- **Wall-clock time is explicit.** A `datetime-local` value means wall time in the operating timezone,
+  converted in `src/lib/time.ts` and never read as UTC. It is unit-tested across a daylight-saving
+  change, where a week is 169 hours rather than 168.
+- **Tests** — 27 unit tests for the scheduling rules (overlap arithmetic, conflict detection,
+  competency matching, on-call gaps, wall-clock conversion) and 37 integration tests for the board,
+  assignment, override auditing, leave, the roster, resources, bumps, dispatch and the drag gesture.
+
+Next: **slice 7 — the technician PWA.**
+
 ### Slice 5 — tickets become jobs, and the job lifecycle
 
 - **Jobs** at `/jobs`, `/jobs/new` and `/jobs/[id]`. Work can be raised directly by the office or
@@ -158,8 +196,6 @@ separate worker process. The full command list is in [`CLAUDE.md`](CLAUDE.md).
 - **Tests** — 16 unit tests for the transition map, hold rules, timestamp fields and job validation;
   17 integration tests for numbering, SLA snapshots, history and audit rows, one-way stamps,
   cross-customer and two-site refusal, conversion, capability checks and soft-deleted visibility.
-
-Next: **slice 6 — scheduling and dispatch.**
 
 ### Slice 4 — job types, templates and tickets
 

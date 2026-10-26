@@ -3,18 +3,38 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EditJobForm, TransitionJobForm } from '@/components/office/job-forms'
 import { JobStatusBadge, OnHoldBadge } from '@/components/office/job-badges'
+import {
+  AssignTechnicianForm,
+  BumpJobForm,
+  BookResourceForm,
+  RescheduleJobForm,
+  UnassignTechnicianForm,
+} from '@/components/office/schedule-forms'
 import { PriorityBadge } from '@/components/office/ticket-badges'
 import { cardClass } from '@/components/office/ui'
 import { formatDateTime, formatDuration } from '@/lib/format'
+import { utcToLocalInput } from '@/lib/time'
 import { requireAuth } from '@/server/auth/context'
 import { NotFoundError } from '@/server/auth/errors'
 import { can } from '@/server/auth/permissions'
 import { JOB_STATUS_DESCRIPTIONS, JOB_STATUS_LABELS, ON_HOLD_REASON_LABELS } from '@/server/jobs/labels'
-import { getJob } from '@/server/jobs/jobs'
+import { getJob, listJobs } from '@/server/jobs/jobs'
 import { isTerminal, nextStatuses } from '@/server/jobs/status'
+import { dispatchPack } from '@/server/schedule/dispatch'
+import { listResources, listTechnicians } from '@/server/schedule/roster'
+import { jobStaffing } from '@/server/schedule/scheduling'
 import { getSettings } from '@/server/settings/settings'
 import type { SlaResult } from '@/server/sla/sla'
 import { updateJobAction, transitionJobAction } from '../actions'
+import {
+  assignTechnicianAction,
+  bookResourceAction,
+  bumpJobAction,
+  dispatchJobFormAction,
+  releaseResourceAction,
+  rescheduleJobAction,
+  unassignTechnicianAction,
+} from '../../schedule/actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,8 +74,39 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const settings = await getSettings()
   const mayMove = can(context.role, 'job.transition')
   const mayEdit = can(context.role, 'job.create')
+  const maySchedule = can(context.role, 'job.schedule')
+  const mayAssign = can(context.role, 'job.assign')
+  const mayDispatch = can(context.role, 'job.dispatch')
   const moves = nextStatuses(job.status)
   const finished = isTerminal(job.status)
+
+  const [staffing, technicians, resources, dispatch, unplaced] = await Promise.all([
+    jobStaffing(context, job.id),
+    mayAssign ? listTechnicians(context) : Promise.resolve([]),
+    maySchedule && can(context.role, 'resource.read')
+      ? listResources(context)
+      : Promise.resolve([]),
+    mayDispatch
+      ? dispatchPack(context, job.id).catch((error) => {
+          if (error instanceof NotFoundError) return null
+          throw error
+        })
+      : Promise.resolve(null),
+    can(context.role, 'job.bump')
+      ? listJobs(context, {}).then((rows) =>
+          rows.filter(
+            (row) => row.id !== job.id && (!row.scheduledStart || row.priority === 'P1'),
+          ),
+        )
+      : Promise.resolve([]),
+  ])
+
+  const rescheduleDefaultStart = staffing.scheduledStart
+    ? utcToLocalInput(staffing.scheduledStart, settings.timezone)
+    : ''
+  const rescheduleDefaultEnd = staffing.scheduledEnd
+    ? utcToLocalInput(staffing.scheduledEnd, settings.timezone)
+    : ''
 
   return (
     <div className="space-y-8">
@@ -154,6 +205,197 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         </div>
       </section>
 
+      {maySchedule || mayAssign || mayDispatch ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-slate-900">Who is going</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            The visit, the crew and the kit. The board is the fast way to move things; this is the
+            precise way.
+          </p>
+
+          <div className="mt-4 grid gap-6 lg:grid-cols-2">
+            <div>
+              <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">Visit</h3>
+              <p className="mt-1 text-sm text-slate-900">
+                {staffing.scheduledStart
+                  ? `${formatDateTime(staffing.scheduledStart, settings.timezone)}${
+                      staffing.scheduledEnd
+                        ? ` – ${formatDateTime(staffing.scheduledEnd, settings.timezone)}`
+                        : ''
+                    }`
+                  : 'Not scheduled yet.'}
+              </p>
+
+              {maySchedule && !finished ? (
+                <div className="mt-4">
+                  <RescheduleJobForm
+                    action={rescheduleJobAction.bind(null, job.id)}
+                    timezone={settings.timezone}
+                    defaultStart={rescheduleDefaultStart}
+                    defaultEnd={rescheduleDefaultEnd}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            <div>
+              <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">Crew</h3>
+              {staffing.technicians.length === 0 ? (
+                <p className="mt-1 text-sm text-slate-500">Nobody assigned.</p>
+              ) : (
+                <ul className="mt-2 space-y-2">
+                  {staffing.technicians.map((entry) => (
+                    <li key={entry.technicianId} className="rounded-md border border-slate-200 p-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: entry.colour ?? '#94a3b8' }}
+                        />
+                        <span className="text-sm font-medium text-slate-900">{entry.name}</span>
+                        {entry.isLead ? (
+                          <span className="rounded border border-slate-300 px-1.5 py-0.5 text-xs text-slate-600">
+                            lead
+                          </span>
+                        ) : null}
+                      </div>
+                      {entry.competency.missing.length > 0 || entry.competency.expired.length > 0 ? (
+                        <p className="mt-1 text-xs text-amber-800">
+                          {entry.competency.missing.length > 0
+                            ? `Missing: ${entry.competency.missing.join(', ')}. `
+                            : ''}
+                          {entry.competency.expired.length > 0
+                            ? `Expired: ${entry.competency.expired.join(', ')}.`
+                            : ''}
+                        </p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {mayAssign && !finished ? (
+                <div className="mt-4 space-y-4">
+                  <AssignTechnicianForm
+                    action={assignTechnicianAction.bind(null, job.id)}
+                    technicians={technicians}
+                  />
+                  <UnassignTechnicianForm
+                    action={unassignTechnicianAction.bind(null, job.id)}
+                    technicians={staffing.technicians.map((entry) => ({
+                      technicianId: entry.technicianId,
+                      name: entry.name,
+                      isLead: entry.isLead,
+                    }))}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {maySchedule && resources.length > 0 && !finished ? (
+            <div className="mt-6 border-t border-slate-200 pt-4">
+              <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                Booked out
+              </h3>
+              {staffing.resources.length === 0 ? (
+                <p className="mt-1 text-sm text-slate-500">Nothing booked yet.</p>
+              ) : (
+                <ul className="mt-2 space-y-1">
+                  {staffing.resources.map((resource) => (
+                    <li
+                      key={resource.resourceId}
+                      className="flex items-center justify-between gap-3 text-sm"
+                    >
+                      <span className="text-slate-900">{resource.name}</span>
+                      <form action={async () => releaseResourceAction(job.id, resource.resourceId)}>
+                        <button type="submit" className="text-slate-600 underline hover:text-red-700">
+                          Release
+                        </button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-4 max-w-md">
+                <BookResourceForm
+                  action={bookResourceAction.bind(null, job.id)}
+                  resources={resources}
+                />
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {mayDispatch && dispatch ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-slate-900">Dispatch</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Sends the technicians what they need on the road — where to go, who to ask for, what the
+            machine has had done to it — and moves the job to Dispatched.
+          </p>
+
+          {dispatch.warnings.length > 0 ? (
+            <ul className="mt-3 space-y-1 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              {dispatch.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : null}
+
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Site</dt>
+              <dd className="text-slate-900">
+                {dispatch.siteName}
+                {dispatch.address ? `, ${dispatch.address}` : ''}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                Ask for
+              </dt>
+              <dd className="text-slate-900">
+                {dispatch.contact
+                  ? `${dispatch.contact.name}${dispatch.contact.phone ? ` — ${dispatch.contact.phone}` : ''}`
+                  : 'Nobody recorded.'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Access</dt>
+              <dd className="text-slate-900">{dispatch.accessNotes ?? 'Not recorded.'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                Checklist
+              </dt>
+              <dd className="text-slate-900">
+                {dispatch.checklist.length > 0
+                  ? `${dispatch.checklist.length} items`
+                  : 'None for this kind of work.'}
+              </dd>
+            </div>
+          </dl>
+
+          <div className="mt-4">
+            <form action={dispatchJobFormAction.bind(null, job.id)}>
+              <button
+                type="submit"
+                disabled={staffing.technicians.length === 0}
+                className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+              >
+                {staffing.technicians.length === 0
+                  ? 'Nobody to dispatch to'
+                  : job.status === 'DISPATCHED'
+                    ? 'Send the details again'
+                    : 'Dispatch to the crew'}
+              </button>
+            </form>
+          </div>
+        </section>
+      ) : null}
+
       <div className="grid gap-6 lg:grid-cols-3">
         <section className={`${cardClass} lg:col-span-2`}>
           <h2 className="font-semibold text-slate-900">What needs doing</h2>
@@ -226,6 +468,30 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             status={job.status}
             nextStatuses={moves}
           />
+        </section>
+      ) : null}
+
+      {can(context.role, 'job.bump') &&
+      staffing.scheduledStart &&
+      !finished &&
+      unplaced.length > 0 ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-slate-900">Something more urgent needs this slot</h2>
+          <p className="mt-1 mb-5 text-sm text-slate-600">
+            Displacing this visit sends it back to Approved with its dates cleared, and records who
+            decided, what took the slot and why. The job taking the slot is not placed automatically.
+          </p>
+          <div className="max-w-md">
+            <BumpJobForm
+              action={bumpJobAction.bind(null, job.id)}
+              candidates={unplaced.slice(0, 50).map((row) => ({
+                id: row.id,
+                number: row.number,
+                priority: row.priority,
+                customerName: row.customer.tradingName ?? row.customer.legalName,
+              }))}
+            />
+          </div>
         </section>
       ) : null}
 

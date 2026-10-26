@@ -24,6 +24,12 @@ export interface JobTypeDefinition {
   template?: TemplateKey
   /** Documents the office expects back for this kind of visit. Free text keys, shown as a reminder. */
   requiredDocumentTypes?: string[]
+  /**
+   * Competency names this work demands, matched case-insensitively against `Competency.name`.
+   * Office-owned data, seeded with sensible defaults and editable afterwards — which is why these
+   * are plain words rather than keys.
+   */
+  requiredCompetencies?: string[]
 }
 
 export type TemplateKey = 'SERVICING' | 'BREAKDOWN' | 'VISUAL_INSPECTION' | 'LOAD_TEST'
@@ -38,6 +44,7 @@ export const JOB_TYPES: readonly JobTypeDefinition[] = [
     sortOrder: 10,
     template: 'SERVICING',
     requiredDocumentTypes: [],
+    requiredCompetencies: ['Crane servicing'],
   },
   {
     code: 'BREAKDOWN',
@@ -47,6 +54,7 @@ export const JOB_TYPES: readonly JobTypeDefinition[] = [
     sortOrder: 20,
     template: 'BREAKDOWN',
     requiredDocumentTypes: [],
+    requiredCompetencies: ['Crane servicing'],
   },
   {
     code: 'VISUAL_INSPECTION',
@@ -57,6 +65,7 @@ export const JOB_TYPES: readonly JobTypeDefinition[] = [
     sortOrder: 30,
     template: 'VISUAL_INSPECTION',
     requiredDocumentTypes: [],
+    requiredCompetencies: ['Crane inspection'],
   },
   {
     code: 'LOAD_TEST',
@@ -67,6 +76,7 @@ export const JOB_TYPES: readonly JobTypeDefinition[] = [
     sortOrder: 40,
     template: 'LOAD_TEST',
     requiredDocumentTypes: ['LOAD_TEST_CERTIFICATE'],
+    requiredCompetencies: ['Load testing'],
   },
   {
     code: 'STATUTORY_EXAM_SUPPORT',
@@ -106,6 +116,7 @@ export const JOB_TYPES: readonly JobTypeDefinition[] = [
     defaultPriority: 'P2',
     sortOrder: 90,
     requiredDocumentTypes: ['LIFTING_GEAR_EXAM'],
+    requiredCompetencies: ['Rigging'],
   },
   {
     code: 'SURVEY_QUOTE',

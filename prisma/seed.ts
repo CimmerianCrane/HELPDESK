@@ -136,6 +136,134 @@ async function seedSlaPolicies(): Promise<number> {
   return created
 }
 
+/**
+ * What the scheduling demo needs to be worth looking at: technicians who can and cannot do particular
+ * work, kit that can be booked, and somebody on call this week.
+ *
+ * Competencies are attached by employee number rather than by account email, so the demo still works
+ * if the office renamed a technician's login. One is seeded already expired on purpose — the board
+ * and the assignment form both have an expired-competency state that is otherwise impossible to see.
+ */
+async function seedScheduling(): Promise<void> {
+  const technicians = await db.technician.findMany({
+    select: { id: true, employeeNo: true },
+  })
+  if (technicians.length === 0) return
+
+  const competencies: Record<string, Array<{ name: string; expiryDate: Date | null }>> = {
+    'T-001': [
+      { name: 'Crane servicing', expiryDate: new Date('2028-06-30T00:00:00.000Z') },
+      { name: 'Crane inspection', expiryDate: new Date('2027-11-30T00:00:00.000Z') },
+      { name: 'Rigging', expiryDate: new Date('2027-03-31T00:00:00.000Z') },
+    ],
+    'T-002': [
+      { name: 'Crane servicing', expiryDate: new Date('2027-09-30T00:00:00.000Z') },
+      // Deliberately in the past: the assignment form should show this, and the setting decides
+      // whether it blocks or merely warns.
+      { name: 'Load testing', expiryDate: new Date('2025-12-31T00:00:00.000Z') },
+    ],
+  }
+
+  let added = 0
+  for (const technician of technicians) {
+    const wanted = competencies[technician.employeeNo ?? ''] ?? []
+    const existing = await db.competency.findMany({
+      where: { technicianId: technician.id },
+      select: { name: true },
+    })
+    const have = new Set(existing.map((entry) => entry.name))
+    for (const competency of wanted) {
+      if (have.has(competency.name)) continue
+      await db.competency.create({
+        data: {
+          technicianId: technician.id,
+          name: competency.name,
+          issuer: 'Demo record — replace with the real certificate',
+          expiryDate: competency.expiryDate,
+        },
+      })
+      added += 1
+    }
+  }
+  if (added > 0) console.log(`Seeded ${added} technician competency record(s).`)
+
+  const resources: Array<{
+    name: string
+    type: 'VEHICLE' | 'TEST_WEIGHT' | 'LOAD_CELL' | 'TOOL'
+    serialNumber: string | null
+    calibrationDueDate: Date | null
+  }> = [
+    { name: 'Van 1 — flatbed', type: 'VEHICLE', serialNumber: null, calibrationDueDate: null },
+    { name: 'Van 2 — box body', type: 'VEHICLE', serialNumber: null, calibrationDueDate: null },
+    {
+      name: 'Test weight set — 1 t',
+      type: 'TEST_WEIGHT',
+      serialNumber: 'TW-1000-04',
+      calibrationDueDate: new Date('2027-04-30T00:00:00.000Z'),
+    },
+    {
+      name: 'Test weight set — 5 t',
+      type: 'TEST_WEIGHT',
+      serialNumber: 'TW-5000-02',
+      // Overdue on purpose, so the calibration warning has something to fire on.
+      calibrationDueDate: new Date('2026-08-31T00:00:00.000Z'),
+    },
+    {
+      name: 'Load cell — 10 t',
+      type: 'LOAD_CELL',
+      serialNumber: 'LC-10T-11',
+      calibrationDueDate: new Date('2027-01-31T00:00:00.000Z'),
+    },
+    {
+      name: 'Torque wrench set',
+      type: 'TOOL',
+      serialNumber: 'TWQ-07',
+      calibrationDueDate: new Date('2027-02-28T00:00:00.000Z'),
+    },
+  ]
+
+  let resourceCount = 0
+  for (const resource of resources) {
+    const existing = await db.resource.findFirst({
+      where: { name: resource.name, type: resource.type },
+      select: { id: true },
+    })
+    if (existing) continue
+    await db.resource.create({
+      data: {
+        name: resource.name,
+        type: resource.type,
+        serialNumber: resource.serialNumber,
+        calibrationDueDate: resource.calibrationDueDate,
+      },
+    })
+    resourceCount += 1
+  }
+  if (resourceCount > 0) console.log(`Seeded ${resourceCount} bookable resource(s).`)
+
+  // On-call: the next seven days, alternating, with a deliberate handover overlap. Only seeded when
+  // the roster is empty — a live roster is the office's, not the seed's.
+  if ((await db.onCallShift.count()) > 0) return
+
+  const now = new Date()
+  const startOfToday = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  )
+  let shifts = 0
+  for (let day = 0; day < 7; day += 1) {
+    const technician = technicians[day % technicians.length]
+    if (!technician) continue
+    const from = new Date(startOfToday.getTime() + (day * 24 + 18) * 3_600_000)
+    // An hour of overlap with the next person, so the gap calculation has a real merge to do.
+    const to = new Date(startOfToday.getTime() + ((day + 1) * 24 + 19) * 3_600_000)
+    await db.onCallShift.create({
+      data: { technicianId: technician.id, startAt: from, endAt: to, notes: 'Demo roster' },
+    })
+    shifts += 1
+  }
+  console.log(`Seeded ${shifts} on-call shift(s).`)
+}
+
 async function main() {
   const defaults: Array<{ key: string; value: unknown; description: string }> = [
     {
@@ -197,6 +325,7 @@ async function main() {
   if (policies > 0) console.log(`Seeded ${policies} SLA policies.`)
 
   await seedUsers()
+  await seedScheduling()
 }
 
 main()

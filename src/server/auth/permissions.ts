@@ -45,10 +45,16 @@ export const CAPABILITIES = [
   'job.schedule',
   'job.assign',
   'job.transition',
+  /** Sending a scheduled job's details to the technicians on it, and moving it to DISPATCHED. */
+  'job.dispatch',
   'job.complete',
   'job.approve',
   /** Displacing a scheduled job to make room for a P1. Always audited, always reasoned. */
   'job.bump',
+
+  // Bookable resources: vehicles, test weights, load cells (brief §4.4)
+  /** May see and book the resource list. Dispatch holds it; a technician sees only what is on their job. */
+  'resource.read',
 
   // Reports and findings
   'report.read.all',
@@ -113,7 +119,9 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
     'job.schedule',
     'job.assign',
     'job.transition',
+    'job.dispatch',
     'job.bump',
+    'resource.read',
     'report.read.all',
     'report.approve',
     'report.amend',
@@ -154,6 +162,7 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
     'crane.read',
     'crane.register.read',
     'job.read.all',
+    'resource.read',
     'report.read.all',
     'certificate.read',
   ],

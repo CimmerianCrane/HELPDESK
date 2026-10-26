@@ -40,13 +40,24 @@ export async function runAction(fn: () => Promise<void>, successMessage: string)
     await fn()
     return { ok: true, message: successMessage }
   } catch (error) {
-    if (isAppError(error)) {
-      return {
-        ok: false,
-        message: error.message,
-        ...(error instanceof ValidationError ? { fields: error.fields } : {}),
-      }
-    }
-    throw error
+    return toFormState(error)
   }
+}
+
+/**
+ * Turns a thrown expected error into a form state, and rethrows anything else so it reaches the error
+ * boundary and the logs.
+ *
+ * Exposed separately for the actions whose success message depends on what the service returned —
+ * an assignment that proceeded over a warning succeeds, but the message has to say so.
+ */
+export function toFormState(error: unknown): FormState {
+  if (isAppError(error)) {
+    return {
+      ok: false,
+      message: error.message,
+      ...(error instanceof ValidationError ? { fields: error.fields } : {}),
+    }
+  }
+  throw error
 }

@@ -314,16 +314,32 @@ model Technician {
   user       User     @relation(fields: [userId], references: [id])
   employeeNo String?  @unique
   phone      String?
+  /// Schedule board colour. Null falls back to the board's own palette.
   colour     String?
-  isOnCall   Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   competencies   Competency[]
   unavailability Unavailability[]
+  onCallShifts   OnCallShift[]
   jobs           JobTechnician[]
+}
 
-  @@index([isOnCall])
+/// One person covering after-hours breakdowns for a span. The roster is shifts, not a flag: "on call"
+/// is a question with a date attached, and a boolean cannot answer "who was on call on Tuesday".
+model OnCallShift {
+  id           String     @id @default(uuid(7))
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id])
+  startAt      DateTime
+  endAt        DateTime
+  notes        String?
+  createdById  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([startAt, endAt])
+  @@index([technicianId, startAt])
 }
 
 model Competency {
@@ -639,6 +655,10 @@ model JobType {
   defaultReportTemplateId    String?
   /// e.g. ["LOAD_TEST_CERTIFICATE"]
   requiredDocumentTypes      Json?
+  /// Competency names a technician must hold, and that must not have expired, to take this work.
+  /// Matched against `Competency.name` on the technician. Empty means no requirement. Whether a
+  /// missing one blocks or only warns is the `blockAssignmentOnExpiredCompetency` setting.
+  requiredCompetencies       String[] @default([])
   isActive                   Boolean  @default(true)
   sortOrder                  Int      @default(0)
   createdAt                  DateTime @default(now())
@@ -753,6 +773,27 @@ model JobStatusHistory {
   changedAt    DateTime      @default(now())
 
   @@index([jobId, changedAt])
+}
+
+/// A priority bump that displaced a scheduled visit to make room for something more urgent (brief
+/// §4.3). Kept as its own record rather than inferred from two audit rows: the question asked later
+/// is "why did the Tuesday service move", and it needs the displaced job, the job that took its slot
+/// and the reason in one place.
+model ScheduleBump {
+  id               String   @id @default(uuid(7))
+  /// The job that was moved out of its slot.
+  displacedJobId   String
+  /// The urgent job that needed the slot. Null only if the bump was recorded without one.
+  incomingJobId    String?
+  reason           String
+  /// What the displaced job's schedule was before the bump, so a reversal is possible.
+  previousStart    DateTime?
+  previousEnd      DateTime?
+  bumpedById       String?
+  bumpedAt         DateTime @default(now())
+
+  @@index([displacedJobId, bumpedAt])
+  @@index([incomingJobId])
 }
 
 model SlaPolicy {
