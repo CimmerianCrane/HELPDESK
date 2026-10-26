@@ -77,6 +77,24 @@ export function craneReadWhere(ctx: AuthContext): Prisma.CraneWhereInput {
   return DENY
 }
 
+/**
+ * Filter for `Site`. Follows the same shape as `craneReadWhere`: a role that browses sites sees all
+ * of them, a technician sees the sites their jobs are at (they need the address and access notes),
+ * and a customer user sees their own.
+ *
+ * `crane.register.read` counts as browsing sites too, because the register is organised by site:
+ * finance and the store hold the register without `site.read`, and a register whose every row says
+ * "no such site" would be worse than useless.
+ */
+export function siteReadWhere(ctx: AuthContext): Prisma.SiteWhereInput {
+  if (can(ctx.role, 'site.read') || can(ctx.role, 'crane.register.read')) return { ...LIVE }
+  if (ctx.technicianId) {
+    return { ...LIVE, jobs: { some: assignedTo(ctx.technicianId) } }
+  }
+  if (ctx.customerId) return { ...LIVE, customerId: ctx.customerId }
+  return DENY
+}
+
 /** Filter for `Customer`. Technicians hold no customer.read capability, so they get nothing here. */
 export function customerReadWhere(ctx: AuthContext): Prisma.CustomerWhereInput {
   if (can(ctx.role, 'customer.read')) return { ...LIVE }

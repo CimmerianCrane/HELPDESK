@@ -40,3 +40,35 @@ export function formValues(formData: FormData): Record<string, string | string[]
   }
   return values
 }
+
+/**
+ * As `formValues`, but a dotted name becomes a nested object: `address.city` arrives as
+ * `{ address: { city } }`. HTML has no nested inputs, so a structured column (a JSON address, for
+ * instance) needs this to be validated by the same `z.object` shape the service uses.
+ *
+ * A name with no dot is left at the top level. Grouping is one level deep, which is all the forms
+ * here need; extend it only when a real form needs more.
+ */
+export function formValuesNested(formData: FormData): Record<string, unknown> {
+  const flat = formValues(formData)
+  const values: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(flat)) {
+    const dot = key.indexOf('.')
+    if (dot === -1) {
+      values[key] = value
+      continue
+    }
+
+    const group = key.slice(0, dot)
+    const field = key.slice(dot + 1)
+    const existing = values[group]
+    if (existing && typeof existing === 'object' && !Array.isArray(existing)) {
+      ;(existing as Record<string, unknown>)[field] = value
+    } else {
+      values[group] = { [field]: value }
+    }
+  }
+
+  return values
+}

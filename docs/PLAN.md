@@ -3,8 +3,8 @@
 Architecture, data model, screens and build plan. Conventions and non-negotiables live in `../CLAUDE.md`.
 Assumptions where the brief was silent live in `ASSUMPTIONS.md`.
 
-**Status: Phase 1, slices 0–1 built and verified against the live database, now adapted to Vercel
-hosting. Slice 2 is next.**
+**Status: Phase 1, slices 0–3 built and verified against the live database, on Vercel hosting.
+Slice 4 is next.**
 
 ---
 
@@ -1155,7 +1155,7 @@ job, crane, report or customer reads.
 Each slice runs **database → service → API/action → UI → tests**, ends with `npm run verify`, a commit, and a
 3–5 line summary. Each is independently demoable.
 
-**Progress:** Slices 0 and 1 are **done**, both verified against the live Supabase database.
+**Progress:** Slices 0, 1, 2 and 3 are **done**, each verified against the live Supabase database.
 
 *Slice 0* — typecheck, lint, unit, integration and end-to-end tests all pass. Two deviations from the plan as
 written, both recorded in the schema and migration rather than left implicit: the CHECK constraints live in their
@@ -1198,6 +1198,20 @@ The seed creates the demo accounts only when `DATABASE_URL` points at the machin
 `README.md`, so the question is not what `NODE_ENV` says — `prisma db seed` never sets it — but where the data
 would land. Demo *data* added by later slices (customers, cranes, jobs) is not a credential and needs no such
 guard; demo *accounts* do.
+
+*Slice 2* — customers, contacts, and the preview-then-apply CSV importer shared by every later import.
+
+*Slice 3* — sites, the crane register, restriction with a mandatory reason, and printable QR labels. Two
+decisions worth carrying forward:
+
+1. **The QR token is separate from the asset tag, and immutable.** A sticker is already on the machine, so a
+   corrected asset tag must not orphan it; the token is random, excludes I/L/O/U, and encodes a URL that any
+   phone camera resolves. The label word lists therefore had to leave `server/` — a client component renders the
+   crane-type list, and `node:crypto` cannot be bundled for the browser, so display copy is in `lib/cranes/labels.ts`
+   and the token in `server/cranes/qr.ts`.
+2. **A crane with history is never archived, only decommissioned.** Job and report history is the reason the
+   register exists; deleting the row would leave reports citing a crane that no longer exists. Archiving is for
+   one entered by mistake, and a site cannot be archived while cranes remain on it for the same reason.
 
 | # | Slice | Delivers | Brief § |
 |---|---|---|---|

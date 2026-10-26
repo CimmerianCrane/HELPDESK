@@ -18,6 +18,23 @@ export interface FormState {
 
 export const IDLE_FORM: FormState = { ok: true, message: null }
 
+/**
+ * What a CSV import's preview step hands back. Shared by every importer and by the form that renders
+ * it, because the two columns the person actually reads — which row, and what will happen to it — are
+ * the same whatever is being imported.
+ */
+export interface ImportPreviewState extends FormState {
+  preview?: {
+    unknownColumns: string[]
+    recognisedColumns: string[]
+    rows: Array<{ line: number; label: string; outcome: 'create' | 'skip'; reason?: string }>
+    toCreate: number
+    toSkip: number
+  }
+  /** The file, carried into the apply step so it does not have to be chosen twice. */
+  fileText?: string
+}
+
 export async function runAction(fn: () => Promise<void>, successMessage: string): Promise<FormState> {
   try {
     await fn()

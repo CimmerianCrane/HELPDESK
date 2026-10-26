@@ -57,12 +57,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const { email, password } = parsed.data
 
         const ip = clientIp(request.headers)
-        const keys = [emailKey(email), ipKey(ip)]
 
-        for (const [index, key] of keys.entries()) {
-          const policy = index === 0 ? LOGIN_LIMITS.perEmail : LOGIN_LIMITS.perIp
-          if (!(await rateLimit(key, policy.limit, policy.windowMs)).allowed) return null
-        }
+        // Both buckets in one round trip rather than two: the database is in another region, and this
+        // sits in front of every sign-in.
+        const [byEmail, byIp] = await Promise.all([
+          rateLimit(emailKey(email), LOGIN_LIMITS.perEmail.limit, LOGIN_LIMITS.perEmail.windowMs),
+          rateLimit(ipKey(ip), LOGIN_LIMITS.perIp.limit, LOGIN_LIMITS.perIp.windowMs),
+        ])
+        if (!byEmail.allowed || !byIp.allowed) return null
 
         const user = await db.user.findFirst({
           where: { email, isActive: true, deletedAt: null },
@@ -73,9 +75,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ok = await verifyPassword(password, user?.passwordHash ?? (await decoy()))
         if (!user || !ok) return null
 
-        for (const key of keys) await resetRateLimit(key)
-
-        await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+        // Only the email bucket is cleared. Clearing the IP bucket too would let anyone holding one
+        // valid login reset the per-address counter between guesses. Both writes are independent, so
+        // they go in one round trip: this is the most-run write in the app and the database is in
+        // another region.
+        await Promise.all([
+          resetRateLimit(emailKey(email)),
+          db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }),
+        ])
 
         return { id: user.id, email: user.email, name: user.name }
       },
