@@ -75,6 +75,33 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     than a phone photo — and the server must not proxy upload bytes. The `File` row is written after
     the upload succeeds, with the storage key and checksum.
 
+22. **SLA clocks run on calendar minutes, 24/7.** There is no working-hours calendar and no public-holiday table in
+    Phase 1. A P1 raised at 23:50 has its full thirty minutes overnight rather than waiting for 08:00.
+    *Why:* the brief specifies targets but not the calendar they run against, and a calendar is a substantial table
+    of its own. Calendar minutes make the target harder to meet, so the error is towards alerting early.
+    *If wrong:* add the calendar to `slaState` and nothing else changes — every caller already goes through it.
+23. **A P1 alerts dispatchers when the ticket is created, not later.** The slice table lists the P1 alert under slice
+    5, but the moment that matters is the phone call; a P1 that waits for a job to exist alerts after the response
+    window has already been eaten by triage. The alert writes an `IN_APP` row and sends through the email adapter,
+    both recorded separately so a dead mail server cannot hide the in-app alert.
+24. **Technicians hold `ticket.read`, scoped to tickets they raised themselves** (`Ticket.createdById = their user`).
+    They are given `ticket.create` so a technician can log a fault a customer reports to them directly; without a read
+    capability the confirmation page and any follow-up would be a dead end. They still cannot browse the intake board,
+    triage, or see any other ticket — that is proven against the database, not promised in a comment.
+25. **Ticket photos are deferred until there is an upload path.** `Ticket.photos` exists in the schema, but Phase 1
+    intake captures the description only; photo capture arrives with the offline report work in slice 8, because that
+    is where the storage adapter, compression and signed uploads are built.
+26. **Checklist and report templates are authored in `prisma/seed-templates.ts` as version 1.** After the first seed,
+    the rows in the database are the source of truth and re-running the seed never overwrites them; changing a
+    template means publishing version 2, which is a deliberate act. The checklist wording follows the components named
+    in brief §6.3 and is marked for review by the technicians before real use.
+27. **Ticket intake is an office screen in slice 4.** A technician's ticket-creation UI belongs on the phone, next to
+    the job they are already looking at, and arrives with the PWA in slice 7. The service already enforces the
+    capability, so adding that screen does not change any rule.
+28. **The ticket list is capped at 500 rows rather than paginated.** At the scale assumed in item 5 this is every open
+    ticket several times over. Pagination arrives with the company-wide job list in slice 10, where the filtering
+    requirements are much heavier; doing it twice would produce two pagination idioms.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

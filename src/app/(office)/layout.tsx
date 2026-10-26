@@ -30,6 +30,7 @@ const NAV: readonly {
   { href: '/dashboard', label: 'Dashboard', capability: null },
   { href: '/customers', label: 'Customers', capability: 'customer.read' },
   { href: '/cranes', label: 'Cranes', capability: 'crane.register.read' },
+  { href: '/tickets', label: 'Tickets', capability: 'ticket.read' },
   { href: '/admin/users', label: 'Users', capability: 'user.manage' },
 ]
 

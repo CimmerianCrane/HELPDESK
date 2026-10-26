@@ -69,6 +69,22 @@ describe('the permission map', () => {
     expect(can('TECHNICIAN', 'job.bump')).toBe(false)
   })
 
+  it('lets a technician raise a ticket and see their own, but never triage the queue', () => {
+    // The row-level half of this — that "their own" really means only their own — is proven against
+    // the database in tests/integration/tickets.test.ts.
+    expect(can('TECHNICIAN', 'ticket.create')).toBe(true)
+    expect(can('TECHNICIAN', 'ticket.read')).toBe(true)
+    expect(can('TECHNICIAN', 'ticket.triage')).toBe(false)
+    expect(can('TECHNICIAN', 'ticket.assign')).toBe(false)
+  })
+
+  it('is the dispatcher who owns the intake board', () => {
+    expect(can('DISPATCHER', 'ticket.read')).toBe(true)
+    expect(can('DISPATCHER', 'ticket.create')).toBe(true)
+    expect(can('DISPATCHER', 'ticket.triage')).toBe(true)
+    expect(can('FINANCE', 'ticket.read')).toBe(false)
+  })
+
   it('does not let a technician see another customer or change the register', () => {
     expect(can('TECHNICIAN', 'customer.read')).toBe(false)
     expect(can('TECHNICIAN', 'customer.write')).toBe(false)

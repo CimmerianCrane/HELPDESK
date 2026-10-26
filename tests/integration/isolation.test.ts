@@ -5,6 +5,7 @@ import {
   customerReadWhere,
   jobReadWhere,
   reportReadWhere,
+  ticketReadWhere,
 } from '@/server/auth/scope'
 import {
   craneFixtures,
@@ -206,6 +207,54 @@ describe('a technician cannot reach another customer’s data', () => {
         select: { id: true },
       })
 
+      expect(visible).toHaveLength(0)
+    })
+  })
+})
+
+describe('a technician can only read tickets they raised', () => {
+  it('shows them their own ticket and hides one raised by the office', async () => {
+    await inRolledBackTx(async (tx) => {
+      const { first, customerA } = await twoTechniciansTwoCustomers(tx)
+
+      const byOffice = await tx.ticket.create({
+        data: {
+          number: `TKT-ISO-A-${customerA.suffix}`,
+          source: 'PHONE',
+          customerId: customerA.customer.id,
+          description: 'Raised by the office.',
+        },
+      })
+      const byTechnician = await tx.ticket.create({
+        data: {
+          number: `TKT-ISO-T-${customerA.suffix}`,
+          source: 'PHONE',
+          customerId: customerA.customer.id,
+          description: 'Raised by the technician.',
+          createdById: first.user.id,
+        },
+      })
+
+      const visible = (
+        await tx.ticket.findMany({
+          where: ticketReadWhere(
+            context('TECHNICIAN', { userId: first.user.id, technicianId: first.technician.id }),
+          ),
+          select: { id: true },
+        })
+      ).map((ticket) => ticket.id)
+
+      expect(visible).toContain(byTechnician.id)
+      expect(visible).not.toContain(byOffice.id)
+    })
+  })
+
+  it('gives finance nothing, because it does not work the intake board', async () => {
+    await inRolledBackTx(async (tx) => {
+      const visible = await tx.ticket.findMany({
+        where: ticketReadWhere(context('FINANCE')),
+        select: { id: true },
+      })
       expect(visible).toHaveLength(0)
     })
   })

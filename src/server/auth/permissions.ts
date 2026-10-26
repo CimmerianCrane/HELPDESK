@@ -138,6 +138,11 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
     'part.read',
     'stock.move',
     'ticket.create',
+    /**
+     * Scoped to tickets they raised themselves — see `ticketReadWhere`. A technician phoning a fault
+     * in on a customer's behalf needs to see that it was received; they do not get the intake board.
+     */
+    'ticket.read',
   ],
 
   STOREKEEPER: [

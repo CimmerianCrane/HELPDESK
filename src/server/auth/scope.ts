@@ -95,6 +95,22 @@ export function siteReadWhere(ctx: AuthContext): Prisma.SiteWhereInput {
   return DENY
 }
 
+/**
+ * Filter for `Ticket`. The office reads the whole intake board. A technician holds `ticket.read`
+ * only so they can see a ticket they raised themselves when a customer phones them directly — they
+ * are told about work by dispatch, not by browsing the queue, so anything else is denied.
+ *
+ * The technician branch comes first because they also hold the capability; capability and scope are
+ * separate questions, and the capability check alone would open the board to them.
+ */
+export function ticketReadWhere(ctx: AuthContext): Prisma.TicketWhereInput {
+  if (ctx.role === 'TECHNICIAN') return { createdById: ctx.userId }
+  if (can(ctx.role, 'ticket.read')) return {}
+  // Phase 4: a customer user sees their own tickets.
+  if (ctx.customerId) return { customerId: ctx.customerId }
+  return DENY
+}
+
 /** Filter for `Customer`. Technicians hold no customer.read capability, so they get nothing here. */
 export function customerReadWhere(ctx: AuthContext): Prisma.CustomerWhereInput {
   if (can(ctx.role, 'customer.read')) return { ...LIVE }

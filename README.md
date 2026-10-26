@@ -9,7 +9,7 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Architecture, data model, screens and the phase plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
-**Status:** Slice 3 (sites and cranes). See "What works today" below.
+**Status:** Slice 4 (job types, templates and tickets). See "What works today" below.
 
 ---
 
@@ -127,6 +127,42 @@ separate worker process. The full command list is in [`CLAUDE.md`](CLAUDE.md).
 ---
 
 ## What works today
+
+### Slice 4 — job types, templates and tickets
+
+- **Fourteen job types** are seeded as editable records: scheduled servicing, breakdown, visual
+  inspection, load test, statutory exam support, installation, re-certification, repair, wire rope /
+  hook, survey and quote, follow-up, warranty, rental / supply-only, and training. Each carries a
+  default priority and, for the first four, a default checklist and report template.
+- **Four templates**, also seeded: a 39-item servicing checklist, a 9-item breakdown checklist, plus
+  visual inspection and load test. Each has a versioned report schema declaring its sections and
+  fields as data, because a report has to be validated on submit, re-rendered years later and
+  superseded without being edited. The seed validates every definition before storing it and never
+  overwrites a template that already exists — a new copy is version 2.
+- **Tickets** at `/tickets`, `/tickets/new` and `/tickets/[id]`: record a call against a customer,
+  optionally a site and crane, with the source, a description and a first-guess priority. The
+  customer → site → crane choice is a cascade, so the person taking the call does not wait on a
+  round trip. Numbers are allocated atomically (`TKT-2026-0001`) when the ticket is saved.
+- **Triage** is a separate step from recording, because the two happen at different moments. It sets
+  the priority, records the decision and stamps `respondedAt` the first time — a later re-triage
+  never improves a missed target.
+- **SLA timers** run from `reportedAt`, not from triage: the customer was promised a response when
+  they phoned. Tickets show response and resolution targets, due times, time remaining and breach
+  state. The minutes are seeded in `SlaPolicy` and are placeholders for the real contractual ones;
+  contract overrides are already resolved preferentially.
+- **P1 alerts** go to every dispatcher and administrator in the same transaction that creates the
+  ticket: an in-app notification and an email through the adapter (console implementation in Phase
+  1). The two channels are separate rows, so a failed send is visible rather than swallowed.
+- **Close, cancel and reopen**: both outcomes stamp `closedAt` and append the note to the ticket
+  rather than replacing the triage decision. Reopening returns it to NEW with the clock running
+  again — raising a duplicate instead would split the history.
+- **Technician tickets**: a technician can raise a ticket and see the ones they raised, but not the
+  intake board. `ticket.triage` stays with the office.
+- **Tests** — SLA boundary arithmetic, ticket validation and transitions, the template catalogue, and
+  integration coverage for numbering, audit rows, the one-way stamps, cross-customer crane checks,
+  P1 fan-out and technician isolation.
+
+Next: **slice 5 — tickets become jobs, the job status machine, SLA snapshots and dispatch.**
 
 ### Slice 3 — sites and cranes
 

@@ -1,5 +1,7 @@
 import { PrismaClient, type Role } from '@prisma/client'
 import { hashPassword } from '../src/server/auth/password'
+import { DEFAULT_SLA_POLICIES } from '../src/server/sla/sla'
+import { seedJobTypesAndTemplates } from './seed-templates'
 
 const db = new PrismaClient()
 
@@ -104,6 +106,36 @@ async function seedUsers(): Promise<number> {
   return created
 }
 
+/**
+ * Company-wide SLA targets. Contract overrides are created by the office, not by the seed — but every
+ * priority needs a default, or a timer would have nothing to count down from.
+ *
+ * `findFirst` rather than `upsert`: the unique key is `[priority, contractId]` and Postgres treats
+ * every NULL `contractId` as distinct, so the database will happily hold two identical "company-wide"
+ * rows. Only the first one is meaningful, and a re-run of the seed must not add a second.
+ */
+async function seedSlaPolicies(): Promise<number> {
+  let created = 0
+  for (const policy of DEFAULT_SLA_POLICIES) {
+    const existing = await db.slaPolicy.findFirst({
+      where: { priority: policy.priority, contractId: null },
+      select: { id: true },
+    })
+    if (existing) continue
+
+    await db.slaPolicy.create({
+      data: {
+        priority: policy.priority,
+        contractId: null,
+        responseMinutes: policy.responseMinutes,
+        resolutionMinutes: policy.resolutionMinutes,
+      },
+    })
+    created += 1
+  }
+  return created
+}
+
 async function main() {
   const defaults: Array<{ key: string; value: unknown; description: string }> = [
     {
@@ -159,6 +191,11 @@ async function main() {
   }
 
   console.log(`Seeded ${defaults.length} settings.`)
+  await seedJobTypesAndTemplates(db)
+
+  const policies = await seedSlaPolicies()
+  if (policies > 0) console.log(`Seeded ${policies} SLA policies.`)
+
   await seedUsers()
 }
 
