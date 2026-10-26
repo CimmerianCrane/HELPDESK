@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { ConvertTicketForm } from '@/components/office/job-forms'
+import { JobStatusBadge } from '@/components/office/job-badges'
 import {
   CloseTicketForm,
   EditTicketForm,
@@ -12,10 +14,12 @@ import { formatDateTime, formatDuration } from '@/lib/format'
 import { requireAuth } from '@/server/auth/context'
 import { NotFoundError } from '@/server/auth/errors'
 import { can } from '@/server/auth/permissions'
+import { listJobFormOptions, listJobs } from '@/server/jobs/jobs'
 import { getSettings } from '@/server/settings/settings'
 import { SLA_STATE_LABELS, TICKET_SOURCE_LABELS, TICKET_STATUS_DESCRIPTIONS } from '@/server/tickets/labels'
 import { getTicket } from '@/server/tickets/tickets'
 import type { SlaResult } from '@/server/sla/sla'
+import { convertTicketAction } from '../../jobs/actions'
 import { closeTicketAction, reopenTicketAction, triageTicketAction, updateTicketAction } from '../actions'
 
 export const dynamic = 'force-dynamic'
@@ -57,8 +61,15 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
 
   const settings = await getSettings()
   const mayTriage = can(context.role, 'ticket.triage')
+  const mayCreateJob = can(context.role, 'job.create')
   const isOpen = ticket.status === 'NEW' || ticket.status === 'TRIAGED'
   const isFinished = ticket.status === 'CLOSED' || ticket.status === 'CANCELLED'
+
+  // The jobs this call became, and the form to make more. Both are office-only: a technician who
+  // raised the ticket can see what happened without being able to dispatch work.
+  const [jobOptions, jobs] = mayCreateJob
+    ? await Promise.all([listJobFormOptions(context), listJobs(context, { ticketId: ticket.id })])
+    : [null, []]
 
   return (
     <div className="space-y-8">
@@ -178,6 +189,47 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
           </dl>
         </section>
       </div>
+
+      {mayCreateJob && jobs.length > 0 ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-slate-900">Jobs from this call</h2>
+          <ul className="mt-4 divide-y divide-slate-100">
+            {jobs.map((job) => (
+              <li key={job.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <div>
+                  <Link href={`/jobs/${job.id}`} className="font-medium text-slate-900 underline">
+                    {job.number}
+                  </Link>
+                  <span className="ml-2 text-sm text-slate-600">{job.jobType.name}</span>
+                </div>
+                <JobStatusBadge status={job.status} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {mayCreateJob && isOpen && jobOptions ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-slate-900">Turn this into jobs</h2>
+          <p className="mt-1 mb-5 text-sm text-slate-600">
+            One job per visit. The customer, site and crane come from the ticket. Once converted, the
+            ticket is the record of the call and the jobs carry the work.
+          </p>
+          {ticket.crane || ticket.site ? (
+            <ConvertTicketForm
+              action={convertTicketAction.bind(null, ticket.id)}
+              jobTypes={jobOptions.jobTypes}
+              defaultPriority={ticket.priority}
+            />
+          ) : (
+            <p className="text-sm text-slate-600">
+              This ticket names no site or crane. Add one under “Correct the record” first — a job
+              needs an address to send somebody to.
+            </p>
+          )}
+        </section>
+      ) : null}
 
       {mayTriage && isOpen ? (
         <div className="grid gap-6 lg:grid-cols-2">

@@ -3,8 +3,8 @@
 Architecture, data model, screens and build plan. Conventions and non-negotiables live in `../CLAUDE.md`.
 Assumptions where the brief was silent live in `ASSUMPTIONS.md`.
 
-**Status: Phase 1, slices 0–3 built and verified against the live database, on Vercel hosting.
-Slice 4 is next.**
+**Status: Phase 1, slices 0–5 built and verified against the live database, on Vercel hosting.
+Slice 6 is next.**
 
 ---
 
@@ -1155,7 +1155,8 @@ job, crane, report or customer reads.
 Each slice runs **database → service → API/action → UI → tests**, ends with `npm run verify`, a commit, and a
 3–5 line summary. Each is independently demoable.
 
-**Progress:** Slices 0, 1, 2 and 3 are **done**, each verified against the live Supabase database.
+**Progress:** Slices 0–5 are **done**, each verified against the live Supabase database. Slices 4 and 5 are
+summarised below; the rest of this section is the plan as written.
 
 *Slice 0* — typecheck, lint, unit, integration and end-to-end tests all pass. Two deviations from the plan as
 written, both recorded in the schema and migration rather than left implicit: the CHECK constraints live in their
@@ -1212,6 +1213,39 @@ decisions worth carrying forward:
 2. **A crane with history is never archived, only decommissioned.** Job and report history is the reason the
    register exists; deleting the row would leave reports citing a crane that no longer exists. Archiving is for
    one entered by mistake, and a site cannot be archived while cranes remain on it for the same reason.
+
+*Slice 4* — job types, templates and tickets.
+
+1. **Job types and templates are seed data, not code.** Fourteen job types are editable rows; four
+   checklist/report templates are validated against `src/lib/templates/schema.ts` before storage and
+   are never overwritten by a re-seed — a change is a new version. Reports must re-render years
+   later, so the template and its data have to outlive the code that produced them.
+2. **Tickets separate recording from triage.** Recording happens on the phone call; triage is a
+   decision made afterwards. `respondedAt` is stamped once at the first triage and never improved by
+   a later one, which is what makes the response target mean anything.
+3. **Cardinality stayed simple where the schema allowed it.** A ticket optionally names one crane;
+   the site follows the crane when both are given. The multi-crane case lives on the job side, where
+   a `JobCrane` join already models it.
+4. **There is no migration in this slice.** Every table, enum and CHECK constraint it needs was
+   designed in slice 0; slice 4 adds rows and services, not schema.
+
+*Slice 5* — tickets become jobs, and the job lifecycle.
+
+1. **The lifecycle is a map and a set of pure functions** (`src/server/jobs/status.ts`), not
+   conditionals spread across screens. The service refuses a move the map does not allow; the form
+   reads the same map, so the UI cannot drift from the rule.
+2. **History and audit are part of the transition, not a follow-up.** `JobStatusHistory` carries
+   from, to, who, when, the note and the hold reason; the audit entry records the same change. Both
+   are written in the caller's transaction, so neither can exist without the status change.
+3. **Timestamps are written once.** Rework sends a completed job back to in-progress; the first
+   `onSiteAt` survives. This is the difference between a duration and a record.
+4. **SLA deadlines are snapshotted onto the job at creation** from the policy in force (contract
+   override first). Job screens read the snapshot, so editing `SlaPolicy` later cannot restate
+   history. Tickets keep computing live, because a ticket's clock has not been converted into a
+   commitment yet.
+5. **A job requires a site; a ticket does not.** A job is a visit, so the address is resolved from
+   the ticket or the crane and cranes at two sites are refused. Conversion marks the ticket
+   `CONVERTED` and stops its clocks — the jobs now carry the work.
 
 | # | Slice | Delivers | Brief § |
 |---|---|---|---|

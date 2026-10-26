@@ -9,7 +9,7 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Architecture, data model, screens and the phase plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
-**Status:** Slice 4 (job types, templates and tickets). See "What works today" below.
+**Status:** Slice 5 (tickets become jobs, the job lifecycle and SLA snapshots). See "What works today" below.
 
 ---
 
@@ -128,6 +128,39 @@ separate worker process. The full command list is in [`CLAUDE.md`](CLAUDE.md).
 
 ## What works today
 
+### Slice 5 — tickets become jobs, and the job lifecycle
+
+- **Jobs** at `/jobs`, `/jobs/new` and `/jobs/[id]`. Work can be raised directly by the office or
+  made from a triaged ticket — one ticket can become several jobs, and each job covers one or more
+  cranes. Numbers are allocated atomically on save (`JOB-2026-0001`).
+- **The site is resolved, never guessed.** A job needs a site because somebody has to drive there;
+  when none is given it comes from the crane, and cranes at two sites are refused rather than filed
+  at the first one. Cranes must belong to the job's customer.
+- **A status machine, not a free-text status.** `src/server/jobs/status.ts` holds every legal
+  transition (`NEW → TRIAGED → SCHEDULED → … → CLOSED`, with quote optional, on-hold and cancel as
+  branches, and rework from completed). The service refuses anything absent from the map; the form
+  only offers what will be accepted, but the map is the rule.
+- **Every move is recorded.** Each transition writes a `JobStatusHistory` row (from, to, who, when,
+  note, hold reason) and an audit entry. Status stamps (`respondedAt`, `onSiteAt`, `completedAt`,
+  `reviewedAt`, `invoicedAt`, `closedAt`) are written once — rework keeps the first arrival time.
+- **On hold requires a reason**: a Zod rule, a service rule, and the database CHECK constraint
+  already in the schema. Coming off hold clears the reason; the history keeps it.
+- **SLA deadlines are snapshotted at creation** from the SLA policy (contract override first), so a
+  later policy edit cannot rewrite whether a job met its target. Job screens show response and
+  resolution state from those stored deadlines.
+- **P1 job alerts** reuse the ticket fan-out: an in-app row and an email row per dispatcher. A ticket
+  that becomes jobs does not alert a second time — the call already did.
+- **Conversion** marks the ticket `CONVERTED` and stamps `closedAt`, which stops the ticket's clocks:
+  from then on the jobs carry the work and the history stays linked to the call.
+- **The job board** filters by search text, status and priority, and counts open jobs, jobs past an
+  SLA target, and jobs on hold. Lists are capped at 500 rows; pagination arrives with the fuller
+  job list in slice 10.
+- **Tests** — 16 unit tests for the transition map, hold rules, timestamp fields and job validation;
+  17 integration tests for numbering, SLA snapshots, history and audit rows, one-way stamps,
+  cross-customer and two-site refusal, conversion, capability checks and soft-deleted visibility.
+
+Next: **slice 6 — scheduling and dispatch.**
+
 ### Slice 4 — job types, templates and tickets
 
 - **Fourteen job types** are seeded as editable records: scheduled servicing, breakdown, visual
@@ -161,8 +194,6 @@ separate worker process. The full command list is in [`CLAUDE.md`](CLAUDE.md).
 - **Tests** — SLA boundary arithmetic, ticket validation and transitions, the template catalogue, and
   integration coverage for numbering, audit rows, the one-way stamps, cross-customer crane checks,
   P1 fan-out and technician isolation.
-
-Next: **slice 5 — tickets become jobs, the job status machine, SLA snapshots and dispatch.**
 
 ### Slice 3 — sites and cranes
 

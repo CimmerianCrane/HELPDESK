@@ -31,6 +31,7 @@ const NAV: readonly {
   { href: '/customers', label: 'Customers', capability: 'customer.read' },
   { href: '/cranes', label: 'Cranes', capability: 'crane.register.read' },
   { href: '/tickets', label: 'Tickets', capability: 'ticket.read' },
+  { href: '/jobs', label: 'Jobs', capability: 'job.read.all' },
   { href: '/admin/users', label: 'Users', capability: 'user.manage' },
 ]
 

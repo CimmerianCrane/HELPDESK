@@ -15,7 +15,7 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1, slice 4 next.** Slices 0–3 are built, verified against the live Supabase database and
+**Phase 1, slice 6 next.** Slices 0–5 are built, verified against the live Supabase database and
 committed. Phases 2–4 have not been started.
 
 | Slice | State |
@@ -24,7 +24,18 @@ committed. Phases 2–4 have not been started.
 | 1 Auth, roles, users | done |
 | 2 Customers, contacts, CSV import | done |
 | 3 Sites, cranes, QR labels | done |
-| 4–11 | not started |
+| 4 Job types, templates, tickets | done |
+| 5 Ticket → job, lifecycle, SLA snapshots | done |
+| 6–11 | not started |
+
+What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
+registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
+templates held as data; the ticket intake board with triage, P1 alerts and live SLA timers; and the
+job side of the same work — creation by hand or from a ticket, the enforced status machine with
+`JobStatusHistory` and audit entries, on-hold reasons, and SLA deadlines snapshotted at creation.
+**Not yet built:** scheduling, technician assignment and the dispatch board (slice 6), the technician
+PWA (7), reports and PDFs (8–9), broader lists and dashboards (10), and the end-to-end happy path
+(11).
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 

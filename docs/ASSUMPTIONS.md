@@ -101,6 +101,32 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
 28. **The ticket list is capped at 500 rows rather than paginated.** At the scale assumed in item 5 this is every open
     ticket several times over. Pagination arrives with the company-wide job list in slice 10, where the filtering
     requirements are much heavier; doing it twice would produce two pagination idioms.
+29. **A job must have a site; a ticket need not.** `Job.siteId` is non-null in the schema because a job is a visit and
+    somebody has to be sent somewhere. The site is taken from the ticket, or from the first selected crane when the
+    ticket named none. A job whose cranes sit at two sites is refused rather than silently filed at the first — that
+    is how a technician ends up at the wrong plant. *Cost if wrong:* a genuinely multi-site visit would need one job
+    per site, which is also how the report and invoice would have to be split.
+30. **Converting a ticket stamps `closedAt` and sets status `CONVERTED`.** The ticket's response/resolution clocks
+    stop when the jobs take over, and the ticket can no longer be triaged, closed or reopened — it is the record of
+    the call, not of the work. *Cost if wrong:* reopening a converted ticket would mean deciding whether the linked
+    jobs keep their own numbers; the linked jobs would be the safer starting point.
+31. **One ticket may become several jobs, but the ticket screen creates them one row at a time.** The service accepts
+    up to 20 jobs per conversion (the UI posts one group per row). Every job inherits the ticket's customer, site and
+    single crane; per-job crane selection belongs with dispatch in slice 6.
+32. **A P1 job raised directly alerts dispatchers; a job made from a ticket does not.** The call already alerted them
+    when the ticket arrived, and an alert per follow-up job would train people to ignore the one that matters. The
+    notification row records `jobId` so a future in-app inbox can link straight to the work.
+33. **Job SLA deadlines are snapshotted onto the job at creation** (`slaResponseDue` / `slaResolveDue`), and the job
+    screens compute state from those stored deadlines. Editing `SlaPolicy` later therefore cannot rewrite history.
+    The target minutes are derived back from the snapshot for display rather than read live from the policy.
+34. **Resolution for a job is met at `completedAt`, falling back to `closedAt`.** The customer's window is about the
+    crane being usable again, not about the invoice being raised, so `invoicedAt` deliberately does not satisfy it.
+35. **Correcting a job's paperwork uses `job.create`, not a separate `job.edit`.** Dispatcher and Admin already hold
+    both; adding a capability nobody would be granted differently would be a name without a rule. Status changes
+    remain `job.transition`, so editing text and moving the lifecycle stay separate permissions.
+36. **There is no technician job screen in slice 5.** The service and `jobReadWhere` already scope `job.read.own` to
+    assigned jobs and are covered by isolation tests, but the phone UI arrives with the PWA in slice 7. Office roles
+    hold `job.read.all`; the `/jobs` list asserts it, so a technician is refused rather than shown a redirect.
 
 ## Not assumed — deliberately left to you
 
