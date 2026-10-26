@@ -32,7 +32,7 @@ All cross-platform (npm scripts, no bash-only tooling). Run from `cimmerian-cran
 | `npm run seed` | Seed realistic demo data (idempotent: safe to re-run) |
 | `npm run dev` | Next.js dev server on http://localhost:3000 |
 | `npm run build` / `npm start` | Production build / serve |
-| `npm run worker` | Background job runner (reminders, email, PDF render) — *added in slice 5; the script does not exist yet* |
+| `/api/cron/daily` | Scheduled maintenance (Vercel Cron, declared in `vercel.json`). No local `worker` process exists — see the deployment notes |
 | `npm run lint` | ESLint (`eslint .`, not the deprecated `next lint`) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test` | Vitest unit tests — fast, needs no database |
@@ -47,9 +47,16 @@ the gate for finishing a slice, since it is the only version that exercises the 
 ### Environment
 
 `.env.example` is the source of truth for required variables; `.env` is gitignored. Key ones:
-`DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `APP_BASE_URL`, `STORAGE_DRIVER` (`disk` | `s3`),
-`EMAIL_DRIVER` (`console` | `smtp`), `DEFAULT_TIMEZONE`, `DEFAULT_CURRENCY`, `DEFAULT_GST_RATE`,
+`DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `APP_BASE_URL`, `STORAGE_DRIVER` (`disk` | `supabase`),
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`, `EMAIL_DRIVER`
+(`console` | `smtp`), `CRON_SECRET`, `DEFAULT_TIMEZONE`, `DEFAULT_CURRENCY`, `DEFAULT_GST_RATE`,
 `SEED_PASSWORD` (optional — overrides the demo password `npm run seed` uses).
+
+**Deployment: Vercel + Supabase.** Use the Node runtime for anything that touches Prisma — never Edge.
+There is no long-running worker and no durable local disk. Scheduled work goes in `vercel.json` and
+calls a route under `/api/cron/`, which requires `Authorization: Bearer $CRON_SECRET` in production.
+Files are uploaded **directly from the browser to Supabase Storage** with a signed upload URL; do not
+route uploads through a server action, because Vercel caps a function request body at 4.5 MB.
 
 Anything configurable by the office team lives in the `Setting` table, not in env. Env is for deployment secrets
 and infrastructure choice only.
@@ -63,10 +70,15 @@ Dexie + Serwist PWA; Vitest + Playwright; Zod on every input.
 
 Deviations from the brief's defaults, all justified in `docs/PLAN.md` §2:
 
-1. **PDF: Playwright (Chromium) HTML→PDF**, not `@react-pdf/renderer`.
-2. **Background jobs: pg-boss**, on the existing Postgres rather than a separate queue.
+1. **PDF: `@react-pdf/renderer`**, pure JavaScript. (Originally Playwright/Chromium; reversed because
+   Vercel cannot run Chromium reliably. A versioned render function per template keeps old reports
+   reproducible.)
+2. **Scheduled work: Vercel Cron + inline rendering**, not pg-boss. There is no worker process.
 3. **Auth.js: JWT sessions**, no `Account`/`Session` tables (credentials login only).
 4. **Money: `Decimal(12,2)`**, never `float`. Time: `DateTime` in UTC, never local.
+5. **Files: Supabase Storage** in production, direct upload with signed URLs. Local disk in development.
+6. **Login rate limiting: the `RateLimitBucket` table**, not process memory, because Vercel runs many
+   short-lived instances.
 
 Do not add a dependency for something the standard library or an existing dependency already does.
 Do not introduce a second way of doing something the codebase already does one way.
@@ -94,10 +106,9 @@ cimmerian-crane/
       sla/                 # SLA computation
       schedule/            # crane next-due recomputation
       documents/           # numbering, PDF render, email-on-close
-      storage/             # StorageAdapter: disk | s3
+      storage/             # StorageAdapter: disk | supabase (signed upload/download URLs)
       email/               # EmailAdapter: console | smtp
       notify/              # notification fan-out to channel adapters
-      jobs/                # pg-boss handlers (reminders, email, PDF)
     lib/
       db.ts                # Prisma client singleton
       validation/          # Zod schemas, shared by forms, actions and API

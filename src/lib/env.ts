@@ -13,11 +13,20 @@ const schema = z.object({
   DEFAULT_CURRENCY: z.string().default('SGD'),
   DEFAULT_GST_RATE: z.coerce.number().min(0).max(1).default(0.09),
 
-  STORAGE_DRIVER: z.enum(['disk', 's3']).default('disk'),
+  // Vercel has no durable local disk, so production uses Supabase Storage. `disk` remains the
+  // default for local development, where it needs no credentials.
+  STORAGE_DRIVER: z.enum(['disk', 'supabase']).default('disk'),
   STORAGE_DISK_PATH: z.string().default('./storage'),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  SUPABASE_STORAGE_BUCKET: z.string().default('cimmerian-files'),
 
   EMAIL_DRIVER: z.enum(['console', 'smtp']).default('console'),
   EMAIL_FROM: z.string().default('helpdesk@cimmeriancrane.example'),
+
+  // Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. Required in production; see
+  // src/app/api/cron/daily/route.ts.
+  CRON_SECRET: z.string().min(1).optional(),
 
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 })

@@ -61,7 +61,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         for (const [index, key] of keys.entries()) {
           const policy = index === 0 ? LOGIN_LIMITS.perEmail : LOGIN_LIMITS.perIp
-          if (!rateLimit(key, policy.limit, policy.windowMs).allowed) return null
+          if (!(await rateLimit(key, policy.limit, policy.windowMs)).allowed) return null
         }
 
         const user = await db.user.findFirst({
@@ -73,7 +73,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ok = await verifyPassword(password, user?.passwordHash ?? (await decoy()))
         if (!user || !ok) return null
 
-        for (const key of keys) resetRateLimit(key)
+        for (const key of keys) await resetRateLimit(key)
 
         await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
 

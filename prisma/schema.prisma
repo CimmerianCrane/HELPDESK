@@ -1277,6 +1277,19 @@ model StockTakeLine {
 // Cross-cutting  (Phase 1)
 // ===========================================================================
 
+/// Sign-in rate limiting. Lives in Postgres rather than process memory because the app runs as
+/// several short-lived serverless instances on Vercel, where a per-process counter bounds nothing:
+/// an attacker simply gets a fresh counter with each instance. The increment and window reset happen
+/// in one atomic statement (see src/server/auth/rate-limit.ts), so concurrent instances share a limit.
+model RateLimitBucket {
+  key       String   @id
+  count     Int      @default(0)
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
+}
+
 /// Append-only. Written by the audit service, never by callers directly. Never updated or deleted.
 model AuditLog {
   id        String      @id @default(uuid(7))

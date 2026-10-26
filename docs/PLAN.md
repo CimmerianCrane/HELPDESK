@@ -3,7 +3,8 @@
 Architecture, data model, screens and build plan. Conventions and non-negotiables live in `../CLAUDE.md`.
 Assumptions where the brief was silent live in `ASSUMPTIONS.md`.
 
-**Status: Phase 1, slices 0–1 built and verified against the live database. Slice 2 is next.**
+**Status: Phase 1, slices 0–1 built and verified against the live database, now adapted to Vercel
+hosting. Slice 2 is next.**
 
 ---
 
@@ -16,19 +17,32 @@ Browser (office, desktop-first)          Phone/tablet (technician PWA, mobile-fi
         │                                          │
         │  server actions / RSC                    │  Dexie (IndexedDB) ── outbox queue ──┐
         ▼                                          ▼                                      │
-┌───────────────────────────── Next.js server (Node runtime) ──────────────────────────┐ │
+┌──────────────────────── Vercel — Next.js, Node runtime ──────────────────────────────┐ │
 │  route handlers + server actions                                                     │◄┘
 │    validate (Zod) → authorize (permission map) → service → audit → respond           │
 │                                                                                      │
 │  src/server/*   services: customers cranes tickets jobs schedule reports             │
 │                 documents inventory audit sla                                        │
-│  adapters       storage (disk│s3)   email (console│smtp)   notify (in-app│email│sms) │
-│  pg-boss worker separate process (`npm run worker`): reminders, email, PDF render    │
+│  adapters       storage (supabase│disk)  email (console│smtp)  notify (in-app│email) │
+│  cron           /api/cron/daily (Vercel Cron): reminders, retries, cleanup           │
 └──────────────────────────────────────────────────────────────────────────────────────┘
         │                                     │                          │
-   PostgreSQL (Prisma)                 local disk / S3            Chromium (Playwright)
-   business data + pg-boss queue       photos, PDFs, certs        headless HTML→PDF
+   Supabase Postgres (Prisma)          Supabase Storage          @react-pdf/renderer
+   business data + rate limits         photos, PDFs, certs       in the approving request
 ```
+
+**Deployment shape changed this plan.** The original design assumed one always-on host, so it could
+run a pg-boss worker, headless Chromium and a local disk. The application is hosted on **Vercel**,
+which forbids all three: functions are short-lived, the filesystem is read-only apart from `/tmp`,
+and there is no background process. The substitutions are:
+
+| Original assumption | On Vercel | Consequence |
+|---|---|---|
+| pg-boss worker (`npm run worker`) | Vercel Cron hitting a protected route, plus work done inline in the request that causes it | No queue process to operate. A report PDF renders when it is approved (~1–2s); the daily cron retries anything that failed and evaluates reminders. |
+| Chromium (Playwright) HTML→PDF | `@react-pdf/renderer` — pure JavaScript, no browser binary | Templates become versioned React components rather than HTML+CSS. Reproducibility is kept: the render function is selected by `Report.templateVersion` and the stored `data`, never by the current template. |
+| Local disk / S3 for files | Supabase Storage, private bucket, signed URLs | Uploads go **directly from the browser to Supabase** with a short-lived signed upload URL, because a Vercel function request body is capped at 4.5 MB — smaller than a phone photo. The server never proxies the bytes. |
+| In-process login rate limit | `RateLimitBucket` table | Shared by every function instance. One atomic statement increments and resets the window. |
+| `npm run worker` in `package.json` | `/api/cron/daily` in `vercel.json` | The cron endpoint requires `CRON_SECRET` in production. |
 
 **Request path rule.** A route handler or server action does exactly four things: parse input with Zod, ask the
 permission map whether this user may do this, call one service function, return a typed result. No business logic in
@@ -46,8 +60,8 @@ The brief's defaults are kept except for the four deviations listed in `../CLAUD
 
 | Decision | Choice | Why | Rejected alternative |
 |---|---|---|---|
-| PDF generation | **Playwright (Chromium) HTML→PDF** | The brief requires templates with merge fields and branding that **version**, where an old report re-renders exactly as issued. A versioned HTML+CSS template is the smallest way to do that — no second layout language, and the same markup renders the on-device offline summary. Report layouts are photo- and table-heavy, which HTML already solves. Reports render in the worker (not the request), so a ~1–2s headless render is acceptable. | `@react-pdf/renderer` needs no browser, but reimplements layout in a component DSL with no CSS — expensive for six report templates and awkward for photo grids and signature blocks. **Cost accepted:** Chromium in the runtime image; not serverless-friendly. Fine, because we already need a long-running worker and a Node server. |
-| Background jobs | **pg-boss** | Uses the Postgres we already run; transactional enqueue, retries, scheduled/cron jobs. Shape is behind an interface, so swapping later is one file. | node-cron in-process dies with the process and has no retry or delivery guarantee; Redis/BullMQ adds a second datastore for a single-instance office app. |
+| PDF generation | **`@react-pdf/renderer`** | Reversed from the original plan when hosting moved to Vercel. Chromium cannot be bundled reliably in a Vercel Function (size, cold start, `maxDuration`), and the alternative — an external render vendor — adds a credential and a network hop to every report. `@react-pdf/renderer` is pure JavaScript, runs inside the approving request, and needs no runtime image. **Versioning is preserved:** each `ReportTemplate` version has its own render function, selected by `Report.templateVersion`, so an old report still re-renders exactly as issued. **Cost accepted:** report layout is written in a component DSL, not CSS; more work for photo grids and signature blocks. | Playwright/Chromium (the original choice) — operationally wrong on Vercel. A hosted render API (Browserless, PDFShift) — a vendor and credential we do not need for this volume. |
+| Background jobs | **Vercel Cron + inline work** | There is no always-on process on Vercel, so a queue worker cannot exist. Work that must be immediate (rendering a PDF on approval) happens in that request; work that is time-based (reminder scan, retry of failed renders/emails, pruning rate-limit rows) runs from `/api/cron/daily`, declared in `vercel.json` and protected by `CRON_SECRET`. | pg-boss (the original choice) needs a long-lived worker and would not run. Redis/BullMQ adds a second datastore and still needs a worker. |
 | Auth sessions | **JWT sessions, no `Account`/`Session` tables** | Credentials-only login. Fewer tables, no session cleanup job. Instant role change is handled by reading the user's role from the DB per request in the `Context` factory. | Database sessions add tables and a sweep job for no benefit here. |
 | Money | **`Decimal(12,2)`** | Invoices, GST and job costing; binary floats are wrong for money. | `Float` is disqualifying; integer cents add conversion noise everywhere for no gain given Postgres `numeric`. |
 | Offline sync | **Dexie + client-generated UUIDs + idempotency** | Client mints the id before going offline, so a retried upload upserts rather than duplicates. | Server-assigned ids cannot survive an offline create. |
@@ -1196,7 +1210,7 @@ guard; demo *accounts* do.
 | **6** | **Scheduling & dispatch** | Schedule board (day/week, dnd-kit, conflict warnings); technician assignment with competency warnings + configurable block; leave/unavailability; on-call roster; resource booking + conflict flags; priority bump with reason (audited); dispatch notification with site contact, access notes, crane history, checklist | §12.5 |
 | **7** | **Technician PWA shell** | Installable PWA (Serwist); Dexie cache of upcoming jobs, crane histories, templates, parts, contacts; My Jobs; Job detail; offline indicator | §12.6 |
 | **8** | **Offline report completion** | Checklist form with measurements; photos with client-side compression; parts used; findings; technician + customer signatures with declined-with-reason; autosave every few seconds; outbox sync queue with pending badge, retry, idempotency via `SyncReceipt`, conflicts logged | §12.6, §10 |
-| **9** | **Approval, lock, PDF** | Report approval flow; locked reports + amendment with reason linked to original; document numbering; Playwright HTML→PDF render with embedded signatures and photos; email to customer on close with copy stored against job and crane; crane timeline now populated | §12.7 |
+| **9** | **Approval, lock, PDF** | Report approval flow; locked reports + amendment with reason linked to original; document numbering; `@react-pdf/renderer` PDF with embedded signatures and photos; email to customer on close with copy stored against job and crane; crane timeline now populated | §12.7 |
 | **10** | **Job list, dashboard, audit views** | Company-wide job list with every filter + saved filters + CSV export + calendar view; office dashboard; audit log viewer and "who changed what" on key records | §12.8, §12.9 |
 | **11** | **E2E happy paths** | Playwright: (a) P1 breakdown ticket → assign nearest qualified technician → offline report with photos and both signatures → sync → approve → customer PDF; (b) offline report completion and later sync | §12.10 |
 
@@ -1210,7 +1224,7 @@ historical jobs, 2 open P1 tickets, 40 parts with some below reorder level, demo
 
 ## 7. Phases 2–4 (outline)
 
-**Phase 2 — Compliance & recurring work.** CraneSchedule + reminder engine (pg-boss daily evaluation at configured
+**Phase 2 — Compliance & recurring work.** CraneSchedule + reminder engine (daily Vercel Cron evaluation at configured
 offsets, then overdue); Certificates + Compliance dashboard (90/60/30 + overdue); ComplianceRule admin with the MOM
 notice and source/reference; load test and visual inspection templates fully built out including calibration-expiry
 validation against `Resource.calibrationDueDate`; Findings and one-click follow-up job generation; re-registration
@@ -1247,7 +1261,7 @@ deliverable and are re-run as a regression guard on every later slice.
 | **PDF reproducibility across template versions** | `Report` stores `templateVersion` + the exact `data`; `ReportTemplate` rows are never mutated, only superseded by a new version. Slice 9 test: re-render an approved report after a template change and diff. |
 | **Compliance rules change (MOM circulars)** | Rules live in `ComplianceRule` with `effectiveFrom`/`effectiveTo` and a required `sourceReference`. Superseding a rule is an Admin data entry, not a deploy. No regulatory fact appears in code. |
 | **Scope creep across 14 job types** | Phase 1 seeds all 14 as data but fully builds only 4 templates (servicing, breakdown, visual inspection, load test). The rest are configurable rows. |
-| **Playwright/Chromium in the runtime image** | Reports render in the worker, not the request path, so render latency never blocks a user. Documented in the README as a deployment requirement. Accepted cost, recorded in §2. |
+| **PDF rendering on Vercel** | No Chromium and no worker. Rendering is pure JavaScript (`@react-pdf/renderer`) inside the approving request; the daily cron retries any render or email that failed. A very large report (dozens of photos) could approach the function duration limit; the retry pass and per-report status make that visible rather than silent. |
 | **Schema churn in later phases** | Full schema designed now (§3); Phase 2–4 models exist but stay unused until their slice. Migrations are additive. |
 
 ---

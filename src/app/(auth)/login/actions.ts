@@ -54,7 +54,7 @@ export async function signInAction(_previous: LoginState, formData: FormData): P
   ] as const
 
   for (const [key, policy] of buckets) {
-    const peek = peekRateLimit(key, policy.limit, policy.windowMs)
+    const peek = await peekRateLimit(key, policy.limit, policy.windowMs)
     if (!peek.allowed) {
       const minutes = Math.max(1, Math.ceil(peek.retryAfterSeconds / 60))
       return {

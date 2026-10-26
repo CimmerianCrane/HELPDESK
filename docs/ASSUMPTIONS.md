@@ -22,9 +22,11 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
 5. **Scale — assume ≲ 500 cranes, ≲ 100 customers, ≲ 20 technicians, data arriving as spreadsheets.** Comfortably
    handles single-instance Postgres and the index set in `PLAN.md` §3.10. *If wrong:* hosting and indexing get
    revisited, not the schema.
-6. **Hosting — assume a single cloud VM or container host running the Next.js server, the worker and Postgres.**
-   This is what makes Playwright/Chromium and pg-boss cheap. ⚑ Confirm before deployment work starts — a
-   serverless host would force a different PDF and queue choice.
+6. **Hosting — Vercel, with Supabase Postgres.** Confirmed by the user, and it replaced the
+   single-VM assumption this plan originally made. Vercel has no long-running process, no durable
+   local disk and no reliable way to ship Chromium, so the worker, Playwright PDF and disk storage
+   were replaced (see 9, 10 and 21). Deployments use the Node runtime, never Edge, because Prisma
+   requires it. The Prisma client is generated on install (`postinstall`).
 7. **WhatsApp intake — assume Phase 1 is phone/email/web form only.** `TicketSource` already has a `WHATSAPP` value
    so adding the channel later is an adapter, not a migration.
 
@@ -33,8 +35,12 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
 8. **Auth.js uses JWT sessions (no `Account`/`Session` tables).** Credentials-only login. Role is read from the DB per
    request so a role change takes effect immediately. *Cost if wrong:* adding DB sessions later is one Prisma model
    plus a sweep job.
-9. **PDF via Playwright/Chromium** — justified in `PLAN.md` §2. Renders in the worker, so it never blocks a request.
-10. **Background jobs via pg-boss** on the existing Postgres. Single worker process (`npm run worker`).
+9. **PDF via `@react-pdf/renderer`** — reversed from Playwright/Chromium because Vercel cannot run a
+   Chromium binary reliably. Pure JavaScript, renders inside the approving request. Versioned render
+   functions keep old reports reproducible. Justified in `PLAN.md` §2.
+10. **Scheduled work via Vercel Cron**, not pg-boss. `/api/cron/daily` is declared in `vercel.json`
+    and protected by `CRON_SECRET`. Immediate work (PDF render, email on approval) runs in that
+    request; the daily pass retries failures, evaluates reminders and prunes rate-limit rows.
 11. **Money as `Decimal(12,2)`, quantities as `Decimal(12,3)`** (parts are measured in metres and kilograms).
 12. **Single-tenant, single-company deployment.** No tenant column anywhere. *If wrong:* this is the one assumption
     that would touch every table — worth confirming early, though nothing suggests multi-tenancy is wanted.
@@ -55,12 +61,19 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     (`scrypt$N$r$p$salt$hash`) so the cost parameters can be raised later without invalidating existing passwords.
     *Cost if wrong:* the format is ours, so switching to bcrypt or Argon2 later means a rehash-on-next-login, not a
     forced password reset — but nothing suggests we will need to.
-20. **Login rate limiting is in-process memory**: 10 failed attempts per email and 30 per client address, each over a
-    15-minute window, checked as two independent buckets. It is honest about its limits — the counters reset when
-    the app restarts and do not coordinate across instances. *Cost if wrong:* when this runs
-    on more than one instance, swap the two functions in `src/server/auth/rate-limit.ts` for Redis or a
-    `LoginAttempt` table. The call sites do not change. The reason it is acceptable today is that it exists to stop
-    password guessing against one account, not to be an infrastructure-grade limiter.
+20. **Login rate limiting lives in Postgres** (`RateLimitBucket`): 10 failed attempts per email and 30
+    per client address, each over a 15-minute window, checked as two independent buckets. This replaced
+    the original in-process `Map` when hosting moved to Vercel, where every request may reach a
+    different instance and a per-process counter would bound nothing. The increment and window reset
+    are one atomic `INSERT … ON CONFLICT` statement, so concurrent instances share the limit. The
+    table is small: expired rows are deleted by the daily cron. Losing the database already means
+    losing sign-in, so this adds no failure mode.
+
+21. **Files live in Supabase Storage in production** (private bucket, signed URLs), with the local
+    disk used only in development. Uploads go directly from the browser to Supabase using a
+    short-lived signed upload URL, because a Vercel function request body is capped at 4.5 MB — less
+    than a phone photo — and the server must not proxy upload bytes. The `File` row is written after
+    the upload succeeds, with the storage key and checksum.
 
 ## Not assumed — deliberately left to you
 

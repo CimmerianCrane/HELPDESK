@@ -1,5 +1,7 @@
+import { db, type Tx } from '@/lib/db'
+
 /**
- * Fixed-window rate limiter for sign-in, held in process memory.
+ * Fixed-window rate limiter for sign-in, held in Postgres.
  *
  * Two buckets are checked on every attempt and both must allow it:
  *
@@ -7,20 +9,13 @@
  *     matter how many addresses they come from;
  *   - by client IP, which catches one source spraying many different accounts.
  *
- * shortcut: state is per-process, so with more than one app instance the effective limit is
- * per-instance. Move to a Postgres or Redis counter when the app runs behind more than one node.
- * The email bucket still bounds single-account guessing either way.
+ * The counter is a database row rather than a `Map` because this app is deployed on Vercel: every
+ * request may land on a different, short-lived function instance, so a per-process counter would
+ * give an attacker a fresh allowance per instance. The insert-or-increment below is a single
+ * statement, so concurrent instances increment the same row atomically.
+ *
+ * Losing the database means losing sign-in anyway, so this adds no new failure mode.
  */
-
-interface Bucket {
-  count: number
-  resetAt: number
-}
-
-const buckets = new Map<string, Bucket>()
-
-/** Bounds memory if someone hammers with unique keys. Oldest-inserted go first. */
-const MAX_ENTRIES = 10_000
 
 export interface RateLimitResult {
   allowed: boolean
@@ -28,39 +23,41 @@ export interface RateLimitResult {
   retryAfterSeconds: number
 }
 
+function toResult(count: number, resetAt: Date, limit: number, now: number): RateLimitResult {
+  if (count <= limit) return { allowed: true, retryAfterSeconds: 0 }
+  return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((resetAt.getTime() - now) / 1000)) }
+}
+
 /**
- * Records one attempt and reports whether it may proceed. `now` is injectable so the test does not
- * have to wait out a real window.
+ * Records one attempt and reports whether it may proceed. The first attempt in a window creates the
+ * row; later attempts increment it; an expired window starts again at one. All of that happens in
+ * the database in one round trip, so two instances cannot both think they are the first.
  */
-export function rateLimit(
+export async function rateLimit(
   key: string,
   limit: number,
   windowMs: number,
-  now: number = Date.now(),
-): RateLimitResult {
-  if (buckets.size >= MAX_ENTRIES) {
-    for (const [existing, bucket] of buckets) {
-      if (bucket.resetAt <= now) buckets.delete(existing)
-    }
-    // Still full of live windows: drop the oldest, which Map iteration gives us first.
-    while (buckets.size >= MAX_ENTRIES) {
-      const oldest = buckets.keys().next().value
-      if (oldest === undefined) break
-      buckets.delete(oldest)
-    }
-  }
+  client: Tx = db,
+): Promise<RateLimitResult> {
+  const rows = await client.$queryRaw<Array<{ count: number; resetAt: Date }>>`
+    INSERT INTO "RateLimitBucket" ("key", "count", "resetAt", "updatedAt")
+    VALUES (${key}, 1, now() + make_interval(secs => ${windowMs / 1000}), now())
+    ON CONFLICT ("key") DO UPDATE SET
+      "count" = CASE
+        WHEN "RateLimitBucket"."resetAt" <= now() THEN 1
+        ELSE "RateLimitBucket"."count" + 1
+      END,
+      "resetAt" = CASE
+        WHEN "RateLimitBucket"."resetAt" <= now() THEN now() + make_interval(secs => ${windowMs / 1000})
+        ELSE "RateLimitBucket"."resetAt"
+      END,
+      "updatedAt" = now()
+    RETURNING "count", "resetAt"
+  `
 
-  const existing = buckets.get(key)
-  if (!existing || existing.resetAt <= now) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs })
-    return { allowed: true, retryAfterSeconds: 0 }
-  }
-
-  existing.count += 1
-  if (existing.count > limit) {
-    return { allowed: false, retryAfterSeconds: Math.ceil((existing.resetAt - now) / 1000) }
-  }
-  return { allowed: true, retryAfterSeconds: 0 }
+  const row = rows[0]
+  if (!row) return { allowed: true, retryAfterSeconds: 0 }
+  return toResult(row.count, row.resetAt, limit, Date.now())
 }
 
 /**
@@ -68,28 +65,39 @@ export function rateLimit(
  * attempts, try again in N minutes" instead of the generic wrong-password message, without the
  * attempt being counted twice — `authorize` remains the only place that increments.
  */
-export function peekRateLimit(
+export async function peekRateLimit(
   key: string,
   limit: number,
   windowMs: number,
-  now: number = Date.now(),
-): RateLimitResult {
-  const bucket = buckets.get(key)
-  if (!bucket || bucket.resetAt <= now) return { allowed: true, retryAfterSeconds: 0 }
-  if (bucket.count > limit) {
-    return { allowed: false, retryAfterSeconds: Math.ceil((bucket.resetAt - now) / 1000) }
-  }
-  return { allowed: true, retryAfterSeconds: 0 }
+  client: Tx = db,
+): Promise<RateLimitResult> {
+  // `windowMs` is part of the signature so callers can pass the same policy object they consume
+  // with; the stored `resetAt` already encodes it.
+  void windowMs
+
+  const row = await client.rateLimitBucket.findUnique({ where: { key } })
+  if (!row) return { allowed: true, retryAfterSeconds: 0 }
+
+  const now = Date.now()
+  if (row.resetAt.getTime() <= now) return { allowed: true, retryAfterSeconds: 0 }
+  return toResult(row.count, row.resetAt, limit, now)
 }
 
 /** Called after a successful sign-in, so a few fat-fingered attempts do not count against someone. */
-export function resetRateLimit(key: string): void {
-  buckets.delete(key)
+export async function resetRateLimit(key: string, client: Tx = db): Promise<void> {
+  await client.rateLimitBucket.deleteMany({ where: { key } })
 }
 
-/** Test hook. */
-export function clearRateLimits(): void {
-  buckets.clear()
+/**
+ * Drops windows that have already expired. Called by the daily Vercel cron; without it the table
+ * would keep one row per email/address ever seen. Safe to run at any time — a row only disappears
+ * once its window is over, at which point it would be reset on next use anyway.
+ */
+export async function pruneRateLimitBuckets(): Promise<number> {
+  const result = await db.rateLimitBucket.deleteMany({
+    where: { resetAt: { lte: new Date() } },
+  })
+  return result.count
 }
 
 // ---------------------------------------------------------------------------
@@ -112,6 +120,7 @@ export function ipKey(ip: string): string {
 /**
  * Best-effort client address. `x-forwarded-for` is client-supplied unless a trusted proxy sets it,
  * so this is a throttle, not an identity — which is why the email bucket exists alongside it.
+ * Vercel sets `x-forwarded-for`, and `x-real-ip` is the fallback for other hosts.
  *
  * Takes the minimal shape rather than `Headers` so it accepts Next's read-only headers too.
  */
