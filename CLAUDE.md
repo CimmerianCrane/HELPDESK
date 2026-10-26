@@ -47,8 +47,9 @@ the gate for finishing a slice, since it is the only version that exercises the 
 ### Environment
 
 `.env.example` is the source of truth for required variables; `.env` is gitignored. Key ones:
-`DATABASE_URL`, `AUTH_SECRET`, `APP_BASE_URL`, `TZ` (`Asia/Singapore`), `STORAGE_DRIVER` (`disk` | `s3`),
-`EMAIL_DRIVER` (`console` | `smtp`), `DEFAULT_TIMEZONE`, `DEFAULT_CURRENCY`, `DEFAULT_GST_RATE`.
+`DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `APP_BASE_URL`, `STORAGE_DRIVER` (`disk` | `s3`),
+`EMAIL_DRIVER` (`console` | `smtp`), `DEFAULT_TIMEZONE`, `DEFAULT_CURRENCY`, `DEFAULT_GST_RATE`,
+`SEED_PASSWORD` (optional — overrides the demo password `npm run seed` uses).
 
 Anything configurable by the office team lives in the `Setting` table, not in env. Env is for deployment secrets
 and infrastructure choice only.
@@ -87,7 +88,8 @@ cimmerian-crane/
       (tech)/m/            # mobile-first technician PWA: my jobs, report form, photos, signatures
       api/                 # route handlers: sync, file upload, health, PDF, webhooks
     server/
-      auth/                # session, password hashing, permission map
+      auth/                # session, password hashing, permission map, row-level scope
+      users/               # user administration service
       audit/               # audit(context, ...) — the only way to write business data
       sla/                 # SLA computation
       schedule/            # crane next-due recomputation
@@ -140,9 +142,13 @@ check permission, call a service, return. Logic lives in the service, tests live
 
 ## Rules that must never be violated
 
-1. **Server-side authorization on every query and every action.** The permission map in `src/server/auth/permissions.ts`
-   is the single place roles map to capabilities. UI checks are cosmetic; the server check is the real one.
-   A technician must never read another technician's jobs or any data belonging to another customer.
+1. **Server-side authorization on every query and every action.** Authorization has two halves and both are
+   required. `src/server/auth/permissions.ts` decides *whether* a role may do something; `src/server/auth/scope.ts`
+   decides *which rows* it may do it to, and every read spreads its filter into the `where`. A capability without a
+   scope filter is a bug, not a shortcut. Services take an `AuthContext` as their first argument and call
+   `assertCan` themselves, so no service can be reached without an identity. UI checks are cosmetic; the server
+   check is the real one. A technician must never read another technician's jobs or any data belonging to another
+   customer.
 2. **Compliance rules are data, not code.** Intervals, whether an AE is required, and the legal reference live in
    `ComplianceRule` + `CraneSchedule` and are editable by Admin, each carrying a free-text **source/reference** and a
    `reviewedAt` date. Never invent or hard-code a regulatory fact. The admin screen carries the standing notice:
@@ -168,6 +174,30 @@ check permission, call a service, return. Logic lives in the service, tests live
 12. **No bash-only scripts.** Everything runs on Windows, macOS and Linux via npm scripts.
 
 ---
+
+## How authorization is done here
+
+Every slice that reads or writes business data follows this shape. It is short on purpose.
+
+```ts
+// 1. The service takes the caller's identity. It never accepts a role or an id from the caller.
+export async function listJobs(context: AuthContext, filters: unknown, client: Tx = db) {
+  // 2. Capability: may this role do this at all?
+  assertCan(context, 'job.read.all')
+
+  // 3. Scope: which rows? Spread the filter; never build a `where` without it.
+  return client.job.findMany({ where: { ...jobReadWhere(context), ...validated(filters) } })
+}
+
+// 4. The service writes through withAudit, passing the client so the caller's transaction is used.
+await withAudit(context, async (tx, log) => { ... }, client)
+```
+
+- `assertCan` throws `ForbiddenError`; `runAction` turns that into a message the form can show.
+- Actions are thin: `formValues(formData)` → service → `revalidatePath`. No business rules in an action.
+- Route handlers translate `AppError` to its `status`; anything else is a 500 and reaches the logger.
+- A new entity gets a `xxxReadWhere` in `scope.ts` **before** its first service, so the fail-closed
+  default is in place from the start rather than retrofitted.
 
 ## Working agreement
 

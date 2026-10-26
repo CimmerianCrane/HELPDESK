@@ -50,6 +50,17 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     old invoice shows the rate that applied then.
 18. **Report `DRAFT` state is per-technician-per-crane.** A job covering several cranes produces one report per crane,
     which is what makes the crane timeline and the certificate linkage work.
+19. **Passwords are hashed with scrypt from Node's standard library**, not bcrypt. scrypt is memory-hard and needs no
+    dependency or native build step, which keeps `npm install` clean on Windows. Hashes are stored self-describing
+    (`scrypt$N$r$p$salt$hash`) so the cost parameters can be raised later without invalidating existing passwords.
+    *Cost if wrong:* the format is ours, so switching to bcrypt or Argon2 later means a rehash-on-next-login, not a
+    forced password reset — but nothing suggests we will need to.
+20. **Login rate limiting is in-process memory**: 10 failed attempts per email and 30 per client address, each over a
+    15-minute window, checked as two independent buckets. It is honest about its limits — the counters reset when
+    the app restarts and do not coordinate across instances. *Cost if wrong:* when this runs
+    on more than one instance, swap the two functions in `src/server/auth/rate-limit.ts` for Redis or a
+    `LoginAttempt` table. The call sites do not change. The reason it is acceptable today is that it exists to stop
+    password guessing against one account, not to be an infrastructure-grade limiter.
 
 ## Not assumed — deliberately left to you
 

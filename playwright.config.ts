@@ -10,6 +10,10 @@ export default defineConfig({
     baseURL: process.env.APP_BASE_URL ?? 'http://localhost:3000',
     trace: 'on-first-retry',
   },
+  // Next compiles each route on first request in dev, and these tests talk to a database in another
+  // region. The 5s default is not enough for a cold server, which made the suite fail or pass
+  // depending on nothing but ordering — the worst kind of flake.
+  expect: { timeout: 15_000 },
   projects: [
     { name: 'office', use: { ...devices['Desktop Chrome'] } },
     // Technician screens are mobile-first and must be checked at ~390px (brief §14).

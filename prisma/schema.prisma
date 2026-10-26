@@ -295,6 +295,8 @@ model User {
   phone        String?
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  /** Set when an administrator resets the password. Ends every session issued before it. */
+  passwordChangedAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?

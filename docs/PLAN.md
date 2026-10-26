@@ -3,7 +3,7 @@
 Architecture, data model, screens and build plan. Conventions and non-negotiables live in `../CLAUDE.md`.
 Assumptions where the brief was silent live in `ASSUMPTIONS.md`.
 
-**Status: awaiting approval. No application code written yet.**
+**Status: Phase 1, slices 0–1 built and verified against the live database. Slice 2 is next.**
 
 ---
 
@@ -1141,12 +1141,49 @@ job, crane, report or customer reads.
 Each slice runs **database → service → API/action → UI → tests**, ends with `npm run verify`, a commit, and a
 3–5 line summary. Each is independently demoable.
 
-**Progress:** Slice 0 is **done** — typecheck, lint, 12 unit tests, 5 integration tests and 4 end-to-end tests all
-pass against the live Supabase database. Two deviations from the plan as written, both recorded in the schema and
-migration rather than left implicit: the CHECK constraints live in their own migration
-(`20261026103300_reason_required_constraints`) instead of being appended to the init migration, because the init
-migration had already been applied; and there is a separate `npm run test:integration` suite, kept out of
-`npm run test` so the default gate needs no database.
+**Progress:** Slices 0 and 1 are **done**, both verified against the live Supabase database.
+
+*Slice 0* — typecheck, lint, unit, integration and end-to-end tests all pass. Two deviations from the plan as
+written, both recorded in the schema and migration rather than left implicit: the CHECK constraints live in their
+own migration (`20261026103300_reason_required_constraints`) instead of being appended to the init migration,
+because the init migration had already been applied; and there is a separate `npm run test:integration` suite,
+kept out of `npm run test` so the default gate needs no database.
+
+*Slice 1* — authentication, the permission map, row-level scoping, user administration and the isolation tests.
+Five decisions worth recording, because later slices depend on them:
+
+1. **The session token carries only the user id.** Role and technician link are read from the database in
+   `getAuthContext()` on every request. This costs one primary-key lookup per request and buys the absence of a
+   stale-permission window: revoking a role or deactivating an account takes effect on the next page load. For an
+   application this size that is the right side of the trade.
+2. **Row-level scoping is a separate module from the capability map** (`scope.ts` beside `permissions.ts`), and it
+   fails closed. A role with no read capability gets a filter matching nothing rather than no filter, so *adding a
+   role and forgetting to scope it* denies access instead of granting it.
+3. **Permission checks live inside the service, not in the action.** Every service takes an `AuthContext` as its
+   first argument and asserts the capability itself, so a service cannot be called without an identity and a
+   caller cannot forget the check. Actions stay thin: validate, call the service, revalidate.
+4. **Services accept an optional transaction client.** `withAudit(context, fn, client?)` joins a caller's open
+   transaction instead of always opening its own. Without this no service that writes could be tested inside
+   `inRolledBackTx`, and the integration suite would have to leave rows behind in the shared database.
+5. **A password reset ends the sessions that were already open.** The sign-in time travels in the token
+   (`token.signedInAt`) and `getAuthContext()` refuses a token older than `User.passwordChangedAt`. Without it a
+   JWT stays valid for its full twelve hours after the reset, so the reset would not do the one thing it is
+   clicked for. A token carrying no sign-in time is refused, which costs one extra sign-in per session that
+   predates this and keeps an undateable session from being trusted.
+
+Passwords use scrypt from Node's standard library rather than bcrypt: memory-hard, no native build step, and it
+removes a dependency from a project that has to install cleanly on Windows, macOS and Linux. The stored hash
+records its own parameters, so they can be raised later without invalidating existing logins.
+
+Not done in slice 1, and deliberately so: there is no middleware. The `(office)` layout performs the real,
+database-backed check and every server action re-checks independently. A middleware layer would read only the
+JWT, could not consult the database, and would give a false sense of a second line of defence.
+
+The seed creates the demo accounts only when `DATABASE_URL` points at the machine running it, unless
+`SEED_DEMO_USERS=true` says otherwise. They all share a password that is written in `prisma/seed.ts` and
+`README.md`, so the question is not what `NODE_ENV` says — `prisma db seed` never sets it — but where the data
+would land. Demo *data* added by later slices (customers, cranes, jobs) is not a credential and needs no such
+guard; demo *accounts* do.
 
 | # | Slice | Delivers | Brief § |
 |---|---|---|---|

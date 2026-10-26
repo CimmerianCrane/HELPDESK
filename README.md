@@ -7,7 +7,7 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Architecture, data model, screens and the phase plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
-**Status:** Slice 0 (foundations). No business features yet — see "What works today" below.
+**Status:** Slice 1 (authentication, roles and the permission map). See "What works today" below.
 
 ---
 
@@ -64,7 +64,7 @@ hostname verbatim from your dashboard's Connect panel.
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-4. Create the schema and seed the settings:
+4. Create the schema and seed the settings and demo accounts:
 
 ```bash
 npm install
@@ -73,7 +73,28 @@ npm run seed
 npm run dev
 ```
 
-Open <http://localhost:3000>. The home page reports whether it can reach the database.
+Open <http://localhost:3000> and sign in at `/login`.
+
+### Demo accounts
+
+`npm run seed` creates one account per role, plus two technicians so that "a technician cannot see
+another technician's jobs" is something you can check by signing in and looking.
+
+| Email | Role |
+|---|---|
+| `admin@cimmeriancrane.example` | Administrator |
+| `dispatch@cimmeriancrane.example` | Dispatcher |
+| `ahmad@cimmeriancrane.example` | Technician |
+| `raj@cimmeriancrane.example` | Technician |
+| `store@cimmeriancrane.example` | Storekeeper |
+| `finance@cimmeriancrane.example` | Finance |
+
+The password is `cimmerian-dev-2026`, or whatever you set `SEED_PASSWORD` to.
+
+> **These are development accounts.** The password is published in this repository, so the seed only
+> creates them when `DATABASE_URL` points at this machine. If you are using a hosted database — the
+> Supabase project above, say — it skips them and prints why; set `SEED_DEMO_USERS=true` to say you
+> meant it. Before this system is used for real work, change every password or delete the accounts.
 
 ### Using a local database instead
 
@@ -104,10 +125,35 @@ The full list, including the background worker that arrives in slice 5, is in [`
 
 ## What works today
 
-Slice 0 is the foundation everything else is built on. What you can actually exercise:
+### Slice 1 — authentication, roles and permissions
+
+- **Sign in** at `/login`. Sessions are JWT cookies carrying only the user id; the role is read from
+  the database on every request, so deactivating someone or changing their role takes effect on their
+  next page load rather than whenever a token expires.
+- **Passwords** are hashed with scrypt from Node's standard library — memory-hard, no native build
+  step, and the stored hash records its own parameters so they can be raised later without
+  invalidating existing logins.
+- **Rate limiting** on sign-in, by email *and* by client IP. The email bucket cannot be forged, so
+  guessing one account's password is bounded no matter how many addresses an attacker uses.
+- **The permission map** (`src/server/auth/permissions.ts`) is the only place a role maps to what it
+  may do. A technician signing in sees no Users link, and typing `/admin/users` gets a refusal from
+  the server, not a hidden button.
+- **Row-level scoping** (`src/server/auth/scope.ts`) is the second half: the permission map says
+  whether a role may read jobs, the scope filters say *which rows*. It fails closed — a role with no
+  read capability gets a filter matching nothing, so forgetting to add a role denies access rather
+  than opening it.
+- **User administration** at `/admin/users`: create, edit, change role, deactivate, reset password.
+  Every change is audit-logged, and the audit log records that a password changed without ever
+  recording the password or its hash. A technician login creates the linked technician record that
+  job scoping depends on, and the last active administrator cannot be demoted or deactivated — by
+  anyone, including themselves.
+- **Tests** — 49 unit tests, 24 integration tests against the real database, and end-to-end coverage
+  of signing in, being refused, and being locked out.
+
+### Slice 0 — foundations
 
 - **`/api/health`** — reports application and database status, for load balancers and smoke checks.
-- **`/`** — status page that proves the stack is wired end to end.
+- **`/`** — public landing page: a sign-in link when signed out, a link to the dashboard when in.
 - **Settings** — timezone, currency, GST rate, reminder offsets and the compliance notice live in the
   database, seeded by `npm run seed` and editable later in Admin. They are not constants in code.
 - **Document numbering** — `JOB-2026-0001`, `RPT-2026-0001` and friends, issued from a single atomic
@@ -120,11 +166,11 @@ Slice 0 is the foundation everything else is built on. What you can actually exe
   future code path can create a violating row. `npm run test:integration` proves the database itself
   refuses them.
 - **Error handling** — structured JSON logging, route and global error boundaries.
-- **Tests** — 12 unit tests (no database) and 5 integration tests (real database, each wrapped in a
-  transaction that is rolled back, so the suite leaves no rows behind). Playwright is wired for
-  end-to-end.
+- **Tests** — unit tests run with no database; integration tests run against the real database, each
+  wrapped in a transaction that is rolled back, so the suite leaves no rows behind. Playwright covers
+  the browser.
 
-Next: **slice 1 — authentication, roles and the permission map.**
+Next: **slice 2 — customers and contacts.**
 
 ---
 
@@ -182,3 +228,12 @@ instead of `DIRECT_URL`. Check the `directUrl` line in `prisma/schema.prisma`.
 
 **`@prisma/client did not initialize yet`** — run `npx prisma generate` (or `npm run db:migrate`,
 which does it for you).
+
+**Sign-in always fails with "Email or password is incorrect"** — either the seed has not run, so no
+accounts exist, or you have hit the rate limit: 10 failed attempts for one email, or 30 from one
+address, in 15 minutes. Restart the dev server to clear it. If `DATABASE_URL` points at a hosted
+database, the seed skips the demo accounts by design — set `SEED_DEMO_USERS=true` if you really want
+them there.
+
+**You were signed out without asking** — an administrator reset your password. That ends every
+session opened before the reset, including yours if you did it yourself.
