@@ -1,0 +1,23 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+
+.env
+.env.local
+.env*.local
+
+# Uploaded files in local dev (STORAGE_DRIVER=disk)
+/storage/
+
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+Thumbs.db

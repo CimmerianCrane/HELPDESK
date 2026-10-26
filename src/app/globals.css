@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+
+/* Deliberately minimal for now. Design tokens arrive with the first shadcn/ui components in slice 1. */
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: #f8fafc;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}

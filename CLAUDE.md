@@ -1,0 +1,190 @@
+# CLAUDE.md — Cimmerian Crane Services Helpdesk
+
+System of record for crane servicing, breakdown repairs, inspections, load testing, parts and compliance documents.
+Replaces spreadsheets, WhatsApp threads and paper forms.
+
+Full product spec: the brief the user supplied (this file summarises the parts that constrain *how* we build).
+Architecture, schema, screens and phase plan: `docs/PLAN.md`.
+Assumptions made where the brief was silent: `docs/ASSUMPTIONS.md`.
+
+---
+
+## Where this lives
+
+This app lives in `cimmerian-crane/` inside a larger sandbox folder. The sandbox root `../CLAUDE.md` still applies
+to anything outside this folder. Keep this folder self-contained: its own `package.json`, its own git history.
+
+---
+
+## Commands
+
+All cross-platform (npm scripts, no bash-only tooling). Run from `cimmerian-crane/`.
+
+| Command | What it does |
+|---|---|
+| `npm run setup` | One command for a fresh clone: install deps, migrate, seed. Works against Supabase or a local database — it does not start Docker |
+| `npm install` | Install dependencies |
+| `npm run db:up` / `npm run db:down` | Start / stop Postgres via Docker Compose |
+| `npm run db:migrate` | `prisma migrate dev` — create and apply a migration |
+| `npm run db:deploy` | `prisma migrate deploy` — apply migrations without prompts (CI/prod) |
+| `npm run db:reset` | Drop, re-migrate and re-seed the local database |
+| `npm run db:studio` | Prisma Studio |
+| `npm run seed` | Seed realistic demo data (idempotent: safe to re-run) |
+| `npm run dev` | Next.js dev server on http://localhost:3000 |
+| `npm run build` / `npm start` | Production build / serve |
+| `npm run worker` | Background job runner (reminders, email, PDF render) — *added in slice 5; the script does not exist yet* |
+| `npm run lint` | ESLint (`eslint .`, not the deprecated `next lint`) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run test` | Vitest unit tests — fast, needs no database |
+| `npm run test:integration` | Vitest against the real database (needs `DATABASE_URL`) |
+| `npm run test:e2e` | Playwright end-to-end |
+| `npm run verify` | `typecheck && lint && test` — the fast gate, no database needed |
+| `npm run verify:full` | The above plus integration and end-to-end tests (needs a database and Chromium) |
+
+`npm run verify` is the gate for every commit; a slice is not done until it passes. `npm run verify:full` is
+the gate for finishing a slice, since it is the only version that exercises the real database and browser.
+
+### Environment
+
+`.env.example` is the source of truth for required variables; `.env` is gitignored. Key ones:
+`DATABASE_URL`, `AUTH_SECRET`, `APP_BASE_URL`, `TZ` (`Asia/Singapore`), `STORAGE_DRIVER` (`disk` | `s3`),
+`EMAIL_DRIVER` (`console` | `smtp`), `DEFAULT_TIMEZONE`, `DEFAULT_CURRENCY`, `DEFAULT_GST_RATE`.
+
+Anything configurable by the office team lives in the `Setting` table, not in env. Env is for deployment secrets
+and infrastructure choice only.
+
+---
+
+## Stack
+
+TypeScript everywhere; Next.js App Router; PostgreSQL + Prisma; Auth.js; Tailwind + shadcn/ui;
+Dexie + Serwist PWA; Vitest + Playwright; Zod on every input.
+
+Deviations from the brief's defaults, all justified in `docs/PLAN.md` §2:
+
+1. **PDF: Playwright (Chromium) HTML→PDF**, not `@react-pdf/renderer`.
+2. **Background jobs: pg-boss**, on the existing Postgres rather than a separate queue.
+3. **Auth.js: JWT sessions**, no `Account`/`Session` tables (credentials login only).
+4. **Money: `Decimal(12,2)`**, never `float`. Time: `DateTime` in UTC, never local.
+
+Do not add a dependency for something the standard library or an existing dependency already does.
+Do not introduce a second way of doing something the codebase already does one way.
+
+---
+
+## Folder structure
+
+```
+cimmerian-crane/
+  prisma/
+    schema.prisma          # single source of truth for the data model
+    migrations/
+    seed.ts
+  src/
+    app/
+      (auth)/login/        # unauthenticated
+      (office)/            # desktop-first: customers, cranes, tickets, jobs, schedule, reports, admin
+      (tech)/m/            # mobile-first technician PWA: my jobs, report form, photos, signatures
+      api/                 # route handlers: sync, file upload, health, PDF, webhooks
+    server/
+      auth/                # session, password hashing, permission map
+      audit/               # audit(context, ...) — the only way to write business data
+      sla/                 # SLA computation
+      schedule/            # crane next-due recomputation
+      documents/           # numbering, PDF render, email-on-close
+      storage/             # StorageAdapter: disk | s3
+      email/               # EmailAdapter: console | smtp
+      notify/              # notification fan-out to channel adapters
+      jobs/                # pg-boss handlers (reminders, email, PDF)
+    lib/
+      db.ts                # Prisma client singleton
+      validation/          # Zod schemas, shared by forms, actions and API
+      utils.ts
+    components/
+      ui/                  # shadcn/ui primitives
+      office/              # desktop components
+      tech/                # mobile components (large tap targets, high contrast)
+    offline/               # Dexie schema, sync queue, conflict log (client only)
+  tests/
+    unit/                  # Vitest
+    e2e/                   # Playwright
+  docs/
+    PLAN.md  ASSUMPTIONS.md  README.md
+```
+
+One domain = one folder under `src/server/`. Route handlers and server actions are thin: they validate with Zod,
+check permission, call a service, return. Logic lives in the service, tests live against the service.
+
+---
+
+## Domain glossary
+
+| Term | Meaning |
+|---|---|
+| **AE** | Authorised Examiner — a MOM-approved Professional Engineer who issues statutory certificates of test and examination |
+| **Crane / asset** | The centre of the data model. Every job, report, certificate, part and reminder hangs off a crane. Each crane belongs to one site and one customer |
+| **SWL** | Safe Working Load (kg) |
+| **PM** | Preventive maintenance — scheduled servicing |
+| **Statutory examination** | AE-led inspection producing a *certificate*. Not the same as our inspections |
+| **Company inspection** | Work our technicians do and report on. Never called a certificate, never implies statutory status |
+| **Finding** | A defect recorded on a report; can spawn a follow-up job |
+| **Restricted / Do Not Operate** | Crane flag with a reason; shown on the crane, its customer and every job at that site |
+| **Competency** | A technician qualification with an expiry date, checked when assigning |
+| **SLA** | Response and resolution targets, per priority, optionally overridden per contract |
+| **DO** | Delivery order, generated from parts issued on a job |
+| **On hold reason** | Mandatory enum whenever a job enters `On Hold` |
+| **CraneSchedule** | A recurring obligation for a crane (monthly service, annual exam, load test…) with `lastDoneDate`/`nextDueDate` |
+| **ComplianceRule** | Editable configuration mapping crane type → interval + whether an AE is required. Never hard-coded |
+
+---
+
+## Rules that must never be violated
+
+1. **Server-side authorization on every query and every action.** The permission map in `src/server/auth/permissions.ts`
+   is the single place roles map to capabilities. UI checks are cosmetic; the server check is the real one.
+   A technician must never read another technician's jobs or any data belonging to another customer.
+2. **Compliance rules are data, not code.** Intervals, whether an AE is required, and the legal reference live in
+   `ComplianceRule` + `CraneSchedule` and are editable by Admin, each carrying a free-text **source/reference** and a
+   `reviewedAt` date. Never invent or hard-code a regulatory fact. The admin screen carries the standing notice:
+   *"Rules are configured by your team. Verify against current MOM requirements with your Authorised Examiner."*
+3. **Company inspection ≠ statutory certificate.** Keep them distinct in the data model, the UI wording and the PDFs.
+   Our reports never claim to be statutory certificates.
+4. **Never hard-delete reports, certificates or audit logs.** Soft-delete and archival only.
+5. **Approved/issued reports are immutable.** A correction creates an *amendment* — a new version linked to the original
+   with a reason. Never overwrite. An old report must always re-render exactly as originally issued (store the
+   template version with the report and snapshot the rendered data).
+6. **Every business mutation writes an audit log entry** (entity, entityId, action, before/after, userId, timestamp, ip).
+   `AuditLog` is append-only.
+7. **Every status change is timestamped, attributed and recorded** in `JobStatusHistory`. `On Hold` requires a reason.
+   Priority bumps that displace a scheduled job are audit-logged with a reason.
+8. **All timestamps stored in UTC.** Timezone, currency and GST rate are settings, never constants. Dates display as
+   `DD/MM/YYYY`.
+9. **Every input validated with Zod at the trust boundary** — form, server action and route handler alike.
+10. **Stock quantity changes only ever happen as a `StockMovement`.** Quantities are derived/reconciled from movements.
+    Issuing a part on a job writes to both the report's parts list and the DO.
+11. **Never lose field data.** Reports auto-save locally every few seconds. Sync uses client-generated ids so a retry
+    is idempotent. On conflict, the technician's own field data wins for their job report; office scheduling edits never
+    overwrite field data; conflicts are logged.
+12. **No bash-only scripts.** Everything runs on Windows, macOS and Linux via npm scripts.
+
+---
+
+## Working agreement
+
+- **One vertical slice at a time**: database → service → API → UI → tests. After each slice: `npm run verify`,
+  a commit with a clear message, and a 3–5 line summary of what works and how to try it.
+- The schema is designed up front for all phases (`docs/PLAN.md` §3) so we don't rewrite it; only the current phase's
+  UI and logic get implemented.
+- Migrations are reversible where possible. Never edit an applied migration — add a new one.
+- Seed data stays realistic and the seed stays runnable after every slice.
+- Empty, loading and error states are part of the work, not a follow-up. Forms show clear validation messages.
+- Technician screens are checked at ~390px width and in offline mode before a slice is called done.
+- Update this file and `docs/PLAN.md` in the same commit as any change that makes them wrong.
+
+---
+
+## Definition of done (every slice)
+
+Typecheck, lint and tests pass · new logic has tests · permissions proven server-side by a test · mutations are
+audit-logged · empty/loading/error states handled · mobile technician screens checked at 390px and offline ·
+README and CLAUDE.md updated · migration included · seed still works · short summary written.

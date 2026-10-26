@@ -1,0 +1,15 @@
+# The team is on Windows, macOS and Linux (brief §0.5). Normalise line endings in the repository so
+# a checkout on one platform does not show every file as modified on another.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+
+# Generated files: keep them out of diffs and language stats.
+package-lock.json linguist-generated=true
+prisma/migrations/** linguist-generated=true
