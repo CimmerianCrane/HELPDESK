@@ -135,7 +135,7 @@ export async function scheduleBoard(
   assertCan(context, 'job.schedule')
 
   const filter = parseInput(boardFilterSchema, rawFilter) as BoardFilter
-  const settings = await getSettings()
+  const settings = await getSettings(client)
   const timezone = settings.timezone
 
   const day = parseIsoDay(filter.date, now)
@@ -469,7 +469,7 @@ export async function jobStaffing(
   })
   if (!job) throw new NotFoundError('No such job.')
 
-  const settings = await getSettings()
+  const settings = await getSettings(client)
 
   return {
     jobId: job.id,
@@ -529,7 +529,7 @@ export async function assignTechnician(
     context,
     async (tx, log) => {
       const now = new Date()
-      const settings = await getSettings()
+      const settings = await getSettings(tx)
 
       const job = await tx.job.findFirst({
         where: { id: jobId, ...jobReadWhere(context) },
@@ -787,7 +787,7 @@ export async function rescheduleJob(
   return withAudit(
     context,
     async (tx, log) => {
-      const settings = await getSettings()
+      const settings = await getSettings(tx)
       const span = localSpan(input.scheduledStart, input.scheduledEnd, settings.timezone)
 
       const job = await tx.job.findFirst({
@@ -917,7 +917,7 @@ export async function moveJobCard(
   return withAudit(
     context,
     async (tx, log) => {
-      const settings = await getSettings()
+      const settings = await getSettings(tx)
       const timezone = settings.timezone
 
       const job = await tx.job.findFirst({

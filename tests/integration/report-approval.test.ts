@@ -242,10 +242,11 @@ describe('amending an issued report', () => {
       const setup = await approvalSetup(tx)
       const original = await approveReport(setup.dispatcher, setup.reportId, {}, tx)
 
-      const { amendmentId } = await amendReport(setup.dispatcher, {
-        reportId: setup.reportId,
-        reason: 'The customer name was misspelt.',
-      })
+      const { amendmentId } = await amendReport(
+        setup.dispatcher,
+        { reportId: setup.reportId, reason: 'The customer name was misspelt.' },
+        tx,
+      )
 
       const draft = await tx.report.findUniqueOrThrow({ where: { id: amendmentId } })
       expect(draft.status).toBe('DRAFT')
@@ -272,10 +273,14 @@ describe('amending an issued report', () => {
     await inRolledBackTx(async (tx) => {
       const setup = await approvalSetup(tx)
       await approveReport(setup.dispatcher, setup.reportId, {}, tx)
-      await amendReport(setup.dispatcher, { reportId: setup.reportId, reason: 'First correction.' })
+      await amendReport(
+        setup.dispatcher,
+        { reportId: setup.reportId, reason: 'First correction.' },
+        tx,
+      )
 
       await expect(
-        amendReport(setup.dispatcher, { reportId: setup.reportId, reason: 'Second correction.' }),
+        amendReport(setup.dispatcher, { reportId: setup.reportId, reason: 'Second correction.' }, tx),
       ).rejects.toBeInstanceOf(RuleError)
     })
   })

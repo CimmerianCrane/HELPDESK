@@ -14,8 +14,10 @@ export default defineConfig({
   },
   // Next compiles each route on first request in dev, and these tests talk to a database in another
   // region. The 5s default is not enough for a cold server, which made the suite fail or pass
-  // depending on nothing but ordering — the worst kind of flake.
-  expect: { timeout: 15_000 },
+  // depending on nothing but ordering — the worst kind of flake. 15s still lost: a first visit to a
+  // heavy route measured 15.1s, so the assertion failed on a page that was about to render. 30s
+  // leaves the compile plus the round trip room without letting a genuinely stuck test hang.
+  expect: { timeout: 30_000 },
   // A whole test here is several sign-in round trips and a page render. Signing in alone takes ~6s
   // against the Seoul database; four of those in parallel against one dev server queued into a
   // 15s+ wait and failed on the clock rather than on anything being wrong. The default 30s per test

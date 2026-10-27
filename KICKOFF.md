@@ -15,13 +15,9 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1, slice 10 next.** Slices 0–9 are built against the live Supabase database. Phases 2–4 have
-not been started. **One slice per session: stop after slice 10; do not begin slice 11 in the same
-session unless asked.**
-
-> Slice 9's migration (`20261027100000_slice9_report_approval`) was not applied when the code was
-> written — the sandbox permission layer refused `prisma migrate deploy`. Run `npm run db:deploy`
-> once before the slice-9 integration and end-to-end tests.
+**Phase 1, slice 10 next.** Slices 0–9 are built, verified against the live Supabase database and
+committed (slice 9 is `8bd44ec`). Phases 2–4 have not been started. **One slice per session: stop
+after slice 10; do not begin slice 11 in the same session unless asked.**
 
 | Slice | State |
 |---|---|
@@ -125,11 +121,13 @@ What slice 9 built, so slice 10 extends it rather than beside it:
 | The crane timeline read | `craneReportTimeline` in `src/server/reports/approval.ts` |
 | The audit trail read (built and tested, no screen uses it) | `auditTrail` in `src/server/audit/audit.ts` |
 
-Facts slice 9 settled that slice 10 inherits (`docs/ASSUMPTIONS.md` items 62–69): a submitted report
+Facts slice 9 settled that slice 10 inherits (`docs/ASSUMPTIONS.md` items 62–71): a submitted report
 is approved or returned, never both; an issued report is locked and corrected by an amendment copy;
 the PDF is a function of `Report.templateVersion` and the stored `data` alone; the job goes
-COMPLETED → REVIEWED on approval; photos are snapshotted in `Report.data.photoFileIds`; and download
-tokens are purpose-separated from upload tokens.
+COMPLETED → REVIEWED on approval; photos are snapshotted in `Report.data.photoFileIds`; download
+tokens are purpose-separated from upload tokens; and a sync request that arrives while another is
+running is queued rather than dropped, because dropping it strands a finished report on the phone
+(`ASSUMPTIONS.md` 71).
 
 Two things slice 10 must **add**, neither of which exists:
 
@@ -139,14 +137,19 @@ Two things slice 10 must **add**, neither of which exists:
 2. **The audit viewer.** `auditTrail(context, entity, entityId)` exists and is tested but no screen
    renders it, and there is no cross-entity audit search. `audit.read` is held by Admin only today.
 
-**Slice 9's migration was not applied in this session** — the sandbox permission layer refused
-`prisma migrate deploy`. Run `npm run db:deploy` before the slice-9 integration and end-to-end tests,
-or `prisma generate` will still be ahead of the database.
-
 **Known trap on this machine:** `tests/e2e/report.spec.ts` deletes and recreates the report on one
 seeded breakdown job (Ahmad's). Slice 9's own e2e (`tests/e2e/approval.spec.ts`) therefore builds its
 own customer, crane, job and report. Any slice-10 e2e that touches that seeded job has the same
 problem.
+
+**Two things about the test gates that cost time in slice 9.** The e2e suite runs against `npm run
+dev`, so editing a source file while a run is in flight hot-reloads the server under a test that is
+mid-page-load and fails it for no product reason — freeze the tree while the suite runs. And a route
+a spec visits for the first time in a run pays Next's on-demand compile plus a round trip to another
+region: measured first visits ran 15–43s, so the suite-wide `expect` is 30s and the two heaviest
+routes (`/m/jobs/[id]/report`, the approval page) carry their own 60s. If a spec fails on a *page that
+rendered* rather than on the clock, read the dev server's own log before widening anything — the first
+run of this suite hid a real dropped-flush bug behind what looked like a timeout.
 
 ---
 

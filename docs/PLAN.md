@@ -1211,7 +1211,7 @@ migrated; the phone detects the drift when it loads the draft and starts the for
 
 *Slice 9* — approval, the lock and the PDF. Set out before it was written as "a submitted report becomes a
 document with a number, an approval trail and an amendment path". Five decisions carry it, and each is recorded
-in `ASSUMPTIONS.md` items 62–69:
+in `ASSUMPTIONS.md` items 62–71:
 
 1. **The renderer is data-driven, not a component per template** — reversing the plan's own assumption.
    `renderReportPdf` takes the template schema **stored on the report** and the stored answers; a component per
@@ -1233,6 +1233,22 @@ Two gaps in slice 8 surfaced here and were fixed rather than worked around: the 
 driver's `signedDownloadUrl`, which threw. Download tokens now carry a signed purpose so an upload grant cannot
 be replayed as a download grant — one line in `signUploadToken` that turns a read capability into a different
 capability, which a test pins in both directions.
+
+One bug reached the end-to-end suite and not the integration suite: `getSettings()` read through the global
+Prisma client from inside an open `withAudit` transaction. The integration tests run against a local-shaped pool
+and passed; the app runs against the Supabase transaction pooler with `connection_limit=1`, so the read waited
+for a connection the transaction itself was holding and every approval died on `P2024`. `getSettings` now takes
+the caller's `Tx`, and the same latent deadlock in seven scheduling service calls is closed with it
+(`ASSUMPTIONS.md` 70). The lesson for slice 10 and later: a service helper that reads a table is a function of
+the client, not of the module.
+
+The same end-to-end run then found a second, older bug in slice 8's code. `SyncProvider` allows one sync at a
+time, and its guard returned early when one was already running. Against the Seoul database the mount sync took
+25 seconds, the browser's `online` event landed inside that window, and the flush of a just-completed report was
+dropped — the report stayed in IndexedDB until the next page load, and the screen said nothing was wrong. A
+technician would have finished a job and gone home with it unsent. The overlapping request is now queued and the
+loop runs once more, so the report goes out (`ASSUMPTIONS.md` 71). Neither test suite could have caught it alone:
+the integration suite never loads the provider, and the unit suite has no network to cut.
 
 *Slice 0* — typecheck, lint, unit, integration and end-to-end tests all pass. Two deviations from the plan as
 written, both recorded in the schema and migration rather than left implicit: the CHECK constraints live in their

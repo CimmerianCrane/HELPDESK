@@ -453,7 +453,7 @@ export async function syncBundle(context: AuthContext, client: Tx = db): Promise
 
   const siteIds = [...new Set(rows.map((row) => row.site.id))]
   const [settings, parts, contacts] = await Promise.all([
-    getSettings(),
+    getSettings(client),
     client.part.findMany({
       where: { deletedAt: null, isActive: true },
       orderBy: { partNumber: 'asc' },

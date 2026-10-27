@@ -348,7 +348,7 @@ export async function dispatchJob(
         )
       }
 
-      const settings = await getSettings()
+      const settings = await getSettings(tx)
       const text = renderDispatch(pack, settings.timezone, env().APP_BASE_URL)
       const subject = `${pack.jobNumber} — ${pack.customerName}, ${pack.siteName}`
       const link = `/m/jobs/${pack.jobId}`

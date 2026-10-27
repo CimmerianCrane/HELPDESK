@@ -219,7 +219,7 @@ export async function approveReport(
             : `A ${report.status.toLowerCase()} report cannot be approved.`,
         )
       }
-      const settings = await getSettings()
+      const settings = await getSettings(tx)
       const approvedAt = new Date()
       const documentNumber = await nextDocumentNumber(tx, 'REPORT', {
         at: approvedAt,
@@ -348,7 +348,7 @@ export async function approveReport(
     documentNumber: result.documentNumber,
     party: result.report.job.customer.tradingName ?? result.report.job.customer.legalName,
     approvedAt: result.approvedAt,
-    timeZone: (await getSettings()).timezone,
+    timeZone: (await getSettings(client)).timezone,
   })
 
   if (email.sentAt) {

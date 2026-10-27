@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { db } from '@/lib/db'
+import { db, type Tx } from '@/lib/db'
 import { env } from '@/lib/env'
 
 export interface Settings {
@@ -46,9 +46,15 @@ export function defaultSettings(): Settings {
   }
 }
 
-/** All settings, with any missing key falling back to its default. */
-export async function getSettings(): Promise<Settings> {
-  const rows = await db.setting.findMany()
+/**
+ * All settings, with any missing key falling back to its default.
+ *
+ * Takes the client because callers inside `withAudit` must pass their `tx`: the runtime URL is the
+ * Supabase transaction pooler with `connection_limit=1`, so a read through `db` while a transaction
+ * is open waits for a second connection that never arrives and dies on the pool timeout.
+ */
+export async function getSettings(client: Tx = db): Promise<Settings> {
+  const rows = await client.setting.findMany()
   const stored = Object.fromEntries(rows.map((row) => [row.key, row.value]))
   return { ...defaultSettings(), ...stored } as Settings
 }

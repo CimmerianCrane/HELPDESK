@@ -135,7 +135,13 @@ test('a submitted report is approved, numbered and shown on the crane timeline',
   await expect(page.getByRole('heading', { name: 'Submitted report' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Approve and issue' }).click()
-  await expect(page.getByText(/Issued as RPT-\d{4}-\d{4}/)).toBeVisible({ timeout: 60_000 })
+
+  // The success is the page, not a toast: approving revalidates, the report is no longer SUBMITTED,
+  // so the form that held the message is gone by the time the action returns.
+  await expect(page.getByRole('heading', { name: /^RPT-\d{4}-\d{4}$/ })).toBeVisible({
+    timeout: 60_000,
+  })
+  await expect(page.getByRole('link', { name: 'Download the issued PDF' })).toBeVisible()
 
   const report = await db.report.findUniqueOrThrow({ where: { id: created.reportId } })
   expect(report.status).toBe('APPROVED')

@@ -174,6 +174,8 @@ separate worker process. The full command list is in [`CLAUDE.md`](CLAUDE.md).
   technician's data wins.
 - **The header says what is happening:** "N reports waiting to upload" with Retry, which is also the
   pending badge. A report already on the server shows as submitted rather than offering a second one.
+  If the signal returns while a sync is still running, the second sync waits for the first rather than
+  being dropped — otherwise the report the technician just finished can sit on the phone unsent.
 - **Parts are stock movements.** Choosing a part in the form writes an `ISSUE` `StockMovement` when
   the report lands, never a JSON list. Photos are compressed to 1600px JPEG on the phone and the size
   and type are checked again on the server.

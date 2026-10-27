@@ -91,7 +91,10 @@ test('a report filled in offline is submitted once when the signal returns', asy
   await page.goto(`/m/jobs/${jobId}`)
   await page.getByRole('link', { name: 'Fill report' }).first().click()
 
-  await expect(page.getByRole('heading', { name: craneTag })).toBeVisible()
+  // The heaviest cold route in the suite: Next compiles it on first request and the page then reads
+  // a job from a database in another region. Measured at 43s on a first visit, so it gets its own
+  // budget rather than the suite-wide one.
+  await expect(page.getByRole('heading', { name: craneTag })).toBeVisible({ timeout: 60_000 })
   await expect(page.getByRole('button', { name: 'Submit report' })).toBeVisible()
 
   // The radio is cut *after* the page has loaded, so this is the form working from its own draft.

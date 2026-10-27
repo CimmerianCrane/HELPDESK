@@ -277,6 +277,19 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
 69. **Download tokens are purpose-separated from upload tokens.** `signUploadToken` signs
     `<purpose>.<key>.<expiry>`. Without the purpose an upload grant could be replayed as a download grant, or
     the reverse — read access would become write access to a signed photograph.
+70. **Reads inside a transaction take the transaction's client.** Every service that opens `withAudit` passes
+    its `tx` to `getSettings`, because `DATABASE_URL` is the Supabase transaction pooler with
+    `connection_limit=1`: a read through the global client while a transaction is open waits for a second
+    connection that cannot arrive, and the request dies on `P2024`. The integration suite has a larger pool and
+    did not catch this; the end-to-end suite against the dev server did. Any new helper that reads a table
+    from inside a transaction takes the same optional `client: Tx = db` argument.
+71. **A sync requested while a sync is running is queued, not dropped.** `SyncProvider` runs one sync at a
+    time so two bundles cannot be written out of order. The first version returned early when another was in
+    flight, which on a slow connection dropped the `online` event that fires when the radio comes back — and
+    with it the flush of the report the technician had just finished, which then sat in IndexedDB until the
+    next page load while the screen said nothing. The end-to-end suite caught it because the mount sync took
+    longer than the offline stretch of the test. `sync()` now sets a `queued` flag and loops once more in the
+    same call when an overlapping request arrived.
 
 ## Not assumed — deliberately left to you
 

@@ -177,7 +177,7 @@ export async function createUnavailability(
   return withAudit(
     context,
     async (tx, log) => {
-      const settings = await getSettings()
+      const settings = await getSettings(tx)
       const span = localSpan(input.startAt, input.endAt, settings.timezone)
 
       const technician = await tx.technician.findUnique({
@@ -349,7 +349,7 @@ export async function createOnCallShift(
   return withAudit(
     context,
     async (tx, log) => {
-      const settings = await getSettings()
+      const settings = await getSettings(tx)
       const span = localSpan(input.startAt, input.endAt, settings.timezone)
 
       const technician = await tx.technician.findUnique({
@@ -507,7 +507,7 @@ export async function bookResource(
       // No span given means "for the visit", which is what a test weight or a van is for. A job with
       // no dates cannot lend one, so the booking needs its own — and a wall-clock pair only becomes
       // an instant once the operating timezone has been applied.
-      const settings = await getSettings()
+      const settings = await getSettings(tx)
       const explicit = input.startAt && input.endAt
         ? localSpan(input.startAt, input.endAt, settings.timezone)
         : null

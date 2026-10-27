@@ -44,47 +44,58 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // One sync at a time. The mount sync and the "back online" event can otherwise overlap after a
   // flaky lift, and two bundles written in the wrong order would leave the older one in place.
   const inFlight = useRef(false)
+  // A request that arrives mid-sync is work, not noise — the radio coming back while the mount
+  // fetch is still slow is exactly the report the technician has just finished. Dropping it strands
+  // that report until the next page load, so it is queued and run when this one ends.
+  const queued = useRef(false)
 
   const sync = useCallback(async () => {
-    if (inFlight.current) return
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setError('No signal. Showing what was saved on this phone.')
+    if (inFlight.current) {
+      queued.current = true
       return
     }
 
     inFlight.current = true
     setSyncing(true)
     try {
-      // Queue first: the bundle fetched below is what tells the phone a report is already in, so
-      // sending before reading means a report just completed shows as submitted rather than as an
-      // empty form for a second visit.
-      const flushed = await flushOutbox()
-      setPending(await pendingCount())
-      if (flushed.errors.length > 0) {
-        // Deliberately not fatal: a refused report must not stop the rest of the day's work from
-        // syncing, and the queue is still on the phone for the next attempt.
-        setError(flushed.errors[0])
-      }
+      do {
+        queued.current = false
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          setError('No signal. Showing what was saved on this phone.')
+          break
+        }
 
-      const response = await fetch('/api/tech/sync', {
-        cache: 'no-store',
-        headers: { accept: 'application/json' },
-      })
-      if (!response.ok) {
-        // A 401 means the session has gone; the next page load sends them to sign in. Saying so
-        // here is better than silently keeping a cache the server will no longer accept.
-        setError(
-          response.status === 401
-            ? 'Your session has ended. Sign in again to sync.'
-            : 'The server could not be reached. Showing what was saved on this phone.',
-        )
-        return
-      }
+        // Queue first: the bundle fetched below is what tells the phone a report is already in, so
+        // sending before reading means a report just completed shows as submitted rather than as an
+        // empty form for a second visit.
+        const flushed = await flushOutbox()
+        setPending(await pendingCount())
+        if (flushed.errors.length > 0) {
+          // Deliberately not fatal: a refused report must not stop the rest of the day's work from
+          // syncing, and the queue is still on the phone for the next attempt.
+          setError(flushed.errors[0])
+        }
 
-      const bundle = (await response.json()) as SyncBundle
-      await storeBundle(bundle)
-      setLastSynced(new Date(bundle.generatedAt))
-      if (flushed.errors.length === 0) setError(null)
+        const response = await fetch('/api/tech/sync', {
+          cache: 'no-store',
+          headers: { accept: 'application/json' },
+        })
+        if (!response.ok) {
+          // A 401 means the session has gone; the next page load sends them to sign in. Saying so
+          // here is better than silently keeping a cache the server will no longer accept.
+          setError(
+            response.status === 401
+              ? 'Your session has ended. Sign in again to sync.'
+              : 'The server could not be reached. Showing what was saved on this phone.',
+          )
+          break
+        }
+
+        const bundle = (await response.json()) as SyncBundle
+        await storeBundle(bundle)
+        setLastSynced(new Date(bundle.generatedAt))
+        if (flushed.errors.length === 0) setError(null)
+      } while (queued.current)
     } catch {
       // A network failure is not a bug: it is the normal state of a lift shaft.
       setError('No signal. Showing what was saved on this phone.')
