@@ -200,6 +200,9 @@ export async function applyReport(
   const data: Record<string, unknown> = {
     ...(input.data as Record<string, unknown>),
     checklist: input.checklist,
+    // Snapshotted like every other answer: the issued PDF embeds these exact photographs, so adding
+    // or removing a File row later cannot change what a signed report says was attached.
+    photoFileIds: input.photoFileIds,
   }
 
   const report = await tx.report.create({
@@ -310,7 +313,9 @@ export async function reportsForJob(context: AuthContext, jobId: string) {
       status: true,
       submittedAt: true,
       approvedAt: true,
+      documentNumber: true,
       safeToOperate: true,
+      crane: { select: { assetTag: true } },
     },
-  })
+  }).then((rows) => rows.map((row) => ({ ...row, craneTag: row.crane.assetTag })))
 }

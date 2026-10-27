@@ -13,6 +13,8 @@ import { requireAuth } from '@/server/auth/context'
 import { NotFoundError } from '@/server/auth/errors'
 import { can } from '@/server/auth/permissions'
 import { getCrane } from '@/server/cranes/cranes'
+import { craneReportTimeline } from '@/server/reports/approval'
+import { SAFE_TO_OPERATE_LABELS } from '@/server/reports/labels'
 import {
   CRANE_STATUS_DESCRIPTIONS,
   CRANE_STATUS_LABELS,
@@ -56,9 +58,10 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
     throw error
   }
 
-  const [sites, settings] = await Promise.all([
+  const [sites, settings, timeline] = await Promise.all([
     listSites(context, { customerId: crane.site.customerId }),
     getSettings(),
+    craneReportTimeline(context, crane.id),
   ])
 
   const mayWrite = can(context.role, 'crane.write')
@@ -188,10 +191,36 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
 
       <section className={cardClass}>
         <h2 className="font-semibold text-slate-900">Timeline</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Reports, certificates and job history for this crane appear here once the report and
-          certificate screens are built. Until then the audit log is the record of every change.
-        </p>
+        {timeline.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-600">
+            Nothing has been reported on this crane yet.
+          </p>
+        ) : (
+          <ol className="mt-4 space-y-3 text-sm">
+            {timeline.map((entry) => (
+              <li key={entry.id} className="border-l-2 border-slate-200 pl-3">
+                <p className="font-medium text-slate-900">
+                  {entry.documentNumber ?? 'Report awaiting approval'}
+                  {' · '}
+                  <Link href={`/reports/${entry.id}`} className="underline">
+                    {entry.job.jobType.name}
+                  </Link>
+                </p>
+                <p className="text-xs text-slate-500">
+                  {formatDate(entry.approvedAt ?? entry.submittedAt, settings.timezone)}
+                  {' · '}
+                  <Link href={`/jobs/${entry.job.id}`} className="underline">
+                    {entry.job.number}
+                  </Link>
+                  {entry.safeToOperate
+                    ? ` · Safe to operate: ${SAFE_TO_OPERATE_LABELS[entry.safeToOperate as keyof typeof SAFE_TO_OPERATE_LABELS] ?? entry.safeToOperate}`
+                    : null}
+                  {entry.amendmentOfId ? ' · Amendment' : null}
+                </p>
+              </li>
+            ))}
+          </ol>
+        )}
       </section>
 
       {mayRestrict ? (

@@ -147,6 +147,8 @@ enum ReportStatus {
   SUBMITTED
   APPROVED
   AMENDED
+  /// Refused by the office with a reason. Not approved, so it has no document number.
+  RETURNED
 }
 
 enum FindingSeverity {
@@ -929,6 +931,9 @@ model Report {
   amendmentOf     Report?  @relation("Amendments", fields: [amendmentOfId], references: [id])
   amendments      Report[] @relation("Amendments")
   amendmentReason String?
+
+  /// Why the office sent a submission back. Set when status = RETURNED.
+  returnReason        String?
 
   submittedAt         DateTime?
   approvedAt          DateTime?

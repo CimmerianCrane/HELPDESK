@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { env } from '@/lib/env'
 
@@ -25,6 +25,8 @@ export interface StorageAdapter {
   signedDownloadUrl(key: string, expiresInSeconds?: number): Promise<string>
   /** Accepts bytes written by this app. Supabase uses it for server-side writes only. */
   put(key: string, bytes: Uint8Array, contentType: string): Promise<void>
+  /** Server-side read, for the PDF which embeds signatures and photos. */
+  get(key: string): Promise<Uint8Array>
 }
 
 export const UPLOAD_TTL_SECONDS = 15 * 60
@@ -38,12 +40,24 @@ export function isSafeStorageKey(key: string): boolean {
 }
 
 /**
- * Signs `<key>.<expiry>`. Exported with the secret as an argument so the signature can be tested
- * without a configured environment — the adapter supplies the real secret.
+ * Which route a token is good for. It is signed into the token rather than left implicit, so an
+ * upload token cannot be replayed as a download token: the two grants differ in direction, and one of
+ * them lets a holder write over a signed photograph.
  */
-export function signUploadToken(key: string, expiresAt: number, signingSecret: string): string {
+export type TokenPurpose = 'upload' | 'download'
+
+/**
+ * Signs `<purpose>.<key>.<expiry>`. Exported with the secret as an argument so the signature can be
+ * tested without a configured environment — the adapter supplies the real secret.
+ */
+export function signUploadToken(
+  key: string,
+  expiresAt: number,
+  signingSecret: string,
+  purpose: TokenPurpose = 'upload',
+): string {
   const signature = createHmac('sha256', signingSecret)
-    .update(`${key}.${expiresAt}`)
+    .update(`${purpose}.${key}.${expiresAt}`)
     .digest('base64url')
   return `${expiresAt}.${signature}`
 }
@@ -53,13 +67,14 @@ export function verifyUploadToken(
   token: string,
   signingSecret: string,
   now = Date.now(),
+  purpose: TokenPurpose = 'upload',
 ): boolean {
   const [expiryText, signature] = token.split('.')
   const expiresAt = Number(expiryText)
   if (!Number.isFinite(expiresAt) || expiresAt < now || !signature) return false
 
   const expected = createHmac('sha256', signingSecret)
-    .update(`${key}.${expiryText}`)
+    .update(`${purpose}.${key}.${expiryText}`)
     .digest('base64url')
   const actualBuffer = Buffer.from(signature)
   const expectedBuffer = Buffer.from(expected)
@@ -91,15 +106,20 @@ const diskAdapter: StorageAdapter = {
     }
   },
 
-  async signedDownloadUrl() {
-    // Downloading a stored photo is slice 9's PDF work; nothing in slice 8 reads one back.
-    throw new Error('The disk adapter has no download URL yet.')
+  async signedDownloadUrl(key) {
+    const expiresAt = Date.now() + UPLOAD_TTL_SECONDS * 1000
+    const token = signUploadToken(key, expiresAt, signingSecret(), 'download')
+    return `/api/files/store?key=${encodeURIComponent(key)}&token=${encodeURIComponent(token)}&download=1`
   },
 
   async put(key, bytes) {
     const full = diskPath(key)
     await mkdir(path.dirname(full), { recursive: true })
     await writeFile(full, bytes)
+  },
+
+  async get(key) {
+    return new Uint8Array(await readFile(diskPath(key)))
   },
 }
 
@@ -171,6 +191,17 @@ const supabaseAdapter: StorageAdapter = {
     if (!response.ok) {
       throw new Error(`Supabase Storage returned ${response.status}: ${await response.text()}`)
     }
+  },
+
+  async get(key) {
+    const config = supabaseConfig()
+    const response = await fetch(`${config.url}/storage/v1/object/${config.bucket}/${key}`, {
+      headers: { apikey: config.key, Authorization: `Bearer ${config.key}` },
+    })
+    if (!response.ok) {
+      throw new Error(`Supabase Storage returned ${response.status}: ${await response.text()}`)
+    }
+    return new Uint8Array(await response.arrayBuffer())
   },
 }
 

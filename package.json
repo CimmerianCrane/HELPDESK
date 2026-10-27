@@ -33,6 +33,7 @@
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@prisma/client": "^6.2.1",
+    "@react-pdf/renderer": "^4.9.0",
     "@serwist/next": "^9.5.13",
     "dexie": "^4.4.7",
     "next": "^15.1.6",

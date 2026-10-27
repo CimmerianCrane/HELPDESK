@@ -246,6 +246,38 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     with the sync bundle. The bundle can land after the form opens, and depending on it for a required field
     left the name blank and the submit refused with no explanation of why.
 
+## Slice 9 — approval, locking and PDF
+
+62. **`ReportStatus.RETURNED` is a new status, not an amendment.** Sending a submitted report back to the
+    technician is the third decision the queue needs (approve / return / correct). Modelling it as an
+    amendment would give an unapproved report a document number it never earned; modelling it as `SUBMITTED`
+    with a note would leave the queue unable to tell "not looked at" from "looked at and refused". The reason
+    lives on `Report.returnReason`, a new column, because a technician cannot read the audit log.
+63. **One data-driven renderer, not a component per template.** The plan assumed a versioned component per
+    template. That is a third copy of a shape the template already declares as data, rewritten for every job
+    type the office configures. `renderReportPdf` (`src/server/documents/render.ts`) instead takes the template
+    schema stored on the report plus the stored answers. `Report.template` is read by `Report.templateId`, never
+    through `JobType.defaultReportTemplateId`, so a superseded template cannot change an issued document.
+64. **PDF timestamps are pinned to the approval time.** `@react-pdf/renderer` writes `creationDate = new Date()`
+    into the info dictionary, so two renders of one report are never byte-identical. `Document.creationDate` and
+    `modificationDate` are set from `issuedAt`; that is what makes "re-render an issued report and diff it" a
+    real test rather than a coincidence.
+65. **Photos are snapshotted onto the report as `Report.data.photoFileIds`.** Slice 8 validated the photo ids and
+    then dropped them, leaving the `File` rows attached to the job with nothing pointing back from the report.
+    Storing the ids in `data` beside the checklist avoids a join table for a list that never changes after
+    signing, and means the issued PDF embeds exactly the photographs that were attached when it was signed.
+66. **Approval moves the job COMPLETED → REVIEWED.** A report is what finishes the work, so approving it is the
+    review. Only from `COMPLETED`, and `reviewedAt` is written once like every other lifecycle stamp.
+67. **The customer email is sent after the commit and retried by the daily cron.** Approval commits the number,
+    the PDF and the status; the mail goes afterwards so a dead mail server cannot roll back an issued document.
+    `approvedAt` set with `emailedToCustomerAt` null is the complete definition of "issued but not told".
+68. **An amendment is a copy, at most one open at a time.** Copying the answers lets the office correct the new
+    one without touching the issued report. A second open amendment of the same report is refused, because
+    whichever was approved second would silently win.
+69. **Download tokens are purpose-separated from upload tokens.** `signUploadToken` signs
+    `<purpose>.<key>.<expiry>`. Without the purpose an upload grant could be replayed as a download grant, or
+    the reverse — read access would become write access to a signed photograph.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

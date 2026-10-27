@@ -38,6 +38,17 @@ describe('upload tokens', () => {
     expect(verifyUploadToken(KEY, '', SECRET)).toBe(false)
     expect(verifyUploadToken(KEY, 'not-a-token', SECRET)).toBe(false)
   })
+
+  it('does not accept an upload token as a download token, or the reverse', () => {
+    const expiresAt = Date.now() + 60_000
+    const upload = signUploadToken(KEY, expiresAt, SECRET, 'upload')
+    const download = signUploadToken(KEY, expiresAt, SECRET, 'download')
+
+    expect(verifyUploadToken(KEY, upload, SECRET, Date.now(), 'download')).toBe(false)
+    expect(verifyUploadToken(KEY, download, SECRET, Date.now(), 'upload')).toBe(false)
+    // Each is still good for its own purpose, which is what makes the refusal above meaningful.
+    expect(verifyUploadToken(KEY, download, SECRET, Date.now(), 'download')).toBe(true)
+  })
 })
 
 describe('storage keys', () => {

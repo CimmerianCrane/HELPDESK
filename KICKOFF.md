@@ -15,9 +15,13 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1, slice 9 next.** Slices 0–8 are built, verified against the live Supabase database and
-committed (slice 8 is `164a72a`). Phases 2–4 have not been started. **Stop after slice 9; do not begin
-slice 10 in the same session unless asked.**
+**Phase 1, slice 10 next.** Slices 0–9 are built against the live Supabase database. Phases 2–4 have
+not been started. **One slice per session: stop after slice 10; do not begin slice 11 in the same
+session unless asked.**
+
+> Slice 9's migration (`20261027100000_slice9_report_approval`) was not applied when the code was
+> written — the sandbox permission layer refused `prisma migrate deploy`. Run `npm run db:deploy`
+> once before the slice-9 integration and end-to-end tests.
 
 | Slice | State |
 |---|---|
@@ -30,7 +34,8 @@ slice 10 in the same session unless asked.**
 | 6 Scheduling & dispatch | done |
 | 7 Technician PWA shell | done |
 | 8 Offline report completion | done |
-| 9–11 | not started |
+| 9 Approval, lock, PDF | done |
+| 10–11 | not started |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -47,8 +52,11 @@ sign-out that wipes it; and the report form behind **Fill report** — template-
 tables, the checklist with measurements, photos compressed on the phone, parts issued as stock
 movements, findings, both signatures (or a reason the customer did not sign), autosave into Dexie,
 and an outbox flushed by a single idempotent sync endpoint with a pending badge and retry.
-**Not yet built:** report approval, locking, amendment and PDF (9), broader lists and dashboards
-(10), and the end-to-end happy path (11).
+and the office side of a report — a queue of what the field has signed, approval that assigns a
+document number and renders a numbered PDF with the signatures and photographs embedded, the report
+locked once approved, a return-with-reason path, amendment copies linked to the report they correct,
+the customer emailed on issue with a cron retry, and the crane page's timeline filled in.
+**Not yet built:** broader lists and dashboards (10), and the end-to-end happy path (11).
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
@@ -99,53 +107,46 @@ technician → offline report with photos and both signatures → sync → appro
 
 ---
 
-## Slice 8 is done — resume at slice 9
+## Slice 9 is done — resume at slice 10
 
-**Goal of slice 9:** approval, locking and PDF — a submitted report becomes a document with a number, an
-approval trail and an amendment path. The canonical description is `docs/PLAN.md` §6 (slice 9) and the
-slice table above; the brief section is §12.7.
+**Goal of slice 10:** the company-wide job list with every filter, saved filters, CSV export and a
+calendar view; the office dashboard; the audit log viewer and "who changed what" on key records.
+The canonical description is `docs/PLAN.md` §6 (slice 10) and the slice table above; the brief
+sections are §12.8 and §12.9.
 
-What already exists, so slice 9 builds on it rather than beside it:
+What slice 9 built, so slice 10 extends it rather than beside it:
 
 | Need | Where it is |
 |---|---|
-| Report validation, submission, `reportsForJob` | `src/server/reports/reports.ts`, `src/lib/validation/reports.ts` |
-| Outbox application and idempotency | `src/server/tech/outbox.ts`, `POST /api/tech/sync` |
-| Photo and signature storage | `src/server/storage/storage.ts`, `src/server/storage/files.ts` |
-| The phone form, its draft and its queue | `src/components/tech/report-form.tsx`, `src/offline/db.ts`, `src/offline/outbox.ts` |
-| The template shape a PDF must render | `src/lib/templates/schema.ts` |
-| `report.approve` / `report.amend` capabilities (Admin, Dispatcher) | `src/server/auth/permissions.ts` |
-| Document numbering — `nextDocumentNumber(tx, 'REPORT')` already works | `src/server/documents/sequence.ts` |
-| Email adapter (`console` \| `smtp`) and the in-app + email fan-out pattern | `src/server/email/email.ts`, `src/server/notify/notify.ts`, `src/server/schedule/dispatch.ts` |
+| The report queue, approve/return, amendment | `src/server/reports/approval.ts`, `src/app/(office)/reports/` |
+| The PDF renderer (template data → document) | `src/server/documents/render.ts` |
+| Download URLs, both storage drivers | `src/server/storage/storage.ts`, `GET /api/files/store` |
+| The customer email and its cron retry | `src/server/reports/approval.ts`, `src/server/reports/email-retry.ts` |
+| The crane timeline read | `craneReportTimeline` in `src/server/reports/approval.ts` |
+| The audit trail read (built and tested, no screen uses it) | `auditTrail` in `src/server/audit/audit.ts` |
 
-Facts slice 8 settled that slice 9 inherits (`docs/ASSUMPTIONS.md` items 52–61): a submitted report is
-`SUBMITTED` and immutable; `Report.data` holds the template answers plus a reserved `checklist` key;
-findings exist as rows and inside `data.findings`; parts used are `StockMovement` rows; photos and
-signatures are `File` rows attached to the job; and the `disk` driver's `signedDownloadUrl` still throws,
-which the PDF is the first thing to need.
+Facts slice 9 settled that slice 10 inherits (`docs/ASSUMPTIONS.md` items 62–69): a submitted report
+is approved or returned, never both; an issued report is locked and corrected by an amendment copy;
+the PDF is a function of `Report.templateVersion` and the stored `data` alone; the job goes
+COMPLETED → REVIEWED on approval; photos are snapshotted in `Report.data.photoFileIds`; and download
+tokens are purpose-separated from upload tokens.
 
-Four things slice 9 must **add** — none of them exist yet:
+Two things slice 10 must **add**, neither of which exists:
 
-1. **`@react-pdf/renderer` is not installed.** It is the one dependency slice 9 is allowed (PLAN §2); add
-   it and nothing else.
-2. **There is no reports queue.** `src/app/(office)/` has no `reports/` directory; submission is reached
-   only from the phone. The approval screen, the approve/return action and the amendment action are new.
-3. **The crane timeline is still a placeholder** (`src/app/(office)/cranes/[id]/page.tsx:192`) that says
-   reports will appear there. Populate it, then delete the sentence.
-4. **The disk download route.** `signedDownloadUrl` for `disk` needs a GET counterpart to
-   `/api/files/store` (HMAC token, same signing secret) so the PDF can embed photos in dev and tests.
+1. **Saved filters.** `listJobs` already takes `q`, `status` and `priority`; there is no saved-filter
+   model and no calendar view. Decide whether a saved filter is a `Setting` row or its own table
+   before writing the screen.
+2. **The audit viewer.** `auditTrail(context, entity, entityId)` exists and is tested but no screen
+   renders it, and there is no cross-entity audit search. `audit.read` is held by Admin only today.
 
-The `Report` model already carries every field approval needs — `documentNumber`, `pdfFileId`, `approvedAt`,
-`approvedById`, `amendmentOfId`, `amendmentReason`, and `ReportStatus.AMENDED` — and `FileKind.REPORT_PDF`
-exists, so slice 9 should need no migration. If it does, add one; never edit an applied migration.
+**Slice 9's migration was not applied in this session** — the sandbox permission layer refused
+`prisma migrate deploy`. Run `npm run db:deploy` before the slice-9 integration and end-to-end tests,
+or `prisma generate` will still be ahead of the database.
 
-**The test PLAN §9 calls for and slice 9 must write:** re-render an approved report after a template change
-and diff it against the original, proving the render function is selected by `Report.templateVersion` and
-the stored `data`, not by the template as it stands today.
-
-**Known trap on this machine:** `tests/e2e/report.spec.ts` deletes and recreates the report on one seeded
-breakdown job (Ahmad's). A slice-9 e2e that approves a report on that same job will collide with it, and
-neither is safe against a shared database.
+**Known trap on this machine:** `tests/e2e/report.spec.ts` deletes and recreates the report on one
+seeded breakdown job (Ahmad's). Slice 9's own e2e (`tests/e2e/approval.spec.ts`) therefore builds its
+own customer, crane, job and report. Any slice-10 e2e that touches that seeded job has the same
+problem.
 
 ---
 

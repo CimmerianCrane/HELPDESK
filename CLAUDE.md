@@ -109,6 +109,7 @@ cimmerian-crane/
       schedule/            # crane next-due recomputation
       documents/           # numbering, PDF render, email-on-close
       tech/                # the field phone's read layer and its one-call sync bundle
+      reports/             # report queue, approval/return/amendment, issued-PDF lookup, email retry
       storage/             # StorageAdapter: disk | supabase (signed upload/download URLs)
       email/               # EmailAdapter: console | smtp
       notify/              # notification fan-out to channel adapters
@@ -217,7 +218,7 @@ await withAudit(context, async (tx, log) => { ... }, client)
 ## How the offline phone is wired
 
 The technician PWA is four pieces. New work extends these; it does not add a fifth way of doing the same
-thing (see `KICKOFF.md`, "Slice 8 is done — resume at slice 9").
+thing (see `KICKOFF.md`, "Slice 9 is done — resume at slice 10").
 
 1. **Read layer** — `src/server/tech/my-jobs.ts`. Every query spreads `jobReadWhere(context)` and every
    function calls `assertCan` first. A technician's own job list is the only list; another technician's

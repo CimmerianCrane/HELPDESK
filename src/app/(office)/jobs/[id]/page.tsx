@@ -19,6 +19,8 @@ import { NotFoundError } from '@/server/auth/errors'
 import { can } from '@/server/auth/permissions'
 import { JOB_STATUS_DESCRIPTIONS, JOB_STATUS_LABELS, ON_HOLD_REASON_LABELS } from '@/server/jobs/labels'
 import { getJob, listJobs } from '@/server/jobs/jobs'
+import { REPORT_STATUS_LABELS } from '@/server/reports/labels'
+import { reportsForJob } from '@/server/reports/reports'
 import { isTerminal, nextStatuses } from '@/server/jobs/status'
 import { dispatchPack } from '@/server/schedule/dispatch'
 import { listResources, listTechnicians } from '@/server/schedule/roster'
@@ -80,7 +82,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const moves = nextStatuses(job.status)
   const finished = isTerminal(job.status)
 
-  const [staffing, technicians, resources, dispatch, unplaced] = await Promise.all([
+  const [staffing, technicians, resources, dispatch, unplaced, reports] = await Promise.all([
     jobStaffing(context, job.id),
     mayAssign ? listTechnicians(context) : Promise.resolve([]),
     maySchedule && can(context.role, 'resource.read')
@@ -99,6 +101,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           ),
         )
       : Promise.resolve([]),
+    reportsForJob(context, job.id),
   ])
 
   const rescheduleDefaultStart = staffing.scheduledStart
@@ -395,6 +398,37 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           </div>
         </section>
       ) : null}
+
+      <section className={cardClass}>
+        <h2 className="font-semibold text-slate-900">Reports</h2>
+        {reports.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-600">
+            No report yet. The technician fills one in per crane on the phone.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2 text-sm">
+            {reports.map((report) => (
+              <li
+                key={report.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 pb-2 last:border-0"
+              >
+                <span>
+                  <Link
+                    href={`/reports/${report.id}`}
+                    className="font-medium text-slate-900 underline"
+                  >
+                    {report.documentNumber ?? `Report for ${report.craneTag}`}
+                  </Link>{' '}
+                  <span className="text-slate-500">{REPORT_STATUS_LABELS[report.status]}</span>
+                </span>
+                <span className="text-slate-600">
+                  {report.craneTag} · {formatDateTime(report.submittedAt, settings.timezone)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className={`${cardClass} lg:col-span-2`}>

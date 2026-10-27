@@ -9,8 +9,7 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Architecture, data model, screens and the phase plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
-**Status:** Slice 8 (offline report completion, queued and synced exactly once). See "What works
-today" below.
+**Status:** Slice 9 (approval, locking and PDF). See "What works today" below.
 
 ---
 
@@ -128,6 +127,35 @@ separate worker process. The full command list is in [`CLAUDE.md`](CLAUDE.md).
 ---
 
 ## What works today
+
+### Slice 9 — approving a report, and the document it becomes
+
+- **A reports queue** at `/reports` (in the main nav for whoever holds `report.approve`) lists what
+  the field has signed, oldest first, and what was sent back.
+- **Approving issues a document.** One transaction assigns the next `RPT-2026-0001` number, renders
+  the PDF with both signatures and the photographs embedded, stores it, locks the report, moves the
+  job from COMPLETED to REVIEWED, and writes an audit entry for each. The customer is emailed
+  afterwards — a dead mail server cannot undo an issued document, and `emailedToCustomerAt` left null
+  is what `/api/cron/daily` retries.
+- **The PDF is reproducible.** It is rendered from the template *version stored on the report* and
+  the answers stored with it, with the document timestamps pinned, so an old report re-renders exactly
+  as issued even after the office has superseded its template. The integration test proves it by
+  re-rendering an approved report after a template change and diffing the SHA-256 against the stored
+  file.
+- **Nothing issued is edited.** A correction is an amendment: a copy of the answers with a reason,
+  linked to the original, issued with its own number when approved. The original keeps its number and
+  its PDF and is marked superseded. Only one amendment can be open at a time.
+- **Sending one back** records a reason the technician sees, and never assigns a number.
+- **The crane page's timeline is populated** with every report on that machine — numbered, dated, and
+  flagged when it is an amendment.
+- **To try it:** sign in as `dispatch@cimmeriancrane.example` / `cimmerian-dev-2026`, finish the
+  phone report as Ahmad (above) so one is submitted, then open **Reports**, approve it, and follow the
+  job and crane links. The PDF link is on the report page.
+- **Tests** — 3 unit tests that pin the renderer's determinism and that a changed template version
+  changes the document, 7 integration tests (number + stored PDF + job move, double approval refused,
+  a technician refused the capability, sending back with a reason, amendment linking and superseding,
+  one open amendment at a time) including the re-render diff, and an end-to-end test that approves a
+  report through the UI and finds it on the crane timeline.
 
 ### Slice 8 — completing a report on the phone
 

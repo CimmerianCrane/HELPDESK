@@ -3,8 +3,8 @@
 Architecture, data model, screens and build plan. Conventions and non-negotiables live in `../CLAUDE.md`.
 Assumptions where the brief was silent live in `ASSUMPTIONS.md`.
 
-**Status: Phase 1, slices 0–8 built and verified against the live database, on Vercel hosting.
-Slice 9 (approval, lock, PDF) is next. Phases 2–4 have not been started.**
+**Status: Phase 1, slices 0–9 built against the live database, on Vercel hosting. Slice 10 (job list,
+dashboard, audit views) is next. Phases 2–4 have not been started.**
 
 ---
 
@@ -1155,11 +1155,10 @@ job, crane, report or customer reads.
 Each slice runs **database → service → API/action → UI → tests**, ends with `npm run verify`, a commit, and a
 3–5 line summary. Each is independently demoable.
 
-**Progress:** Slices 0–8 are **done**, each verified against the live Supabase database. Slice 8
-(offline report completion) is the current head of the build and is summarised below; slices 7 and
-earlier are summarised in their own commits. **The next slice is 9 — approval, locking and PDF.**
-The rest of this section is the plan as written, so the slice-8 paragraphs are a record rather than
-instructions.
+**Progress:** Slices 0–9 are **done**. Slice 9 (approval, locking and PDF) is the current head of the
+build and is summarised below; slices 8 and earlier are summarised in their own commits. **The next
+slice is 10 — job list, dashboard and audit views.** The rest of this section is the plan as written,
+so the slice paragraphs are a record rather than instructions.
 
 *Slice 7* — installable phone shell with a real offline story, split in three so that each part can be
 tested on its own: a **read layer** (`src/server/tech/my-jobs.ts`) that scopes every query through
@@ -1209,6 +1208,31 @@ the server's `SyncReceipt` uses the same id inside the submission transaction. *
 HMAC token** (`/api/files/store?key=…&token=…`) because the disk driver has no bucket to issue its own URL, and
 `verifyUploadToken` is unit-tested for tampering and expiry. A template version mismatch is refused rather than
 migrated; the phone detects the drift when it loads the draft and starts the form again with a notice.
+
+*Slice 9* — approval, the lock and the PDF. Set out before it was written as "a submitted report becomes a
+document with a number, an approval trail and an amendment path". Five decisions carry it, and each is recorded
+in `ASSUMPTIONS.md` items 62–69:
+
+1. **The renderer is data-driven, not a component per template** — reversing the plan's own assumption.
+   `renderReportPdf` takes the template schema **stored on the report** and the stored answers; a component per
+   template would be a third copy of a shape the office edits as data. Reproducibility is then a property of the
+   inputs, which is what the slice-9 test checks: approve a report, add a version-2 template, repoint the job
+   type at it, re-render through the same loader, and diff the bytes.
+2. **PDF timestamps are pinned to the approval time.** react-pdf writes `new Date()` into the info dictionary, so
+   the "re-render and diff" test cannot pass without `Document.creationDate`/`modificationDate`. This was found
+   experimentally, not from documentation.
+3. **`RETURNED` is a new status.** Approve / return / correct are three decisions, and a return has to be
+   distinguishable from "not looked at" without giving the report a number it never earned.
+4. **The email is outside the transaction, the PDF inside it.** A dead mail server must not undo an issued
+   document; an issued document must not exist without its PDF. `emailedToCustomerAt` null after `approvedAt` is
+   the retry signal `/api/cron/daily` sweeps.
+5. **Photos are snapshotted as `Report.data.photoFileIds`.** Slice 8 validated them and dropped them; without
+   this the issued document could not embed the photographs that were attached when it was signed.
+
+Two gaps in slice 8 surfaced here and were fixed rather than worked around: the dropped photo ids, and the disk
+driver's `signedDownloadUrl`, which threw. Download tokens now carry a signed purpose so an upload grant cannot
+be replayed as a download grant — one line in `signUploadToken` that turns a read capability into a different
+capability, which a test pins in both directions.
 
 *Slice 0* — typecheck, lint, unit, integration and end-to-end tests all pass. Two deviations from the plan as
 written, both recorded in the schema and migration rather than left implicit: the CHECK constraints live in their
@@ -1304,13 +1328,13 @@ decisions worth carrying forward:
 | **0** | **Foundations** | Next.js + TS + Tailwind + shadcn scaffold; Docker Compose Postgres; Prisma init with the §3 schema for Phase 1 models; all npm scripts; `/api/health`; structured logging + error boundary; `Setting` table and `DocumentSequence`; `audit()` service; Vitest + Playwright wired; `.env.example` | §12.1 |
 | **1** | **Auth, roles, users** | Auth.js credentials login; password hashing; `permissions.ts` capability map + scope helpers; rate limiting on login; Admin user management; **tests proving technician isolation and cross-customer isolation** | §12.2, §12.9 |
 | **2** | **Customers & contacts** | CRUD, search, status filter, CSV import, audit-logged; empty/loading/error states | §12.3 |
-| **3** | **Sites & cranes** | CRUD, search, CSV import, QR value + printable label, crane detail page shell (timeline empty until slice 9), restriction flag with reason | §12.3 |
+| **3** | **Sites & cranes** | CRUD, search, CSV import, QR value + printable label, crane detail page shell (timeline populated in slice 9), restriction flag with reason | §12.3 |
 | **4** | **Job types, templates, tickets** | Seed 14 job types; seed checklist + report templates for servicing, breakdown, visual inspection, load test; ticket CRUD, triage, priority, SLA timer display | §12.4 |
 | **5** | **Ticket → Job, lifecycle, SLA** | Ticket spawns 1..n jobs, job covers 1..n cranes; status machine + `JobStatusHistory`; `ON_HOLD` reason required (DB check + service); `SlaPolicy` → SLA due timestamps + live timer/breach state; P1 alert to dispatchers (in-app + email adapter) | §12.4, §4.3 |
 | **6** | **Scheduling & dispatch** | Schedule board (day/week, dnd-kit, conflict warnings); technician assignment with competency warnings + configurable block; leave/unavailability; on-call roster; resource booking + conflict flags; priority bump with reason (audited); dispatch notification with site contact, access notes, crane history, checklist | §12.5 |
 | **7** | **Technician PWA shell** | Installable PWA (Serwist); Dexie cache of upcoming jobs, crane histories, templates, parts, contacts; My Jobs; Job detail; offline indicator | §12.6 |
 | **8** | **Offline report completion** | Checklist form with measurements; photos with client-side compression; parts used; findings; technician + customer signatures with declined-with-reason; autosave every few seconds; outbox sync queue with pending badge, retry, idempotency via `SyncReceipt`, conflicts logged | §12.6, §10 |
-| **9** | **Approval, lock, PDF** | Report approval flow; locked reports + amendment with reason linked to original; document numbering; `@react-pdf/renderer` PDF with embedded signatures and photos; email to customer on close with copy stored against job and crane; crane timeline now populated | §12.7 |
+| **9** | **Approval, lock, PDF** (done) | Report approval flow; locked reports + amendment with reason linked to original; document numbering; `@react-pdf/renderer` PDF with embedded signatures and photos; email to customer on close with copy stored against job and crane; crane timeline now populated | §12.7 |
 | **10** | **Job list, dashboard, audit views** | Company-wide job list with every filter + saved filters + CSV export + calendar view; office dashboard; audit log viewer and "who changed what" on key records | §12.8, §12.9 |
 | **11** | **E2E happy paths** | Playwright: (a) P1 breakdown ticket → assign nearest qualified technician → offline report with photos and both signatures → sync → approve → customer PDF; (b) offline report completion and later sync | §12.10 |
 
@@ -1358,7 +1382,7 @@ deliverable and are re-run as a regression guard on every later slice.
 | Risk | Mitigation |
 |---|---|
 | **Offline sync is the hardest part** (photos, signatures, two-sided conflict) | Isolated in slice 8 with its own tests and a documented conflict rule. Client-generated ids from day one, so no later rewrite. Nothing else depends on it. |
-| **PDF reproducibility across template versions** | `Report` stores `templateVersion` + the exact `data`; `ReportTemplate` rows are never mutated, only superseded by a new version. Slice 9 test: re-render an approved report after a template change and diff. |
+| **PDF reproducibility across template versions** | `Report` stores `templateVersion` + the exact `data`; `ReportTemplate` rows are never mutated, only superseded by a new version. Slice 9 test: re-render an approved report after a template change and diff. **Built:** `tests/integration/report-approval.test.ts` approves a report, adds a version 2 template, repoints the job type at it, and asserts the re-rendered SHA-256 equals the stored PDF's — which only works because `Document.creationDate` is pinned. |
 | **Compliance rules change (MOM circulars)** | Rules live in `ComplianceRule` with `effectiveFrom`/`effectiveTo` and a required `sourceReference`. Superseding a rule is an Admin data entry, not a deploy. No regulatory fact appears in code. |
 | **Scope creep across 14 job types** | Phase 1 seeds all 14 as data but fully builds only 4 templates (servicing, breakdown, visual inspection, load test). The rest are configurable rows. |
 | **PDF rendering on Vercel** | No Chromium and no worker. Rendering is pure JavaScript (`@react-pdf/renderer`) inside the approving request; the daily cron retries any render or email that failed. A very large report (dozens of photos) could approach the function duration limit; the retry pass and per-report status make that visible rather than silent. |
