@@ -3,8 +3,8 @@
 Architecture, data model, screens and build plan. Conventions and non-negotiables live in `../CLAUDE.md`.
 Assumptions where the brief was silent live in `ASSUMPTIONS.md`.
 
-**Status: Phase 1, slices 0–6 built and verified against the live database, on Vercel hosting.
-Slice 7 is next.**
+**Status: Phase 1, slices 0–8 built and verified against the live database, on Vercel hosting.
+Slice 9 (approval, lock, PDF) is next. Phases 2–4 have not been started.**
 
 ---
 
@@ -1155,9 +1155,11 @@ job, crane, report or customer reads.
 Each slice runs **database → service → API/action → UI → tests**, ends with `npm run verify`, a commit, and a
 3–5 line summary. Each is independently demoable.
 
-**Progress:** Slices 0–7 are **done**, each verified against the live Supabase database. Slice 7 (the
-technician PWA shell) is summarised below; the earlier slices are summarised in their own commits. The
-rest of this section is the plan as written.
+**Progress:** Slices 0–8 are **done**, each verified against the live Supabase database. Slice 8
+(offline report completion) is the current head of the build and is summarised below; slices 7 and
+earlier are summarised in their own commits. **The next slice is 9 — approval, locking and PDF.**
+The rest of this section is the plan as written, so the slice-8 paragraphs are a record rather than
+instructions.
 
 *Slice 7* — installable phone shell with a real offline story, split in three so that each part can be
 tested on its own: a **read layer** (`src/server/tech/my-jobs.ts`) that scopes every query through
@@ -1169,9 +1171,9 @@ fallback). The server pages and the offline shell render the same two components
 cannot drift from the live one. Offline is proved against a production build, not the dev server; see
 `docs/ASSUMPTIONS.md` items 46–50.
 
-*Slice 8* — **the next slice**, so its shape is settled here before it is written. It fills in the phone's
-report form: checklist with measurements, photos, parts used, findings, both signatures, autosave, and an
-outbox that survives a dropped connection. The four decisions that constrain everything after it:
+*Slice 8* — the phone's report form: checklist with measurements, photos, parts used, findings, both
+signatures, autosave, and an outbox that survives a dropped connection. Set out before it was written;
+the four decisions that constrain everything after it:
 
 1. **`Report.data` is the answer map the template already declares** (`src/lib/templates/schema.ts`), not a
    bag of prose. A `fields` section contributes keys to one flat answer map; a `layout: 'table'` section

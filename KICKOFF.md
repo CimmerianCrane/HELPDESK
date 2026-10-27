@@ -16,7 +16,8 @@ and the state of the build. Everything else is in the repository:
 ## Where the build stands
 
 **Phase 1, slice 9 next.** Slices 0–8 are built, verified against the live Supabase database and
-committed. Phases 2–4 have not been started.
+committed (slice 8 is `164a72a`). Phases 2–4 have not been started. **Stop after slice 9; do not begin
+slice 10 in the same session unless asked.**
 
 | Slice | State |
 |---|---|
@@ -98,27 +99,53 @@ technician → offline report with photos and both signatures → sync → appro
 
 ---
 
-## Slice 8 is done — next is slice 9
+## Slice 8 is done — resume at slice 9
 
-**Goal of the next slice (9):** approval, locking and PDF — a submitted report becomes a document with a
-number, an approval trail and an amendment path. The canonical description is `docs/PLAN.md` §6 (slice 9)
-and the slice table above; the brief section is §12.7.
+**Goal of slice 9:** approval, locking and PDF — a submitted report becomes a document with a number, an
+approval trail and an amendment path. The canonical description is `docs/PLAN.md` §6 (slice 9) and the
+slice table above; the brief section is §12.7.
 
-What slice 8 added, so slice 9 builds on it rather than beside it:
+What already exists, so slice 9 builds on it rather than beside it:
 
 | Need | Where it is |
 |---|---|
-| Report validation and submission | `src/server/reports/reports.ts`, `src/lib/validation/reports.ts` |
+| Report validation, submission, `reportsForJob` | `src/server/reports/reports.ts`, `src/lib/validation/reports.ts` |
 | Outbox application and idempotency | `src/server/tech/outbox.ts`, `POST /api/tech/sync` |
 | Photo and signature storage | `src/server/storage/storage.ts`, `src/server/storage/files.ts` |
 | The phone form, its draft and its queue | `src/components/tech/report-form.tsx`, `src/offline/db.ts`, `src/offline/outbox.ts` |
 | The template shape a PDF must render | `src/lib/templates/schema.ts` |
+| `report.approve` / `report.amend` capabilities (Admin, Dispatcher) | `src/server/auth/permissions.ts` |
+| Document numbering — `nextDocumentNumber(tx, 'REPORT')` already works | `src/server/documents/sequence.ts` |
+| Email adapter (`console` \| `smtp`) and the in-app + email fan-out pattern | `src/server/email/email.ts`, `src/server/notify/notify.ts`, `src/server/schedule/dispatch.ts` |
 
-Facts slice 9 needs that slice 8 settled (also in `docs/ASSUMPTIONS.md` items 52–60): a submitted report is
+Facts slice 8 settled that slice 9 inherits (`docs/ASSUMPTIONS.md` items 52–61): a submitted report is
 `SUBMITTED` and immutable; `Report.data` holds the template answers plus a reserved `checklist` key;
 findings exist as rows and inside `data.findings`; parts used are `StockMovement` rows; photos and
-signatures are `File` rows attached to the job; and the disk storage driver has no download URL yet, which
-slice 9's PDF embedding is the first thing to need.
+signatures are `File` rows attached to the job; and the `disk` driver's `signedDownloadUrl` still throws,
+which the PDF is the first thing to need.
+
+Four things slice 9 must **add** — none of them exist yet:
+
+1. **`@react-pdf/renderer` is not installed.** It is the one dependency slice 9 is allowed (PLAN §2); add
+   it and nothing else.
+2. **There is no reports queue.** `src/app/(office)/` has no `reports/` directory; submission is reached
+   only from the phone. The approval screen, the approve/return action and the amendment action are new.
+3. **The crane timeline is still a placeholder** (`src/app/(office)/cranes/[id]/page.tsx:192`) that says
+   reports will appear there. Populate it, then delete the sentence.
+4. **The disk download route.** `signedDownloadUrl` for `disk` needs a GET counterpart to
+   `/api/files/store` (HMAC token, same signing secret) so the PDF can embed photos in dev and tests.
+
+The `Report` model already carries every field approval needs — `documentNumber`, `pdfFileId`, `approvedAt`,
+`approvedById`, `amendmentOfId`, `amendmentReason`, and `ReportStatus.AMENDED` — and `FileKind.REPORT_PDF`
+exists, so slice 9 should need no migration. If it does, add one; never edit an applied migration.
+
+**The test PLAN §9 calls for and slice 9 must write:** re-render an approved report after a template change
+and diff it against the original, proving the render function is selected by `Report.templateVersion` and
+the stored `data`, not by the template as it stands today.
+
+**Known trap on this machine:** `tests/e2e/report.spec.ts` deletes and recreates the report on one seeded
+breakdown job (Ahmad's). A slice-9 e2e that approves a report on that same job will collide with it, and
+neither is safe against a shared database.
 
 ---
 
