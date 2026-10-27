@@ -35,6 +35,7 @@ const NAV: readonly {
   { href: '/reports', label: 'Reports', capability: 'report.approve' },
   { href: '/schedule', label: 'Schedule', capability: 'job.schedule' },
   { href: '/admin/users', label: 'Users', capability: 'user.manage' },
+  { href: '/admin/audit', label: 'Audit', capability: 'audit.read' },
 ]
 
 export default async function OfficeLayout({ children }: { children: ReactNode }) {

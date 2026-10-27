@@ -306,6 +306,7 @@ model User {
   technician    Technician?
   notifications Notification[]
   auditLogs     AuditLog[]
+  savedJobFilters SavedJobFilter[]
 
   @@index([role, isActive])
 }
@@ -1373,6 +1374,25 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([jobId])
+}
+
+/// A named set of job-list filters (brief §8). It is a table rather than a `Setting` row because it
+/// is a list, not a value: the office adds them, renames them and drops them, and they are per-user —
+/// a dispatcher's "my P1s this week" is not the finance team's. The query is stored exactly as it
+/// appeared in the address bar, so replaying a filter is a link and the filter cannot drift from the
+/// page that wrote it.
+model SavedJobFilter {
+  id        String   @id @default(uuid(7))
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  /// The query string, without the leading `?`.
+  query     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId, updatedAt])
 }
 
 /// Offline idempotency. The technician's device mints a mutation id before going offline, so a

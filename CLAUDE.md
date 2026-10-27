@@ -96,7 +96,8 @@ cimmerian-crane/
   src/
     app/
       (auth)/login/        # unauthenticated
-      (office)/            # desktop-first: customers, cranes, tickets, jobs, schedule, reports, admin
+      (office)/            # desktop-first: dashboard, customers, cranes, tickets, jobs (+ /jobs/export),
+                           # schedule, reports, admin (users, audit log)
       (tech)/m/            # mobile-first technician PWA: my jobs, job detail, report form (slice 8)
       offline/             # the /offline fallback: renders the deep-linked job from the Dexie cache
       sw.ts                # Serwist worker source (built to public/sw.js, which is gitignored)
@@ -104,7 +105,9 @@ cimmerian-crane/
     server/
       auth/                # session, password hashing, permission map, row-level scope
       users/               # user administration service
-      audit/               # audit(context, ...) — the only way to write business data
+      audit/               # audit(context, ...) — the only way to write business data; the viewer's
+                           # cross-entity search and record labels
+      dashboard/           # the office board's morning counts, derived from jobSla
       sla/                 # SLA computation
       schedule/            # crane next-due recomputation
       documents/           # numbering, PDF render, email-on-close

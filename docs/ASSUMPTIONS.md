@@ -291,6 +291,53 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     longer than the offline stretch of the test. `sync()` now sets a `queued` flag and loops once more in the
     same call when an overlapping request arrived.
 
+## Slice 10 — the job list, the dashboard and the audit viewer
+
+72. **A saved filter is its own table, not a `Setting` row.** A `Setting` is one value under one key; saved
+    filters are a list, they are added, renamed and deleted, and they belong to the person who made them.
+    `SavedJobFilter` is keyed `(userId, name)` so saving the same name twice replaces the query instead of
+    failing, and every read and write filters by `userId` directly rather than by a scope helper — a saved
+    filter belongs to exactly one person, so the owner *is* the row filter.
+73. **A saved filter stores the address-bar query string.** It replays exactly the view that saved it and
+    cannot drift when the list gains a filter later. The cost is that a query saved today could name a
+    parameter a future slice removes; the Zod schema on the list would then reject the whole filter, which
+    is visible rather than silent.
+74. **Saved filters are not audited.** CLAUDE.md rule 6 covers business mutations; renaming a personal view
+    changes no job, customer or report, and an audit log full of them buries the entries that matter. This is
+    the one write in `src/server` that deliberately skips `withAudit`, and it is written down here so it is a
+    decision rather than an omission.
+75. **The SLA state filter runs in JavaScript, over a capped row set.** "Breached" is a function of a
+    snapshotted deadline and the clock, not a column, so a SQL predicate would be a second implementation of
+    `slaState` — exactly what `src/server/sla/sla.ts` exists to prevent. `listJobs` therefore takes at most
+    `MAX_JOB_ROWS` (2,000) rows, applies every other filter in SQL, and drops the non-matching SLA states
+    afterwards. The page then slices that set in memory rather than issuing `skip`/`take`. At the scale in
+    ASSUMPTIONS 5 the cap is the whole book of work; `shortcut: 2,000 rows, when a month exceeds it, add a
+    snapshot of the SLA state as a column written at transition time`.
+76. **The date range filters on the visit date, falling back to when the job was raised.** A range is two
+    wall dates in the operating timezone (00:00 to 23:59:59 local), so it is resolved with `wallTimeToUtc`.
+    A job with no `scheduledStart` matches on `reportedAt`: the date it was raised is the only date it has,
+    and a range that silently omitted the unscheduled backlog would be worse than one that includes work
+    somebody raised that morning.
+77. **The calendar files a visit by its wall date, and always draws six weeks.** A job at 00:30 Singapore is
+    16:30 UTC the previous day, so bucketing by the UTC date would put it on yesterday's square; `dayKey` is
+    the same helper the schedule board uses. The grid is 42 squares from the Monday on or before the 1st, so
+    the month arrows never change the height of the page. Undated jobs are left off it — a calendar is about
+    dates — which is why the list view remains the default.
+78. **"Late visit" on the dashboard means a scheduled start that has passed on work that has not begun.**
+    Status `IN_PROGRESS`, `COMPLETED` and later mean somebody is on it or it is finished; everything earlier
+    with a `scheduledStart` in the past is late. It is a click away from the same list ordered by visit date,
+    so the tile and the list cannot disagree about which jobs they are counting.
+79. **The audit viewer is gated on `audit.read` inside the page *and* sits behind the admin layout.** The
+    layout checks `user.manage`, which is a narrower question than `audit.read`; a role holding the second
+    without the first would be turned away by the layout before the page renders (and today no role does).
+    The check inside the page is the one that matters: it is what a future screen or action reusing the
+    audit reads relies on, and it is asserted in `tests/integration/jobs-list.test.ts`. A 404 would tell an
+    administrator the page is broken, so the page states the refusal in a sentence.
+80. **The audit viewer labels records with one batched query per entity type.** A 100-row page costs at most
+    seven lookups instead of a hundred, and each label links to its record's office screen where one exists.
+    Entities with no office screen (`Finding`, `StockMovement`, `File`, …) show the row's id, which is ugly
+    but honest.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

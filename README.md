@@ -9,7 +9,7 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Architecture, data model, screens and the phase plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
-**Status:** Slice 9 (approval, locking and PDF). See "What works today" below.
+**Status:** Slice 10 (job list, dashboard and audit views). See "What works today" below.
 
 ---
 
@@ -127,6 +127,30 @@ separate worker process. The full command list is in [`CLAUDE.md`](CLAUDE.md).
 ---
 
 ## What works today
+
+### Slice 10 — the job list, the dashboard and the audit log
+
+- **The company-wide job list** at `/jobs` filters by search text (job number, customer, asset tag or
+  PO reference), status, priority, SLA state, technician, kind of work and a visit-date range, and
+  sorts by working order, newest first or visit date. Every control is a URL parameter, so a filtered
+  list is a link somebody can send.
+- **A six-week calendar** in the same screen, one square per local day, visits filed by their wall
+  date in the operating timezone and P1s picked out in red.
+- **Saved filters** under the list are yours alone: name the view you are looking at and it comes
+  back as one click. Saving the same name again replaces it. They are not audited — renaming a
+  personal view is not business data.
+- **Export CSV** downloads exactly what the screen is showing, because both run the same query.
+- **The office dashboard** answers the morning's questions — open P1s, SLA breaches, late visits and
+  work awaiting invoicing, each a count that links to the list that answers it — plus on-hold work by
+  reason, the next 30 days of booked visits, services and exams due, and certificates expiring. A
+  technician signing in sees their own entry point instead of a company-wide board.
+- **The audit log** at `/admin/audit` (Admin only, `audit.read`) searches every create, change and
+  deletion by record type, record id and date, and shows what actually changed field by field. Jobs
+  and cranes carry the same panel on their own pages, so "who changed what" is one click from the
+  record.
+- **Known limit:** the SLA filter is applied after the rows come back, over a 2,000-row cap, because
+  "breached" is a function of a stored deadline and the clock rather than a column
+  (`docs/ASSUMPTIONS.md` 75).
 
 ### Slice 9 — approving a report, and the document it becomes
 
@@ -284,8 +308,8 @@ Next: **slice 7 — the technician PWA.**
 - **Conversion** marks the ticket `CONVERTED` and stamps `closedAt`, which stops the ticket's clocks:
   from then on the jobs carry the work and the history stays linked to the call.
 - **The job board** filters by search text, status and priority, and counts open jobs, jobs past an
-  SLA target, and jobs on hold. Lists are capped at 500 rows; pagination arrives with the fuller
-  job list in slice 10.
+  SLA target, and jobs on hold. The fuller list, with every filter, the calendar, saving a view and
+  the CSV export, arrived in slice 10.
 - **Tests** — 16 unit tests for the transition map, hold rules, timestamp fields and job validation;
   17 integration tests for numbering, SLA snapshots, history and audit rows, one-way stamps,
   cross-customer and two-site refusal, conversion, capability checks and soft-deleted visibility.

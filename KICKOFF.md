@@ -15,9 +15,9 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1, slice 10 next.** Slices 0–9 are built, verified against the live Supabase database and
-committed (slice 9 is `8bd44ec`). Phases 2–4 have not been started. **One slice per session: stop
-after slice 10; do not begin slice 11 in the same session unless asked.**
+**Phase 1, slice 11 next.** Slices 0–10 are built, verified against the live Supabase database and
+committed. Phases 2–4 have not been started. **One slice per session: stop after the slice you were
+asked for; do not begin the next one in the same session unless asked.**
 
 | Slice | State |
 |---|---|
@@ -31,7 +31,8 @@ after slice 10; do not begin slice 11 in the same session unless asked.**
 | 7 Technician PWA shell | done |
 | 8 Offline report completion | done |
 | 9 Approval, lock, PDF | done |
-| 10–11 | not started |
+| 10 Job list, dashboard, audit viewer | done |
+| 11 | not started |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -51,8 +52,13 @@ and an outbox flushed by a single idempotent sync endpoint with a pending badge 
 and the office side of a report — a queue of what the field has signed, approval that assigns a
 document number and renders a numbered PDF with the signatures and photographs embedded, the report
 locked once approved, a return-with-reason path, amendment copies linked to the report they correct,
-the customer emailed on issue with a cron retry, and the crane page's timeline filled in.
-**Not yet built:** broader lists and dashboards (10), and the end-to-end happy path (11).
+the customer emailed on issue with a cron retry, and the crane page's timeline filled in; and the
+office's own view of the work — a company-wide job list with every filter (search, status, priority,
+SLA state, technician, kind of work, visit dates, sort) plus a six-week calendar, per-user saved
+filters that replay the address bar, and a CSV export that runs the same query as the screen; a
+dashboard of the morning's questions with each count linking to the list that answers it; and the
+audit log as a screen — a cross-entity search, and a "who changed what" panel on jobs and cranes.
+**Not yet built:** the end-to-end happy path (11).
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
@@ -103,44 +109,36 @@ technician → offline report with photos and both signatures → sync → appro
 
 ---
 
-## Slice 9 is done — resume at slice 10
+## Slice 10 is done — resume at slice 11
 
-**Goal of slice 10:** the company-wide job list with every filter, saved filters, CSV export and a
-calendar view; the office dashboard; the audit log viewer and "who changed what" on key records.
-The canonical description is `docs/PLAN.md` §6 (slice 10) and the slice table above; the brief
-sections are §12.8 and §12.9.
+**Goal of slice 11:** the end-to-end happy path (brief §12.10) — a P1 breakdown ticket → assign the
+nearest qualified technician → offline report with photos and both signatures → sync → approve →
+customer PDF. The canonical description is `docs/PLAN.md` §6; slice 11 exists to prove Phase 1 as a
+whole, not to add features.
 
-What slice 9 built, so slice 10 extends it rather than beside it:
+What slice 10 built, so slice 11 extends it rather than beside it:
 
 | Need | Where it is |
 |---|---|
-| The report queue, approve/return, amendment | `src/server/reports/approval.ts`, `src/app/(office)/reports/` |
-| The PDF renderer (template data → document) | `src/server/documents/render.ts` |
-| Download URLs, both storage drivers | `src/server/storage/storage.ts`, `GET /api/files/store` |
-| The customer email and its cron retry | `src/server/reports/approval.ts`, `src/server/reports/email-retry.ts` |
-| The crane timeline read | `craneReportTimeline` in `src/server/reports/approval.ts` |
-| The audit trail read (built and tested, no screen uses it) | `auditTrail` in `src/server/audit/audit.ts` |
+| Every job filter, one schema (screen, export and saved filters share it) | `jobFilterSchema` in `src/lib/validation/jobs.ts`, `listJobs` in `src/server/jobs/jobs.ts` |
+| Saved views (own table, per user, not audited) | `src/server/jobs/saved-filters.ts`, `src/components/office/saved-filters.tsx` |
+| CSV of exactly what the screen shows | `jobsCsv` in `src/server/jobs/export.ts`, `GET /jobs/export` |
+| The calendar's arithmetic (pure, unit-tested) | `src/server/jobs/calendar.ts` |
+| Morning counts, derived from the same `jobSla` the list uses | `src/server/dashboard/dashboard.ts` |
+| Cross-entity audit search and record labels | `searchAuditLog`, `auditEntityLabels` in `src/server/audit/audit.ts` |
+| The one audit renderer, used by the viewer and by a record's page | `src/components/office/audit-trail.tsx` |
 
-Facts slice 9 settled that slice 10 inherits (`docs/ASSUMPTIONS.md` items 62–71): a submitted report
-is approved or returned, never both; an issued report is locked and corrected by an amendment copy;
-the PDF is a function of `Report.templateVersion` and the stored `data` alone; the job goes
-COMPLETED → REVIEWED on approval; photos are snapshotted in `Report.data.photoFileIds`; download
-tokens are purpose-separated from upload tokens; and a sync request that arrives while another is
-running is queued rather than dropped, because dropping it strands a finished report on the phone
-(`ASSUMPTIONS.md` 71).
-
-Two things slice 10 must **add**, neither of which exists:
-
-1. **Saved filters.** `listJobs` already takes `q`, `status` and `priority`; there is no saved-filter
-   model and no calendar view. Decide whether a saved filter is a `Setting` row or its own table
-   before writing the screen.
-2. **The audit viewer.** `auditTrail(context, entity, entityId)` exists and is tested but no screen
-   renders it, and there is no cross-entity audit search. `audit.read` is held by Admin only today.
+Decisions slice 10 settled (`docs/ASSUMPTIONS.md` items 72–80): a saved filter is its own table keyed
+`(userId, name)`; it stores the address-bar query so it cannot drift; it is deliberately not audited;
+the SLA filter runs in JavaScript over a 2,000-row cap because the state is not a column; a date range
+is a range of local wall dates with unscheduled jobs matching on `reportedAt`; the calendar files by
+wall date; a "late visit" is a passed `scheduledStart` on work that has not begun; the audit viewer
+gates on `audit.read` rather than the admin layout; and record labels cost one query per entity type.
 
 **Known trap on this machine:** `tests/e2e/report.spec.ts` deletes and recreates the report on one
-seeded breakdown job (Ahmad's). Slice 9's own e2e (`tests/e2e/approval.spec.ts`) therefore builds its
-own customer, crane, job and report. Any slice-10 e2e that touches that seeded job has the same
-problem.
+seeded breakdown job (Ahmad's). Both later specs (`tests/e2e/approval.spec.ts` and
+`tests/e2e/jobs.spec.ts`) build their own customer, crane and job. Any slice-11 e2e that touches that
+seeded job has the same problem — and slice 11 is *about* that path, so build its own fixtures too.
 
 **Two things about the test gates that cost time in slice 9.** The e2e suite runs against `npm run
 dev`, so editing a source file while a run is in flight hot-reloads the server under a test that is

@@ -3,8 +3,8 @@
 Architecture, data model, screens and build plan. Conventions and non-negotiables live in `../CLAUDE.md`.
 Assumptions where the brief was silent live in `ASSUMPTIONS.md`.
 
-**Status: Phase 1, slices 0–9 built against the live database, on Vercel hosting. Slice 10 (job list,
-dashboard, audit views) is next. Phases 2–4 have not been started.**
+**Status: Phase 1, slices 0–10 built against the live database, on Vercel hosting. Slice 11 (the
+end-to-end happy path) is next. Phases 2–4 have not been started.**
 
 ---
 
@@ -1155,10 +1155,10 @@ job, crane, report or customer reads.
 Each slice runs **database → service → API/action → UI → tests**, ends with `npm run verify`, a commit, and a
 3–5 line summary. Each is independently demoable.
 
-**Progress:** Slices 0–9 are **done**. Slice 9 (approval, locking and PDF) is the current head of the
-build and is summarised below; slices 8 and earlier are summarised in their own commits. **The next
-slice is 10 — job list, dashboard and audit views.** The rest of this section is the plan as written,
-so the slice paragraphs are a record rather than instructions.
+**Progress:** Slices 0–10 are **done**. Slice 10 (job list, dashboard and audit views) is the current head of the
+build and is summarised below; slices 9 and earlier are summarised in their own commits. **The next slice is 11 —
+the end-to-end happy path.** The rest of this section is the plan as written, so the slice paragraphs are a record
+rather than instructions.
 
 *Slice 7* — installable phone shell with a real offline story, split in three so that each part can be
 tested on its own: a **read layer** (`src/server/tech/my-jobs.ts`) that scopes every query through
@@ -1249,6 +1249,26 @@ dropped — the report stayed in IndexedDB until the next page load, and the scr
 technician would have finished a job and gone home with it unsent. The overlapping request is now queued and the
 loop runs once more, so the report goes out (`ASSUMPTIONS.md` 71). Neither test suite could have caught it alone:
 the integration suite never loads the provider, and the unit suite has no network to cut.
+
+*Slice 10* — the job list, the dashboard and the audit viewer. Four decisions carry it (`ASSUMPTIONS.md` 72–80):
+
+1. **A saved filter is its own table, keyed `(userId, name)`** — not a `Setting` row. A setting is one value
+   under one key; saved filters are a list the user adds to, renames and deletes, and they are personal. The row
+   stores the address-bar query string, so a saved view replays exactly what was on screen and cannot drift when
+   the list gains a filter. Every read is filtered by `userId` directly: the owner is the row scope.
+2. **The SLA state is filtered in JavaScript, over a capped row set.** "Breached" is a function of a snapshotted
+   deadline and the clock, so a SQL predicate would be a second implementation of `slaState`. `listJobs` applies
+   every other filter in SQL, takes at most 2,000 rows, and drops the non-matching states after. That is also why
+   the page slices in memory: one list, one rule, and at ASSUMPTIONS-5 scale the cap is the whole book of work.
+3. **The export runs the same function as the screen.** `jobsCsv` calls `listJobs` with the query string the page
+   is showing, so a download cannot say something the table does not. A route handler, because a download is a
+   GET the browser navigates to; permissions are checked in both the route and the service.
+4. **The audit viewer gates on `audit.read`, not on the admin layout, and labels records in batches.** The layout
+   checks `user.manage`, which is not the same question, so a signed-in role without `audit.read` gets a sentence
+   rather than a 404. One query per entity type present turns a 100-row page into at most seven lookups, and the
+   same `AuditTrailPanel` renders on the viewer and on a record's own page, so the two cannot describe a change
+   differently. Jobs and cranes gained that panel this slice; it is the screen `auditTrail` was built for in
+   slice 9.
 
 *Slice 0* — typecheck, lint, unit, integration and end-to-end tests all pass. Two deviations from the plan as
 written, both recorded in the schema and migration rather than left implicit: the CHECK constraints live in their

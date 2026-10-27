@@ -1,5 +1,6 @@
 import type { JobStatus, OnHoldReason, Prisma } from '@prisma/client'
 import { db, type Tx } from '@/lib/db'
+import { addDays, wallTimeToUtc } from '@/lib/time'
 import { parseInput } from '@/lib/validation/parse'
 import {
   convertTicketSchema,
@@ -9,6 +10,7 @@ import {
   updateJobSchema,
   type CreateJobInput,
   type JobFilter,
+  type JobSort,
 } from '@/lib/validation/jobs'
 import { withAudit } from '@/server/audit/audit'
 import { NotFoundError, RuleError } from '@/server/auth/errors'
@@ -23,6 +25,7 @@ import {
 import type { AuthContext } from '@/server/auth/types'
 import { nextDocumentNumber } from '@/server/documents/sequence'
 import { notifyDispatchersOfJobP1 } from '@/server/notify/notify'
+import { getSettings } from '@/server/settings/settings'
 import { addMinutes, resolveSlaTargets, slaState, type SlaResult } from '@/server/sla/sla'
 import { canTransition, timestampFieldFor } from './status'
 
@@ -63,6 +66,7 @@ export interface JobSummary {
   priority: 'P1' | 'P2' | 'P3' | 'P4'
   onHoldReason: OnHoldReason | null
   onHoldNote: string | null
+  customerPoRef: string | null
   jobType: JobTypeRef
   customer: { id: string; legalName: string; tradingName: string | null }
   site: { id: string; name: string } | null
@@ -91,7 +95,6 @@ export interface JobHistoryEntry {
 export interface JobDetail extends JobSummary {
   description: string | null
   internalNotes: string | null
-  customerPoRef: string | null
   createdAt: Date
   updatedAt: Date
   createdById: string | null
@@ -135,7 +138,7 @@ type JobRow = Prisma.JobGetPayload<{ select: typeof jobSelect }>
  * SLA state from the snapshotted deadlines rather than from today's policy. `startedAt` is the due
  * date minus the target, which is how the job was priced when it was created.
  */
-function jobSla(
+export function jobSla(
   row: {
     reportedAt: Date | null
     respondedAt: Date | null
@@ -171,6 +174,7 @@ function toSummary(row: JobRow, now: Date): JobSummary {
     priority: row.priority,
     onHoldReason: row.onHoldReason,
     onHoldNote: row.onHoldNote,
+    customerPoRef: row.customerPoRef,
     jobType: row.jobType,
     customer: row.customer,
     site: row.site,
@@ -190,14 +194,52 @@ function toSummary(row: JobRow, now: Date): JobSummary {
 // Reads
 // ---------------------------------------------------------------------------
 
+/**
+ * The largest list any caller gets. Filters that the database can answer are applied there; the SLA
+ * filter is not (its state depends on the snapshotted deadline *and* the clock), so it is applied
+ * after the rows come back — which means the page is taken from a capped set rather than from SQL.
+ * At the scale in ASSUMPTIONS 5 that cap is the whole book of work.
+ */
+const MAX_JOB_ROWS = 2_000
+
+/**
+ * The company-wide list (brief §8): every filter the brief names, in one place.
+ *
+ * Everything except the SLA state is a `where` clause. The SLA state is computed by `jobSla`, because
+ * "breached" is a function of a snapshotted deadline and the current time, not a column — filtering it
+ * in SQL would mean a second implementation of the rule, which is exactly what `sla.ts` exists to
+ * prevent.
+ *
+ * The date range matches the visit date, falling back to when the job was raised for jobs that have
+ * not been scheduled. A range is two wall dates in the operating timezone, so it is resolved with the
+ * settings; `timezone` is a parameter rather than a read, so a caller that already has the settings
+ * (every page does) pays nothing for it.
+ */
 export async function listJobs(
   context: AuthContext,
   rawFilters: unknown = {},
   client: Tx = db,
   now: Date = new Date(),
+  timezone: string | null = null,
 ): Promise<JobSummary[]> {
   assertCan(context, 'job.read.all')
   const filters = parseInput(jobFilterSchema, rawFilters) as JobFilter
+
+  const range = await jobDateRange(filters, client, timezone)
+
+  // The date range and the text search each need their own OR. They are collected into an AND rather
+  // than spread into the same object, because two `OR` keys survive as one and the second would
+  // silently replace the first.
+  const conditions: Prisma.JobWhereInput[] = []
+  if (range) {
+    conditions.push({
+      OR: [
+        { scheduledStart: { gte: range.from, lt: range.to } },
+        // Not scheduled yet: the date it was raised is the only date it has.
+        { scheduledStart: null, reportedAt: { gte: range.from, lt: range.to } },
+      ],
+    })
+  }
 
   const where: Prisma.JobWhereInput = {
     ...jobReadWhere(context),
@@ -206,6 +248,9 @@ export async function listJobs(
     ...(filters.customerId ? { customerId: filters.customerId } : {}),
     ...(filters.jobTypeId ? { jobTypeId: filters.jobTypeId } : {}),
     ...(filters.ticketId ? { ticketId: filters.ticketId } : {}),
+    ...(filters.technicianId
+      ? { technicians: { some: { technicianId: filters.technicianId } } }
+      : {}),
     ...(filters.q
       ? {
           OR: [
@@ -216,17 +261,67 @@ export async function listJobs(
           ],
         }
       : {}),
+    ...(conditions.length > 0 ? { AND: conditions } : {}),
   }
 
   const rows = await client.job.findMany({
     where,
     select: jobSelect,
-    // Live work first, then the most urgent, then the oldest — the order somebody works down.
-    orderBy: [{ status: 'asc' }, { priority: 'asc' }, { createdAt: 'asc' }],
-    take: 500,
+    orderBy: JOB_ORDER[filters.sort || 'default'],
+    take: MAX_JOB_ROWS,
   })
 
-  return rows.map((row) => toSummary(row, now))
+  let summaries = rows.map((row) => toSummary(row, now))
+
+  if (filters.sla) {
+    summaries = summaries.filter((job) =>
+      [job.sla.response, job.sla.resolution].some((sla) => sla.state === filters.sla),
+    )
+  }
+
+  return summaries
+}
+
+/**
+ * The orderings the list offers, in the database's own terms. The default is the order somebody works
+ * down the list: live before finished, urgent before routine, oldest first.
+ */
+const JOB_ORDER: Record<JobSort, Prisma.JobOrderByWithRelationInput[]> = {
+  default: [{ status: 'asc' }, { priority: 'asc' }, { createdAt: 'asc' }],
+  newest: [{ createdAt: 'desc' }],
+  // Nulls last: a job with no date cannot be the next thing happening.
+  scheduled: [{ scheduledStart: 'asc' }, { priority: 'asc' }, { createdAt: 'asc' }],
+}
+
+/**
+ * The `from`/`to` wall dates as an instant range, or null when neither was given.
+ *
+ * A range with only one end is halved rather than refused: somebody filtering "from the 1st" means
+ * "since then", and telling them to re-enter a second date would be pedantry.
+ */
+async function jobDateRange(
+  filters: JobFilter,
+  client: Tx,
+  timezone: string | null,
+): Promise<{ from: Date; to: Date } | null> {
+  if (!filters.from && !filters.to) return null
+  const tz = timezone ?? (await getSettings(client)).timezone
+
+  const start = filters.from ? isoDayStart(filters.from, tz) : null
+  const end = filters.to ? isoDayStart(filters.to, tz) : null
+
+  return {
+    from: start ?? new Date(0),
+    // The range includes the `to` day in full, so the bound is the start of the day after it.
+    to: end ? addDays(end, 1) : new Date(8.64e15),
+  }
+}
+
+/** Midnight at the start of a `YYYY-MM-DD` wall date, or null if it is not one. */
+function isoDayStart(value: string, timezone: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return null
+  return wallTimeToUtc(Number(match[1]), Number(match[2]), Number(match[3]), 0, 0, timezone)
 }
 
 export async function getJob(
@@ -320,6 +415,20 @@ export async function openJobStats(
     if (row.priority === 'P1') p1Open += 1
   }
   return { open: rows.length, breached, onHold, p1Open }
+}
+
+/** Active job types, for a filter or a form that needs to name the kind of work. */
+export async function listJobTypes(
+  context: AuthContext,
+  client: Tx = db,
+): Promise<JobTypeRef[]> {
+  assertCan(context, 'job.read.all')
+
+  return client.jobType.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    select: { id: true, code: true, name: true },
+  })
 }
 
 export interface JobFormOptions {

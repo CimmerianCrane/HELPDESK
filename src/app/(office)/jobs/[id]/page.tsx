@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EditJobForm, TransitionJobForm } from '@/components/office/job-forms'
+import { AuditTrailLink, AuditTrailPanel } from '@/components/office/audit-trail'
 import { JobStatusBadge, OnHoldBadge } from '@/components/office/job-badges'
 import {
   AssignTechnicianForm,
@@ -14,6 +15,7 @@ import { PriorityBadge } from '@/components/office/ticket-badges'
 import { cardClass } from '@/components/office/ui'
 import { formatDateTime, formatDuration } from '@/lib/format'
 import { utcToLocalInput } from '@/lib/time'
+import { auditTrail } from '@/server/audit/audit'
 import { requireAuth } from '@/server/auth/context'
 import { NotFoundError } from '@/server/auth/errors'
 import { can } from '@/server/auth/permissions'
@@ -82,7 +84,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const moves = nextStatuses(job.status)
   const finished = isTerminal(job.status)
 
-  const [staffing, technicians, resources, dispatch, unplaced, reports] = await Promise.all([
+  const [staffing, technicians, resources, dispatch, unplaced, reports, trail] = await Promise.all([
     jobStaffing(context, job.id),
     mayAssign ? listTechnicians(context) : Promise.resolve([]),
     maySchedule && can(context.role, 'resource.read')
@@ -102,6 +104,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         )
       : Promise.resolve([]),
     reportsForJob(context, job.id),
+    can(context.role, 'audit.read') ? auditTrail(context, 'Job', job.id, 20) : Promise.resolve([]),
   ])
 
   const rescheduleDefaultStart = staffing.scheduledStart
@@ -489,6 +492,13 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           </ol>
         </section>
       </div>
+
+      {trail.length > 0 ? (
+        <div className="space-y-2">
+          <AuditTrailPanel entries={trail} timeZone={settings.timezone} />
+          <AuditTrailLink href={`/admin/audit?entity=Job&entityId=${job.id}`} />
+        </div>
+      ) : null}
 
       {mayMove && !finished && moves.length > 0 ? (
         <section className={cardClass}>

@@ -8,10 +8,12 @@ import {
   UnrestrictCraneButton,
 } from '@/components/office/crane-forms'
 import { cardClass } from '@/components/office/ui'
+import { AuditTrailLink, AuditTrailPanel } from '@/components/office/audit-trail'
 import { formatDate } from '@/lib/format'
 import { requireAuth } from '@/server/auth/context'
 import { NotFoundError } from '@/server/auth/errors'
 import { can } from '@/server/auth/permissions'
+import { auditTrail } from '@/server/audit/audit'
 import { getCrane } from '@/server/cranes/cranes'
 import { craneReportTimeline } from '@/server/reports/approval'
 import { SAFE_TO_OPERATE_LABELS } from '@/server/reports/labels'
@@ -58,10 +60,13 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
     throw error
   }
 
-  const [sites, settings, timeline] = await Promise.all([
+  const [sites, settings, timeline, trail] = await Promise.all([
     listSites(context, { customerId: crane.site.customerId }),
     getSettings(),
     craneReportTimeline(context, crane.id),
+    can(context.role, 'audit.read')
+      ? auditTrail(context, 'Crane', crane.id, 20)
+      : Promise.resolve([]),
   ])
 
   const mayWrite = can(context.role, 'crane.write')
@@ -222,6 +227,13 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
           </ol>
         )}
       </section>
+
+      {trail.length > 0 ? (
+        <div className="space-y-2">
+          <AuditTrailPanel entries={trail} timeZone={settings.timezone} />
+          <AuditTrailLink href={`/admin/audit?entity=Crane&entityId=${crane.id}`} />
+        </div>
+      ) : null}
 
       {mayRestrict ? (
         <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">

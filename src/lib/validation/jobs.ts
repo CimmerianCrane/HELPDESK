@@ -120,22 +120,51 @@ export const updateJobSchema = z.object({
   customerPoRef: optionalText(80),
 })
 
+/** How the company-wide list is ordered. Anything else falls back to the working order. */
+export const JOB_SORTS = ['default', 'newest', 'scheduled'] as const
+
+/** The three states a job's SLA can be filtered by. `met` is a result, not a thing to search for. */
+export const SLA_FILTER_STATES = ['breached', 'at-risk', 'on-time'] as const
+
+/**
+ * A whole number out of a query string, or the fallback. Total rather than throwing: a hand-edited
+ * `?page=abc` should show page one, not an error page.
+ */
+export function pageNumber(value: string | undefined, fallback: number): number {
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) && parsed >= 1 ? parsed : fallback
+}
+
+const emptyToNull = <T extends z.ZodTypeAny>(schema: T) =>
+  z
+    .union([z.literal(''), schema])
+    .optional()
+    .transform((value) => (value === '' || value === undefined ? null : value))
+
 export const jobFilterSchema = z.object({
   q: z.string().trim().max(160).optional().default(''),
-  status: z
-    .union([z.literal(''), jobStatusSchema])
-    .optional()
-    .transform((value) => (value === '' || value === undefined ? null : value)),
-  priority: z
-    .union([z.literal(''), z.enum(['P1', 'P2', 'P3', 'P4'])])
-    .optional()
-    .transform((value) => (value === '' || value === undefined ? null : value)),
+  status: emptyToNull(jobStatusSchema),
+  priority: emptyToNull(z.enum(['P1', 'P2', 'P3', 'P4'])),
   customerId: z.string().trim().max(40).optional().default(''),
   jobTypeId: z.string().trim().max(40).optional().default(''),
   /** The ticket screen asks for the jobs raised from one call. */
   ticketId: z.string().trim().max(40).optional().default(''),
+  technicianId: z.string().trim().max(40).optional().default(''),
+  /** `YYYY-MM-DD`, inclusive of both ends. Read as wall dates in the operating timezone. */
+  from: z.string().trim().max(10).optional().default(''),
+  to: z.string().trim().max(10).optional().default(''),
+  sla: emptyToNull(z.enum(SLA_FILTER_STATES)),
+  sort: emptyToNull(z.enum(JOB_SORTS)),
+})
+
+/** A named set of filters. The query is kept as it will be replayed — a link, not a parsed shape. */
+export const savedJobFilterSchema = z.object({
+  name: z.string().trim().min(1, 'Give the filter a name.').max(60, 'Use 60 characters or fewer.'),
+  query: z.string().trim().max(500).optional().default(''),
 })
 
 export type CreateJobInput = z.infer<typeof createJobSchema>
 export type TransitionJobInput = z.infer<typeof transitionJobSchema>
 export type JobFilter = z.infer<typeof jobFilterSchema>
+export type JobSort = (typeof JOB_SORTS)[number]
+export type SavedJobFilterInput = z.infer<typeof savedJobFilterSchema>
