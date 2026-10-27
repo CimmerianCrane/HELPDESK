@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 // Placeholder that keeps the Playwright harness honest — it proves the app boots and serves a page.
 // The real happy paths (brief §12.10) land in slice 11.

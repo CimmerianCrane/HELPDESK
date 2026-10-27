@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 
 /**
  * Sign-in, and the two things that must be true once you are in: a technician cannot reach

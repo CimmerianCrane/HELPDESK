@@ -7,7 +7,6 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: 'list',
   // The suite signs in more often than any person would, from one address. See the file.
-  globalSetup: './tests/e2e/global-setup.ts',
   use: {
     baseURL: process.env.APP_BASE_URL ?? 'http://localhost:3000',
     trace: 'on-first-retry',
@@ -30,7 +29,13 @@ export default defineConfig({
   projects: [
     { name: 'office', use: { ...devices['Desktop Chrome'] } },
     // Technician screens are mobile-first and must be checked at ~390px (brief §14).
-    { name: 'technician', use: { ...devices['Pixel 7'] } },
+    // The Phase 1 acceptance path is the exception: it is a four-minute office-plus-phone test whose
+    // phone half already runs here as `report.spec.ts`, so it only runs in the desktop project.
+    {
+      name: 'technician',
+      use: { ...devices['Pixel 7'] },
+      testIgnore: /happy-path\.spec\.ts/,
+    },
   ],
   webServer: {
     command: 'npm run dev',

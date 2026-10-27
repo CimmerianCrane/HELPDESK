@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 
 /**
  * The company-wide job list, its export, its calendar, saved filters and the audit viewer (slice 10).

@@ -400,6 +400,12 @@ describe('dashboard counters', () => {
     await inRolledBackTx(async (tx) => {
       const dispatcher = await makeUser(tx, 'DISPATCHER')
       const base = await craneFixtures(tx)
+
+      // The counter covers every open ticket in the database, and the demo seed leaves P1s open. Measured
+      // as a delta against the same clock, so those rows neither break the test nor hide a miscount.
+      const nineHoursOn = new Date(Date.now() + 9 * 3600_000)
+      const before = await openTicketStats(contextFor(dispatcher), tx, nineHoursOn)
+
       await createTicket(contextFor(dispatcher), ticketInput(base, { priority: 'P1' }), tx)
       await createTicket(contextFor(dispatcher), ticketInput(base, { priority: 'P3' }), tx)
       const closed = await createTicket(contextFor(dispatcher), ticketInput(base), tx)
@@ -407,10 +413,10 @@ describe('dashboard counters', () => {
 
       // Nine hours on: past the P1's 30-minute target and the P3's eight-hour one, but the closed
       // ticket is out of the count.
-      const stats = await openTicketStats(contextFor(dispatcher), tx, new Date(Date.now() + 9 * 3600_000))
-      expect(stats.open).toBe(2)
-      expect(stats.breached).toBe(2)
-      expect(stats.p1Open).toBe(1)
+      const stats = await openTicketStats(contextFor(dispatcher), tx, nineHoursOn)
+      expect(stats.open).toBe(before.open + 2)
+      expect(stats.breached).toBe(before.breached + 2)
+      expect(stats.p1Open).toBe(before.p1Open + 1)
     })
   })
 })

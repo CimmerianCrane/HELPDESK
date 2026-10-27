@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 
 /**
  * Completing a report on the phone (slice 8).

@@ -15,9 +15,9 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1, slice 11 next.** Slices 0–10 are built, verified against the live Supabase database and
-committed. Phases 2–4 have not been started. **One slice per session: stop after the slice you were
-asked for; do not begin the next one in the same session unless asked.**
+**Phase 1 is complete.** Slices 0–11 are built, verified against the live Supabase database and
+committed, and the Phase 1 acceptance path passes end to end. Phase 2 has not been started. **One
+slice per session: stop after the slice you were asked for; do not begin the next one unless asked.**
 
 | Slice | State |
 |---|---|
@@ -32,7 +32,7 @@ asked for; do not begin the next one in the same session unless asked.**
 | 8 Offline report completion | done |
 | 9 Approval, lock, PDF | done |
 | 10 Job list, dashboard, audit viewer | done |
-| 11 | not started |
+| 11 E2E happy paths + §13 demo dataset | done |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -57,8 +57,11 @@ office's own view of the work — a company-wide job list with every filter (sea
 SLA state, technician, kind of work, visit dates, sort) plus a six-week calendar, per-user saved
 filters that replay the address bar, and a CSV export that runs the same query as the screen; a
 dashboard of the morning's questions with each count linking to the list that answers it; and the
-audit log as a screen — a cross-entity search, and a "who changed what" panel on jobs and cranes.
-**Not yet built:** the end-to-end happy path (11).
+audit log as a screen — a cross-entity search, and a "who changed what" panel on jobs and cranes;
+and, proving the whole of it, the acceptance path as a Playwright test — a P1 ticket through triage,
+a job, the board and dispatch, an offline phone report with a photo and both signatures, the sync,
+the office moving it on, approval and the numbered customer PDF — plus the demo estate that path runs
+against. **Not yet built:** everything in Phases 2–4.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
@@ -109,45 +112,43 @@ technician → offline report with photos and both signatures → sync → appro
 
 ---
 
-## Slice 10 is done — resume at slice 11
+## Slice 11 is done — Phase 1 is complete; Phase 2 is next, when asked
 
-**Goal of slice 11:** the end-to-end happy path (brief §12.10) — a P1 breakdown ticket → assign the
-nearest qualified technician → offline report with photos and both signatures → sync → approve →
-customer PDF. The canonical description is `docs/PLAN.md` §6; slice 11 exists to prove Phase 1 as a
-whole, not to add features.
+**Goal of slice 11:** the end-to-end happy path (brief §12.10) and the §13 demo estate. The
+acceptance path lives in `tests/e2e/happy-path.spec.ts`: a P1 breakdown ticket → triage → a job →
+the status machine → a visit → a qualified technician → dispatch → an offline report on the phone
+with a photo and both signatures → sync → the office moving the job on → approval → a numbered PDF.
+It builds every record it uses, and runs in the desktop project only (the phone half, at 390px and
+offline, is `report.spec.ts`).
 
-What slice 10 built, so slice 11 extends it rather than beside it:
+The §13 dataset is `seedDemoBook()` in `prisma/seed.ts`: 8 customers, 26 cranes, 30 closed jobs (10
+with issued reports — only four job types have templates), crane schedules staggered from overdue to
+distant, 2 open P1 tickets, and 40 parts with 9 below reorder level. It is additive and idempotent,
+and gated on the same condition as the demo accounts.
 
-| Need | Where it is |
-|---|---|
-| Every job filter, one schema (screen, export and saved filters share it) | `jobFilterSchema` in `src/lib/validation/jobs.ts`, `listJobs` in `src/server/jobs/jobs.ts` |
-| Saved views (own table, per user, not audited) | `src/server/jobs/saved-filters.ts`, `src/components/office/saved-filters.tsx` |
-| CSV of exactly what the screen shows | `jobsCsv` in `src/server/jobs/export.ts`, `GET /jobs/export` |
-| The calendar's arithmetic (pure, unit-tested) | `src/server/jobs/calendar.ts` |
-| Morning counts, derived from the same `jobSla` the list uses | `src/server/dashboard/dashboard.ts` |
-| Cross-entity audit search and record labels | `searchAuditLog`, `auditEntityLabels` in `src/server/audit/audit.ts` |
-| The one audit renderer, used by the viewer and by a record's page | `src/components/office/audit-trail.tsx` |
+Decisions slice 11 settled (`docs/ASSUMPTIONS.md` items 81–83): "nearest qualified technician" is the
+first technician holding the job type's required competency, because no technician location exists to
+measure distance with; the demo book is keyed on natural keys so re-running the seed adds nothing
+twice, and it never lands in a real register; and the seeded historical reports carry a document
+number but no stored PDF, because the seed runs under `tsx`, which cannot load
+`@react-pdf/renderer`.
 
-Decisions slice 10 settled (`docs/ASSUMPTIONS.md` items 72–80): a saved filter is its own table keyed
-`(userId, name)`; it stores the address-bar query so it cannot drift; it is deliberately not audited;
-the SLA filter runs in JavaScript over a 2,000-row cap because the state is not a column; a date range
-is a range of local wall dates with unscheduled jobs matching on `reportedAt`; the calendar files by
-wall date; a "late visit" is a passed `scheduledStart` on work that has not begun; the audit viewer
-gates on `audit.read` rather than the admin layout; and record labels cost one query per entity type.
+**Known traps that have cost time, still true.**
 
-**Known trap on this machine:** `tests/e2e/report.spec.ts` deletes and recreates the report on one
-seeded breakdown job (Ahmad's). Both later specs (`tests/e2e/approval.spec.ts` and
-`tests/e2e/jobs.spec.ts`) build their own customer, crane and job. Any slice-11 e2e that touches that
-seeded job has the same problem — and slice 11 is *about* that path, so build its own fixtures too.
-
-**Two things about the test gates that cost time in slice 9.** The e2e suite runs against `npm run
-dev`, so editing a source file while a run is in flight hot-reloads the server under a test that is
-mid-page-load and fails it for no product reason — freeze the tree while the suite runs. And a route
-a spec visits for the first time in a run pays Next's on-demand compile plus a round trip to another
-region: measured first visits ran 15–43s, so the suite-wide `expect` is 30s and the two heaviest
-routes (`/m/jobs/[id]/report`, the approval page) carry their own 60s. If a spec fails on a *page that
-rendered* rather than on the clock, read the dev server's own log before widening anything — the first
-run of this suite hid a real dropped-flush bug behind what looked like a timeout.
+- The e2e suite runs against `npm run dev`, so editing a source file while a run is in flight
+  hot-reloads the server under a test that is mid-page-load. Freeze the tree while it runs.
+- A route a spec visits for the first time in a run pays Next's on-demand compile plus a round trip
+  to another region: measured first visits ran 15–43s, so the suite-wide `expect` is 30s and the
+  heaviest routes carry their own 60s. If a spec fails on a *page that rendered*, read the dev
+  server's log before widening anything — an earlier run hid a real dropped-flush bug behind what
+  looked like a timeout.
+- `tests/e2e/report.spec.ts` deletes and recreates the report on one seeded breakdown job (Ahmad's).
+  Any new e2e that needs a report must build its own customer, crane and job, as every later spec
+  does.
+- Sign-in is throttled per IP (30 attempts per 15 minutes, and success does not reset it). A full run
+  now signs in more often than that inside one window, so `tests/e2e/fixtures.ts` clears the throttle
+  table before each test; every spec imports `test`/`expect` from there. A spec that imports
+  `@playwright/test` directly will be the next one to fail on the throttle.
 
 ---
 

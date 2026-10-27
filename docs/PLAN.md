@@ -3,8 +3,8 @@
 Architecture, data model, screens and build plan. Conventions and non-negotiables live in `../CLAUDE.md`.
 Assumptions where the brief was silent live in `ASSUMPTIONS.md`.
 
-**Status: Phase 1, slices 0–10 built against the live database, on Vercel hosting. Slice 11 (the
-end-to-end happy path) is next. Phases 2–4 have not been started.**
+**Status: Phase 1 complete — slices 0–11 built against the live database, on Vercel hosting, with the
+Phase 1 acceptance path (slice 11's path (a)) passing end to end. Phases 2–4 have not been started.**
 
 ---
 
@@ -1372,7 +1372,7 @@ decisions worth carrying forward:
 | **8** | **Offline report completion** | Checklist form with measurements; photos with client-side compression; parts used; findings; technician + customer signatures with declined-with-reason; autosave every few seconds; outbox sync queue with pending badge, retry, idempotency via `SyncReceipt`, conflicts logged | §12.6, §10 |
 | **9** | **Approval, lock, PDF** (done) | Report approval flow; locked reports + amendment with reason linked to original; document numbering; `@react-pdf/renderer` PDF with embedded signatures and photos; email to customer on close with copy stored against job and crane; crane timeline now populated | §12.7 |
 | **10** | **Job list, dashboard, audit views** | Company-wide job list with every filter + saved filters + CSV export + calendar view; office dashboard; audit log viewer and "who changed what" on key records | §12.8, §12.9 |
-| **11** | **E2E happy paths** | Playwright: (a) P1 breakdown ticket → assign nearest qualified technician → offline report with photos and both signatures → sync → approve → customer PDF; (b) offline report completion and later sync | §12.10 |
+| **11** | **E2E happy paths** (done) | Playwright: (a) P1 breakdown ticket → assign nearest qualified technician → offline report with photos and both signatures → sync → approve → customer PDF; (b) offline report completion and later sync | §12.10 |
 
 `npm run seed` grows with each slice and must stay runnable. Slice 4 seeds the templates; slice 6 seeds technicians,
 competencies (one expired) and the roster; slice 11 completes the §13 demo dataset (8 customers, 25–40 cranes, 30

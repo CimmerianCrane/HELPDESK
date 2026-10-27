@@ -9,7 +9,8 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Architecture, data model, screens and the phase plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
-**Status:** Slice 10 (job list, dashboard and audit views). See "What works today" below.
+**Status:** Phase 1 complete (slice 11: the end-to-end happy path and the demo dataset). See "What
+works today" below.
 
 ---
 
@@ -98,6 +99,24 @@ The password is `cimmerian-dev-2026`, or whatever you set `SEED_PASSWORD` to.
 > Supabase project above, say — it skips them and prints why; set `SEED_DEMO_USERS=true` to say you
 > meant it. Before this system is used for real work, change every password or delete the accounts.
 
+### Demo data
+
+The same run builds a small estate to work with, so the app is never empty — and it is skipped
+wherever the demo accounts are skipped, for the same reason:
+
+- **8 customers**, active, dormant and one prospect, with 17 sites between them
+- **26 cranes** with asset tags, QR values, SWL and a couple flagged *Do Not Operate*
+- **Monthly-service and annual-examination schedules**, staggered from overdue to months away
+- **30 completed jobs** across the job types, 10 of them with an approved, numbered report on the
+  crane's timeline
+- **2 open P1 breakdown tickets**, one untriaged and one already triaged, both past their response target
+- **40 parts** in the main store with stock movements, 9 of them below reorder level
+- the two technicians, six bookable resources and seven on-call shifts from the earlier slices
+
+Every row is looked up by a natural key before it is created, so re-running `npm run seed` adds
+nothing twice. The seeded historical reports carry a document number but no stored PDF — the seed
+cannot render one; approve a report in the app and the real thing appears.
+
 ### Using a local database instead
 
 If you have Docker, `npm run db:up` starts a Postgres on port 5432 and the commented block in
@@ -127,6 +146,23 @@ separate worker process. The full command list is in [`CLAUDE.md`](CLAUDE.md).
 ---
 
 ## What works today
+
+### Slice 11 — the whole job, end to end
+
+- **One path, proven instead of described.** `tests/e2e/happy-path.spec.ts` takes a P1 breakdown
+  call from the phone onto a report and out as a customer PDF: record the ticket, triage it, turn it
+  into a job, move it to the board, set the visit, assign a technician who holds the competency,
+  dispatch it, sign in on the phone, cut the network, fill the report with a photo and both
+  signatures, submit, reconnect, watch it sync, move the job through *in progress* and *completed*,
+  approve the report and download the numbered PDF. It creates everything it uses and deletes it
+  afterwards, and it runs in the desktop project only — the phone half at 390px and offline is
+  `tests/e2e/report.spec.ts`, which already runs twice.
+- **A demo estate to try it on** (`npm run seed`): 8 customers, 26 cranes with service and exam
+  schedules, 30 completed jobs with issued reports on the crane timeline, 2 open P1 tickets on the
+  board, and a parts store with 9 lines below reorder level. The full contents are under "Demo data"
+  above.
+- **Known limit:** "nearest qualified technician" is a competency check, not a distance — the data
+  model has no technician location (`docs/ASSUMPTIONS.md` 81).
 
 ### Slice 10 — the job list, the dashboard and the audit log
 

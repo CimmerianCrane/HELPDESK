@@ -337,6 +337,26 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     seven lookups instead of a hundred, and each label links to its record's office screen where one exists.
     Entities with no office screen (`Finding`, `StockMovement`, `File`, …) show the row's id, which is ugly
     but honest.
+81. **"Assign the nearest qualified technician" is a competency check, not a distance.** The data model has
+    no technician location — `Technician` carries no site, no postcode and no last-known position — so any
+    distance would be invented. What the assignment form does enforce is the part the brief can be held to:
+    the technician's competencies are matched against `JobType.requiredCompetencies`, an expired one warns or
+    refuses depending on `blockAssignmentOnExpiredCompetency`, and a clash or a leave day has to be
+    overridden with a reason. Adding real proximity means giving technicians a home site or a check-in
+    position first; until then the dispatcher picks from the technicians the form says can do the work.
+82. **The demo book is keyed on natural keys, and it is gated like the demo accounts.** Re-running
+    `npm run seed` finds each customer by legal name, each site by (customer, name), each crane by asset tag,
+    each part by part number, each historical job by a marker in `internalNotes`, and each opening stock
+    movement by `reasonCode: 'DEMO-OPENING'`; it creates only what is missing. It also only runs where the
+    demo password is allowed (a local database, or `SEED_DEMO_USERS=true`) — the same reasoning: invented
+    customers must never look like a real register. Because `seedWork` still owns the first two customers,
+    this book adds to them rather than replacing them, which is what lets an existing development database
+    gain the estate without being reset.
+83. **Seeded historical reports have a document number but no stored PDF.** The seed runs under `tsx`, which
+    cannot load `@react-pdf/renderer`'s hyphenation data (`ERR_PACKAGE_PATH_NOT_EXPORTED ./en-us`), so it
+    cannot render. The rows are otherwise complete — APPROVED, numbered, signed, on the crane's timeline —
+    and approving a new report in the app produces a real PDF exactly as the issued one would. A seed that
+    could render would need the PDF dependency to be loadable under tsx first.
 
 ## Not assumed — deliberately left to you
 
