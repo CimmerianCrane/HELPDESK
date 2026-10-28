@@ -1423,17 +1423,17 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 | **16** | **Findings & one-click follow-up jobs** (**built** — see §7.7) | Finding status flow (open → quoted → scheduled → rectified / declined), open findings on the crane page, **one click creates a follow-up job** pre-filled from the finding (job type, crane, description, priority from severity) linked by `followUpJobId`/`parentJobId`; customer-declined critical repair captured with name, signature and date | `src/server/findings/` (new), report page, crane page, `src/server/jobs/jobs.ts` | §4.2, §6.4 |
 | **17** | **Load test & visual inspection templates built out** (**built** — see §7.8) | The two templates completed against §6.3 (test load / radii / SWL per radius / instruments / pre- and post-test exam / AE attendance; structure, safety devices, markings, wire rope and hook), with **calibration-expiry validation against `Resource.calibrationDueDate` at the test date — warn, never block** | `src/server/templates/definitions.ts`, `src/lib/templates/schema.ts`, the report form, `prisma/seed.ts` (new versions) | §6.3 |
 | **18** | **Delivery orders** (**built** — see §7.9) | DO generated from the parts already issued on a job (no second source of truth — read from `StockMovement`), lines with serial/batch, `chargeable \| warranty \| loan` + expected return, partial delivery, receiver name/signature/timestamp, numbered `DO-YYYY-NNNN`, printable PDF via the existing renderer | `src/server/delivery-orders/` (new), `src/app/(office)/jobs/[id]/page.tsx`, `src/server/documents/` | §6.5 |
-| **19** | **Quotes & variations** | Quote from a job or a set of findings, lines with qty/unit price, `variation` flag, GST computed, send/accept/decline/expire, numbered `QTE-YYYY-NNNN`, PDF; accepting a quote moves the job into `QUOTED → APPROVED` through the existing status machine | `src/server/quotes/` (new), `src/app/(office)/quotes/` (new), `src/server/jobs/status.ts` | §4.2, §12 |
+| **19** | **Quotes & variations** (**built** — see §7.10) | Quote from a job or a set of findings, lines with qty/unit price, `variation` flag, GST computed, send/accept/decline/expire, numbered `QTE-YYYY-NNNN`, PDF; accepting a quote moves the job into `QUOTED → APPROVED` through the existing status machine | `src/server/quotes/` (new), `src/app/(office)/quotes/` (new), `src/server/jobs/status.ts` | §4.2, §12 |
 | **20** | **Invoicing, GST and payments** | Invoice from a reviewed job (job costing from `StockMovement` + labour lines), `gstRate` snapshot at issue, `INV-YYYY-NNNN`, PDF, payments recorded, `amountPaid` derived, statuses `DRAFT/ISSUED/PART_PAID/PAID/VOID`, dashboard "awaiting invoicing" gains a screen | `src/server/invoices/` (new), `src/app/(office)/invoices/` (new) | §12, §5 |
 | **21** | **Accounting CSV export + Phase 2 acceptance** | An export adapter (CSV first, Xero/QuickBooks later per §12/§14) for invoices and payments, and one Playwright path proving Phase 2 end to end: a PM job completed → schedule rolls forward → certificate uploaded → compliance screen shows it → reminder email queued → finding becomes a follow-up job → quote → invoice | `src/server/accounting/` (new), `tests/e2e/` | §12, §14 |
 
 Each slice also carries the Definition of done from `../CLAUDE.md` (server-side permission test, audit entries, empty /
 loading / error states, seed still runnable, README + this file updated in the same commit).
 
-**Where the next session starts: slice 19 (quotes and variations)**, with the three carry-over items at
+**Where the next session starts: slice 20 (invoicing, GST and payments)**, with the three carry-over items at
 the end of §7.5 and the ended-schedules filter noted in §7.3 queued behind it. They are deliberately not
 slices of their own — take the first one whenever the slice in flight edits the same screen or service.
-Slice 18 touched the job page and the document renderer, not a rule screen, so the `/admin/compliance`
+Slice 19 touched the job page and the document renderer, not a rule screen, so the `/admin/compliance`
 Playwright path (carry-over 1) still waits for whichever slice next touches `/admin/compliance`.
 
 ### 7.3 Slice 12 — schedules on the crane page (**built**)
@@ -1682,9 +1682,9 @@ page; `Finding` in the audit viewer's label lookup. New coverage:
 `tests/unit/findings.test.ts` (12) and `tests/integration/findings.test.ts` (10). **No migration** — every
 column, both relations and `File.findingId` already existed.
 
-**Known limit:** a finding's status is not yet driven by the job that fixes it — a follow-up job moving to
-COMPLETED leaves the finding at SCHEDULED until someone marks it rectified. Wiring completion to the
-finding belongs with slice 19's quotes, where "the customer accepted the variation" also arrives.
+**Known limit:** ~~a finding's status is not yet driven by the job that fixes it~~ — **closed by slice 19**
+(§7.10): `transitionJob` to `COMPLETED` writes the job's `SCHEDULED` follow-up findings to `RECTIFIED`, with
+one audit row each, in the same transaction as the status change.
 
 ### 7.8 Slice 17 — the load test and visual inspection templates (**built**)
 
@@ -1761,7 +1761,54 @@ and `receivedQuantity` (default 0). Additive only.
 the parts appear once a report records them. There is no screen for a customer-level DO without a job — the
 schema allows it (`jobId` is nullable) but the brief's flow always starts from a job.
 
-### 7.10 Phase 3 and Phase 4 (outline, not sliced yet)
+### 7.10 Slice 19 — quotes and variations (**built**)
+
+**Goal:** an estimate reaches the customer as a numbered document whose total is computed from its lines, and
+the customer's answer moves the job — not a note in someone's inbox (brief §4.2, §12).
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 115–120):
+
+1. **A quote always belongs to a job.** `Quote.jobId` is required and the customer is read through the job, so
+   a quote cannot name one customer and a job that belongs to another. Quoting straight from a set of findings
+   is a prefill on the job's form, not a second source of truth.
+2. **Expiry is derived, never written.** `EXPIRED` is `SENT` plus a `validUntil` whose day key (in the operating
+   timezone) is behind today's. There is no nightly sweep and no stored status to disagree with the date.
+3. **`Quote.gstRate` is snapshotted at save**, like `Invoice.gstRate`: a reprint shows the rate it was priced at,
+   and the displayed rate is the stored one rather than one inferred from the rounded amounts.
+4. **Only a draft is editable, and editing reprices.** Sending is the point the offer leaves; after that the
+   lines are fixed. A draft edit deletes and recreates its lines at the current settings rate.
+5. **The job moves through its own status machine.** Sending a quote on a `TRIAGED` job calls
+   `transitionJob(..., 'QUOTED')`; accepting one on a `QUOTED` job calls `transitionJob(..., 'APPROVED')`, in the
+   same transaction as the quote change, so history and audit agree. A quote sent from a job in any other state
+   changes only the quote — the machine still decides what a job may do.
+6. **Finance reads, dispatch writes.** A new `quote.read` capability lets finance see quotes and gives
+   `quoteReadWhere` its exact audience; `quote.write` stays with dispatch and admin.
+
+**As built.** `src/lib/validation/quotes.ts` holds the pure rules — `ALLOWED_QUOTE_TRANSITIONS`/`canMoveQuote`,
+`effectiveQuoteStatus`, and `quoteTotals`, which does integer-cent arithmetic: each line rounds to the cent,
+the subtotal is the sum of those, GST is computed on the rounded subtotal and rounded once. The three Zod
+schemas and the filter live there too. `src/server/quotes/quotes.ts` is the one read/write path:
+`quotesForJob`, `listQuotes` (status derived before filtering, with per-status counts) and `getQuote` scoped
+through the new `quoteReadWhere`; `createQuote` (job under `jobReadWhere`, current `gstRate`, number from
+`nextDocumentNumber(tx, 'QUOTE')`, lines and totals written, CREATE audited), `updateQuote` (stored status must
+be `DRAFT`), `transitionQuote` (refuses `EXPIRED` and a lapsed send by name, then the job move) and
+`renderQuote`. `src/server/documents/quote.ts` is the fixed-layout PDF with a "not a tax invoice" notice, and
+`GET /api/quotes/[id]/pdf` downloads it. The office gains `/quotes` (counts, q/status filters) and
+`/quotes/[id]` (lines with a Variation tag, totals, what happens next, draft editing); the job page gains a
+Quotes section with a raise form prefilled from the job's open findings. **The slice-16 carry-over is wired:**
+a job moving to `COMPLETED` writes its `SCHEDULED` follow-up findings to `RECTIFIED` with one audit row each,
+inside the same `withAudit` transaction (`src/server/jobs/jobs.ts`), because the dispatcher holds no
+`finding.write` and this is the job transition's own write.
+
+**Migration:** `20261028500000_slice19_quotes` adds `Quote.gstRate DECIMAL(5,4) NOT NULL DEFAULT 0`. Additive only.
+
+**Known limits.** A quote is always raised from a job; there is no customer-level quote screen (the schema would
+allow one, but nothing in the brief asks for it). Quoting a finding prefills a line and does not change the
+finding's status, because that belongs to the report flow and to `finding.write`, which dispatch does not hold.
+Declining a quote leaves the job at `QUOTED` — what happens to a declined job is the office's call, and no
+requirement names a state for it. Expiry is derived, so nothing emails the customer when a quote lapses.
+
+### 7.11 Phase 3 and Phase 4 (outline, not sliced yet)
 
 **Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;
 stock movements linked to jobs and DOs; serial/batch traceability; reorder alerts grouped by supplier; purchase orders

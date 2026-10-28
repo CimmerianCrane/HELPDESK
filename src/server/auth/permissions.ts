@@ -83,6 +83,8 @@ export const CAPABILITIES = [
   'deliveryorder.write',
 
   // Commercial
+  /** May read quotes: dispatch raises them, finance sees what has been offered and accepted. */
+  'quote.read',
   'quote.write',
   'invoice.read',
   'invoice.write',
@@ -133,6 +135,7 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
     'schedule.manage',
     'part.read',
     'deliveryorder.write',
+    'quote.read',
     'quote.write',
     'dashboard.office',
   ],
@@ -179,6 +182,7 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
     'job.read.all',
     'report.read.all',
     'certificate.read',
+    'quote.read',
     'invoice.read',
     'invoice.write',
     'pricing.approve',

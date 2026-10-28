@@ -15,20 +15,19 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1 is complete, and Phase 2 is under way.** Slices 0–18 are built; Phase 1's acceptance path
+**Phase 1 is complete, and Phase 2 is under way.** Slices 0–19 are built; Phase 1's acceptance path
 still passes untouched. **Phase 2 is sliced in `docs/PLAN.md` §7, which is the canonical copy** —
 §7.1 is what Phase 1 left behind, §7.2 the slice table (13 certificates, 14 compliance rules,
 15 reminders, 16 findings and follow-up jobs, 17 the two remaining templates, 18 delivery orders,
-19 quotes, 20 invoicing, 21 accounting export), and **slice 19 is the next session's work**.
+19 quotes, 20 invoicing, 21 accounting export), and **slice 20 is the next session's work**.
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
 
-> **Slice 18 is done and verified.** Migration `20261028400000_slice18_delivery_orders` adds
-> `DeliveryOrderLine.movementId` (unique) and `receivedQuantity` and **is applied** to the hosted
-> database. `npm run verify` (308 unit tests), `npm run test:integration` (251, 13 of them new),
-> `npm run test:e2e` and `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes
-> **unmodified**. Slice 19 (quotes and variations) is next — see the section near the bottom of this
-> file.
+> **Slice 19 is done and verified.** Migration `20261028500000_slice19_quotes` adds
+> `Quote.gstRate DECIMAL(5,4)` and **is applied** to the hosted database. `npm run verify` (325 unit
+> tests), `npm run test:integration` (262, 11 of them new), `npm run test:e2e` and `npm run build` all
+> pass, and `tests/e2e/happy-path.spec.ts` passes **unmodified**. Slice 20 (invoicing, GST and
+> payments) is next — see the section near the bottom of this file.
 
 | Slice | State |
 |---|---|
@@ -51,7 +50,8 @@ asked.**
 | 16 Findings & one-click follow-up jobs | done |
 | 17 Load test & visual inspection templates | done |
 | 18 Delivery orders | done |
-| 19–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 19 is next |
+| 19 Quotes & variations | done |
+| 20–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 20 is next |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -134,10 +134,16 @@ markings and load charts, wire rope and hook, operator controls, findings by sev
 condition rating. The load test now checks each instrument against the equipment register **at the test
 date** and says so in amber when one had lapsed — on the phone under the instruments table and again
 on the office report page. It warns and never blocks: a blocked form on a phone with no signal is a lost
-report.
+report. **Phase 2, slice 18 — delivery orders.** The paper that travels with the parts is built from the
+`ISSUE` movements already recorded against the job, so the DO and the stock ledger cannot disagree; it is
+numbered, receipted with a signature and a running quantity per line (the status derived from those), loan
+kit is chased back, and it downloads as a PDF. **Phase 2, slice 19 — quotes.** A job raises a numbered
+`QTE-YYYY-NNNN` quote with quantity/unit price lines, a variation flag and GST computed from them; sending,
+accepting and declining are recorded, expiry is derived from the date, accepting moves the job
+`QUOTED → APPROVED` through the status machine, and the quote downloads as a PDF. Completing a follow-up job
+now marks its finding rectified.
 
-**Not yet built:** slices 18–21 (delivery orders, quotes, invoicing, the accounting export) and all of
-Phases 3–4.
+**Not yet built:** slices 20–21 (invoicing and the accounting export) and all of Phases 3–4.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
@@ -268,14 +274,45 @@ number but no stored PDF, because the seed runs under `tsx`, which cannot load
 
 ---
 
-## Slice 18 is done — slice 19 is next
+## Slice 19 is done — slice 20 is next
 
 **Read `docs/PLAN.md` §7 first; it is the canonical copy and is not repeated here.** §7.2 is the
 Phase 2 slice table, §7.4 is slice 13 as built, §7.5 is slice 14 as built, §7.6 is slice 15 as built,
-§7.7 is slice 16 as built, §7.8 is slice 17 as built, §7.9 is slice 18 as built, and §7.10 is the
-Phase 3–4 outline.
+§7.7 is slice 16 as built, §7.8 is slice 17 as built, §7.9 is slice 18 as built, §7.10 is slice 19 as
+built, and §7.11 is the Phase 3–4 outline.
 
-**What slice 18 delivered.** `src/server/delivery-orders/delivery-orders.ts` is the one read/write path.
+**What slice 19 delivered.** `src/server/quotes/quotes.ts` is the one read/write path, scoped through the new
+`quoteReadWhere` and gated on a new `quote.read` capability (dispatch and finance read; dispatch and admin
+write). `createQuote` re-reads the job under `jobReadWhere`, takes the current `gstRate`, allocates
+`QTE-YYYY-NNNN` with `nextDocumentNumber(tx, 'QUOTE')`, writes the lines and the computed totals, and audits —
+one transaction. `src/lib/validation/quotes.ts` holds the pure rules: the transition table, the derived expiry
+(`effectiveQuoteStatus`, day keys in the operating timezone — `EXPIRED` is never stored), and `quoteTotals`,
+which rounds each line to the cent, sums the subtotal and applies GST once to it. `updateQuote` refuses a quote
+that is no longer a draft and reprices on save. `transitionQuote` refuses an expired quote by naming the date,
+refuses sending one whose validity has already lapsed, and on send/accept calls `transitionJob` **inside the
+same transaction** — `TRIAGED → QUOTED`, then `QUOTED → APPROVED` — so the job history entry and the quote audit
+are one event. `src/server/documents/quote.ts` is the fixed-layout renderer (lines, a Variation tag, totals, a
+"not a tax invoice" notice) downloaded through `GET /api/quotes/[id]/pdf`. The office gains `/quotes` (per-status
+counts, q/status filters) and `/quotes/[id]`, and the job page a Quotes section whose raise form prefills from
+the job's open findings. **The slice-16 carry-over is wired:** `transitionJob` to `COMPLETED` writes the job's
+`SCHEDULED` follow-up findings to `RECTIFIED` with one Finding audit row each, in the same transaction, because
+a dispatcher holds no `finding.write`.
+
+**Migration:** `20261028500000_slice19_quotes` adds `Quote.gstRate DECIMAL(5,4) NOT NULL DEFAULT 0`, so a reprint
+shows the rate the quote was priced at. Additive only, and applied.
+
+**The gate it passed:** `npm run verify` (325 unit tests, 17 new in `tests/unit/quotes.test.ts`,
+`tests/unit/quote-render.test.ts` and `tests/unit/permissions.test.ts`), `npm run test:integration` (262, 11 new:
+10 in `tests/integration/quotes.test.ts` and the rectification case in `findings.test.ts`), `npm run test:e2e`
+(35 passed, 2 skipped as offline-only) and `npm run build`. `tests/e2e/happy-path.spec.ts` passes unmodified; no
+e2e walks the quotes screen, so the integration suite is what proves it.
+
+**Known limits.** A quote is always raised from a job — there is no customer-level quote screen (ASSUMPTIONS
+116). Quoting a finding prefills a line and leaves the finding's status alone (118). Declining leaves the job at
+`QUOTED`; no requirement names a state for it. Expiry is derived, so a lapsed quote is visible in the list but
+nothing emails the customer about it.
+
+**What slice 18 delivered.** (Previous session's slice, kept for the record.) `src/server/delivery-orders/delivery-orders.ts` is the one read/write path.
 The parts on a DO are the `ISSUE` movements already recorded against the job: `issuedPartsForJob` lists the
 ones no DO has claimed, and `createDeliveryOrder` re-reads every named movement under the job before it
 writes anything, refusing a foreign, non-issue or already-claimed one **by part number**. Raising it
@@ -344,9 +381,9 @@ existing signed-URL path. No migration.
 (10 new in `tests/integration/findings.test.ts`), `npm run test:e2e` and `npm run build`.
 `happy-path.spec.ts` passes unmodified.
 
-**Known limits carried forward.** A follow-up job completing does not move its finding to rectified —
-someone still marks it, and wiring the two belongs with slice 19's quotes (PLAN §7.7). The decline note
-lives in the audit trail rather than a column (`ASSUMPTIONS.md` 104). The three `/admin/compliance`
+**Known limits carried forward.** ~~A follow-up job completing does not move its finding to rectified~~ —
+closed by slice 19: `transitionJob` to `COMPLETED` now rectifies the job's `SCHEDULED` follow-up findings.
+The decline note lives in the audit trail rather than a column (`ASSUMPTIONS.md` 104). The three `/admin/compliance`
 carry-overs from §7.5 are still queued and slice 17 does not touch that screen.
 
 **What slice 15 delivered.** `src/server/reminders/reminders.ts` is the scan: `runScheduleReminders`
@@ -414,21 +451,21 @@ certificates (rule 3). No migration — the model, `deletedAt` and the file kind
 new in `certificates.test.ts`), `npm run test:e2e` and `npm run build`. `happy-path.spec.ts` passes
 unmodified.
 
-**Slice 18 — delivery orders — is done.** `docs/PLAN.md` §7.9 records it as built and §7.2 row 18 is
-marked off. One migration was needed after all: the brief's "no second source of truth" is only true if
-a line names the `StockMovement` it is paperwork for, so `DeliveryOrderLine` gains `movementId` (unique)
-and `receivedQuantity` — `20261028400000_slice18_delivery_orders`, additive only.
+**Slice 19 — quotes and variations — is done.** `docs/PLAN.md` §7.10 records it as built and §7.2 row 19 is
+marked off. One additive migration: `20261028500000_slice19_quotes` adds `Quote.gstRate` so the rate a quote
+was priced at is part of the quote, not something inferred from its rounded amounts. The slice-16 carry-over
+is closed too — completing a follow-up job now rectifies its finding.
 
 **Before continuing:** the migration is already applied. On a fresh clone, `npm run setup` applies it
 with the rest.
 
-**Slice 19 — quotes and variations — is the next session's work.** `docs/PLAN.md` §7.2 row 19: a quote
-from a job or a set of findings, lines with quantity and unit price, a `variation` flag, GST computed,
-send/accept/decline/expire, numbered `QTE-YYYY-NNNN`, PDF via the existing renderer; accepting moves the
-job into `QUOTED → APPROVED` through the status machine. The `Quote`/`QuoteLine` models and the `QTE`
-sequence key already exist in the schema, so start by confirming `npx prisma migrate status` reports
-nothing pending. `docs/PLAN.md` §7.7 notes one thing to pick up here: a follow-up job completing does not
-yet move its finding to rectified.
+**Slice 20 — invoicing, GST and payments — is the next session's work.** `docs/PLAN.md` §7.2 row 20: an
+invoice raised from a reviewed job, with job costing from `StockMovement` plus labour lines, `gstRate`
+snapshotted at issue, numbered `INV-YYYY-NNNN`, a PDF via the existing renderer, payments recorded so
+`amountPaid` is derived, and the statuses `DRAFT/ISSUED/PART_PAID/PAID/VOID`; the dashboard's "awaiting
+invoicing" count gains a screen. The `Invoice`/`InvoiceLine`/`Payment` models and the `INV` sequence key
+already exist, so start by confirming `npx prisma migrate status` reports nothing pending, and read §7.10 for
+the rate-snapshot and numbering patterns slice 19 settled on — invoice numbering should match it.
 
 The gate is unchanged for every slice: `npm run verify` and `npm run verify:full`, then
 `tests/e2e/happy-path.spec.ts` must still pass **untouched**.

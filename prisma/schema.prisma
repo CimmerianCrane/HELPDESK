@@ -1055,6 +1055,8 @@ model Quote {
   jobId      String?
   status     QuoteStatus @default(DRAFT)
   validUntil DateTime?
+  /// Snapshot of the rate the quote was priced at, so a reprint shows the original (slice 19).
+  gstRate    Decimal     @default(0) @db.Decimal(5, 4)
   subtotal   Decimal     @default(0) @db.Decimal(12, 2)
   gstAmount  Decimal     @default(0) @db.Decimal(12, 2)
   total      Decimal     @default(0) @db.Decimal(12, 2)

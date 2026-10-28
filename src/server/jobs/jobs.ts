@@ -992,6 +992,32 @@ export async function transitionJob(
       if (input.status === 'COMPLETED' && input.scheduleIds.length > 0) {
         await markSchedulesDone(context, { jobId, scheduleIds: input.scheduleIds }, tx)
       }
+
+      // A follow-up job completing is the record that the defect it was raised for is fixed (slice 19,
+      // PLAN §7.7). Written directly rather than through `updateFindingStatus`, which needs
+      // `finding.write` that the dispatcher does not hold — the capability that applies here is the
+      // job transition that caused it.
+      if (input.status === 'COMPLETED') {
+        const followUps = await tx.finding.findMany({
+          where: { followUpJobId: jobId, status: 'SCHEDULED' },
+          select: { id: true },
+        })
+        if (followUps.length > 0) {
+          await tx.finding.updateMany({
+            where: { id: { in: followUps.map((finding) => finding.id) } },
+            data: { status: 'RECTIFIED' },
+          })
+          for (const finding of followUps) {
+            await log({
+              entity: 'Finding',
+              entityId: finding.id,
+              action: 'UPDATE',
+              before: { status: 'SCHEDULED' },
+              after: { status: 'RECTIFIED', completedJobId: jobId },
+            })
+          }
+        }
+      }
     },
     client,
   )

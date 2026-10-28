@@ -29,6 +29,17 @@ export function formatDuration(ms: number): string {
   return `${minutes}m`
 }
 
+/** Money for a document: two decimals, the currency from settings, never a bare number. */
+export function formatMoney(value: number, currency: string): string {
+  return new Intl.NumberFormat('en-SG', {
+    style: 'currency',
+    currency,
+    currencyDisplay: 'narrowSymbol',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
 export function formatDateTime(value: Date | null | undefined, timeZone: string): string {
   if (!value) return '—'
   return new Intl.DateTimeFormat('en-GB', {

@@ -13,7 +13,7 @@ import { parseInput } from '@/lib/validation/parse'
 import { withAudit } from '@/server/audit/audit'
 import { ForbiddenError, NotFoundError, RuleError, ValidationError } from '@/server/auth/errors'
 import { assertCan, can } from '@/server/auth/permissions'
-import { findingReadWhere } from '@/server/auth/scope'
+import { findingReadWhere, jobReadWhere, reportReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { createJob } from '@/server/jobs/jobs'
 import { storage } from '@/server/storage/storage'
@@ -211,8 +211,7 @@ export async function findingsForReport(
 }
 
 /** One finding. Scoped by the report, so a caller who cannot read the report cannot read this. */
-export async function getFinding(
-  context: AuthContext,
+export async function getFinding(  context: AuthContext,
   findingId: string,
   client: Tx = db,
 ): Promise<FindingSummary> {
@@ -223,6 +222,37 @@ export async function getFinding(
   if (!row) throw new NotFoundError('No such finding.')
   const [summary] = await toSummaries(client, [row])
   return summary!
+}
+
+/**
+ * Findings on one job's reports that are still open — what the quote form offers to price (slice 19).
+ *
+ * The finding keeps its own status: quoting it is pricing, and the signed-off move to `QUOTED` is still
+ * the finding form's job. The two `report` filters are merged rather than overwritten, so the row scope
+ * survives the job filter.
+ */
+export async function openFindingsForJob(
+  context: AuthContext,
+  jobId: string,
+  client: Tx = db,
+): Promise<FindingSummary[]> {
+  assertCan(context, 'report.read.all')
+  const job = await client.job.findFirst({
+    where: { id: jobId, ...jobReadWhere(context) },
+    select: { id: true },
+  })
+  if (!job) throw new NotFoundError('No such job.')
+
+  const rows = await client.finding.findMany({
+    where: {
+      ...findingReadWhere(context),
+      report: { ...reportReadWhere(context), jobId },
+      status: 'OPEN',
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    select: findingSelect,
+  })
+  return toSummaries(client, rows)
 }
 
 // ---------------------------------------------------------------------------

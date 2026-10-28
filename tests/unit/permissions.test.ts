@@ -50,6 +50,15 @@ describe('the permission map', () => {
    * The brief's §12.9 rule, at the capability layer. Row-level scoping is proven separately in
    * tests/integration/isolation.test.ts; this proves the capability half.
    */
+  it('lets dispatch write quotes and finance read them, but not the other way round', () => {
+    expect(can('DISPATCHER', 'quote.read')).toBe(true)
+    expect(can('DISPATCHER', 'quote.write')).toBe(true)
+    expect(can('FINANCE', 'quote.read')).toBe(true)
+    expect(can('FINANCE', 'quote.write')).toBe(false)
+    expect(can('TECHNICIAN', 'quote.read')).toBe(false)
+    expect(can('STOREKEEPER', 'quote.read')).toBe(false)
+  })
+
   it('does not give a technician the ability to read jobs or reports in bulk', () => {
     expect(can('TECHNICIAN', 'job.read.all')).toBe(false)
     expect(can('TECHNICIAN', 'report.read.all')).toBe(false)

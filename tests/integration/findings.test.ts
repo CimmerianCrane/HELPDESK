@@ -9,6 +9,7 @@ import {
   findingsForReport,
   updateFindingStatus,
 } from '@/server/findings/findings'
+import { transitionJob } from '@/server/jobs/jobs'
 import {
   craneFixtures,
   inRolledBackTx,
@@ -309,6 +310,35 @@ describe('findings', () => {
       await expect(
         createFollowUpJob(context, { findingId: finding.id, jobTypeId: jobType.id, priority: 'P2' }, tx),
       ).rejects.toBeInstanceOf(ForbiddenError)
+    })
+  })
+
+  /**
+   * The slice-16 carry-over, wired by slice 19 (PLAN §7.7): a follow-up job completing is the record
+   * that its defect is fixed. The dispatcher does not hold `finding.write`, so this is the job
+   * transition's own write, and it must happen in the same transaction as the status change.
+   */
+  it('moves a scheduled finding to rectified when its follow-up job completes', async () => {
+    await inRolledBackTx(async (tx) => {
+      const dispatcher = contextFor(await makeUser(tx, 'DISPATCHER'))
+      const { finding, job } = await findingFixture(tx, { status: 'SCHEDULED' })
+
+      await tx.finding.update({
+        where: { id: finding.id },
+        data: { followUpJobId: job.id },
+      })
+      await tx.job.update({ where: { id: job.id }, data: { status: 'IN_PROGRESS' } })
+
+      await transitionJob(dispatcher, job.id, { status: 'COMPLETED' }, tx)
+
+      const stored = await tx.finding.findUniqueOrThrow({ where: { id: finding.id } })
+      expect(stored.status).toBe('RECTIFIED')
+
+      const audit = await tx.auditLog.findFirst({
+        where: { entity: 'Finding', entityId: finding.id, action: 'UPDATE' },
+        orderBy: { createdAt: 'desc' },
+      })
+      expect(audit?.after).toMatchObject({ status: 'RECTIFIED', completedJobId: job.id })
     })
   })
 })

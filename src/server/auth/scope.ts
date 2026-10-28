@@ -126,6 +126,20 @@ export function deliveryOrderReadWhere(ctx: AuthContext): Prisma.DeliveryOrderWh
 }
 
 /**
+ * Filter for `Quote` (slice 19).
+ *
+ * A quote is commercial paperwork for a customer, so it is read by whoever has `quote.read`: dispatch
+ * raises it and finance reads what was offered. It does not follow the job because `Quote.jobId` has
+ * no relation in the schema — adding one is a migration for nothing, since every role that may read a
+ * quote also holds `job.read.all`. A customer user (Phase 4) sees only their own.
+ */
+export function quoteReadWhere(ctx: AuthContext): Prisma.QuoteWhereInput {
+  if (can(ctx.role, 'quote.read')) return { ...LIVE }
+  if (ctx.customerId) return { ...LIVE, customerId: ctx.customerId }
+  return DENY
+}
+
+/**
  * Filter for `Site`. Follows the same shape as `craneReadWhere`: a role that browses sites sees all
  * of them, a technician sees the sites their jobs are at (they need the address and access notes),
  * and a customer user sees their own.

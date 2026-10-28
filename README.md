@@ -10,10 +10,10 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
 **Status:** Phase 1 complete (slice 11: the end-to-end happy path and the demo dataset); Phase 2 under
-way (slices 12–18: schedules on the crane page, the certificate register, compliance rules, the
+way (slices 12–19: schedules on the crane page, the certificate register, compliance rules, the
 daily reminder scan, findings with one-click follow-up jobs, the completed load test and visual
-inspection templates with calibration checks, and delivery orders built from issued parts). See
-"What works today" below.
+inspection templates with calibration checks, delivery orders built from issued parts, and quotes with
+variations, GST and an accept path that moves the job on). See "What works today" below.
 
 ---
 
@@ -175,6 +175,32 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 19 — quotes and variations
+
+- **A quote is raised from the job.** On a job page, *Raise a quote* takes lines of description, quantity and
+  unit price, and marks a line as a *Variation* so extra work is visibly separate from the quoted scope. The
+  job's open findings appear above the form; one click copies a recommendation into a variation line.
+- **GST is computed, never typed.** Each line is rounded to the cent, the subtotal is their sum, and GST is
+  applied once at the rate in the settings. The rate is saved on the quote, so a reprint months later shows the
+  rate it was priced at.
+- **Send, accept, decline.** Sending a draft puts it in front of the customer; their answer is recorded with an
+  optional note. Accepting a quote on a job awaiting one moves that job `QUOTED → APPROVED` through the normal
+  status machine, so the history row and the audit entry are the same event. Declining leaves the job where it is.
+- **Expiry is the date, not a status someone has to remember to set.** A sent quote past its *valid until* shows
+  as *Expired* everywhere, cannot be accepted, and cannot be sent once the date has already passed. Raising a
+  replacement quote is the way forward.
+- **Every quote is numbered `QTE-YYYY-NNNN` and downloads as a PDF** headed *Quotation* with the customer, job,
+  validity, lines, totals and a plain statement that it is not a tax invoice. `/quotes` lists them all with
+  sent/accepted/draft/expired counts; finance can read them but not raise one.
+- **Also wired here:** completing a follow-up job now marks the finding it was raised for as *Rectified*, with an
+  audit row, in the same transaction as the status change.
+- **Try it:** open a seeded job, raise a quote, then send it — the job moves to *Quoted*. Accept it and it moves
+  to *Approved*. The quotes list is under **Quotes** in the sidebar.
+- **Tests** — 16 unit tests (the money arithmetic and rounding, the status flow, derived expiry at the timezone
+  day boundary, the schemas, and the PDF's byte-stability) plus a 10-case integration suite covering numbering,
+  GST, the job moves and their history, expiry refusals, draft-only editing, and the capability/scoping checks;
+  one new integration test proves the completed follow-up job rectifies its finding.
 
 ### Slice 18 — delivery orders
 

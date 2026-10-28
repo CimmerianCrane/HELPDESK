@@ -195,6 +195,7 @@ export const AUDIT_ENTITIES = [
   'Job',
   'Report',
   'Finding',
+  'Quote',
   'StockMovement',
   'Technician',
   'OnCallShift',
@@ -223,6 +224,7 @@ const ENTITY_HREFS: Record<string, (id: string) => string> = {
   Site: (id) => `/sites/${id}`,
   Ticket: (id) => `/tickets/${id}`,
   Report: (id) => `/reports/${id}`,
+  Quote: (id) => `/quotes/${id}`,
   User: (id) => `/admin/users/${id}`,
 }
 
@@ -243,7 +245,8 @@ export async function auditEntityLabels(
   ]
   const present = (entity: string) => rows.some((row) => row.entity === entity)
 
-  const [jobs, cranes, customers, sites, tickets, reports, users, rules, findings] = await Promise.all([
+  const [jobs, cranes, customers, sites, tickets, reports, users, rules, findings, quotes] =
+    await Promise.all([
     present('Job')
       ? client.job.findMany({ where: { id: { in: idsFor('Job') } }, select: { id: true, number: true } })
       : [],
@@ -293,6 +296,12 @@ export async function auditEntityLabels(
           select: { id: true, component: true, reportId: true },
         })
       : [],
+    present('Quote')
+      ? client.quote.findMany({
+          where: { id: { in: idsFor('Quote') } },
+          select: { id: true, number: true },
+        })
+      : [],
   ])
 
   const labels = new Map<string, AuditEntityLabel>()
@@ -313,6 +322,7 @@ export async function auditEntityLabels(
   for (const row of reports) put('Report', row.id, row.documentNumber ?? 'Draft report')
   for (const row of users) put('User', row.id, row.name)
   for (const row of rules) put('ComplianceRule', row.id, row.sourceReference)
+  for (const row of quotes) put('Quote', row.id, row.number)
   for (const row of findings) {
     labels.set(`Finding:${row.id}`, {
       entity: 'Finding',

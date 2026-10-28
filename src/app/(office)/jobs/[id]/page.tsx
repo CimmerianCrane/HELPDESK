@@ -18,12 +18,17 @@ import {
   ReceiveDeliveryOrderForm,
   ReturnDeliveryOrderForm,
 } from '@/components/office/delivery-order-forms'
+import { QuoteForm } from '@/components/office/quote-forms'
+import { QuoteStatusBadge } from '@/components/office/quote-badges'
+import { openFindingsForJob } from '@/server/findings/findings'
+import { quotesForJob } from '@/server/quotes/quotes'
+import { createQuoteAction } from '../../quotes/actions'
 import {
   deliveryOrdersForJob,
   issuedPartsForJob,
 } from '@/server/delivery-orders/delivery-orders'
 import { DELIVERY_STATUS_LABELS } from '@/lib/validation/delivery-orders'
-import { formatDateTime, formatDuration } from '@/lib/format'
+import { formatDate, formatDateTime, formatDuration, formatMoney } from '@/lib/format'
 import { utcToLocalInput } from '@/lib/time'
 import { auditTrail } from '@/server/audit/audit'
 import { requireAuth } from '@/server/auth/context'
@@ -91,6 +96,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const mayAssign = can(context.role, 'job.assign')
   const mayDispatch = can(context.role, 'job.dispatch')
   const mayDeliver = can(context.role, 'deliveryorder.write')
+  const mayQuote = can(context.role, 'quote.read')
+  const mayWriteQuote = can(context.role, 'quote.write')
 
   const [
     jobResult,
@@ -105,6 +112,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     completionSchedules,
     deliveries,
     deliverableParts,
+    quotes,
+    quotableFindings,
   ] = await Promise.all([
       getJob(context, id).then(
         (job) => ({ job }),
@@ -140,6 +149,15 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       can(context.role, 'part.read') ? deliveryOrdersForJob(context, id) : Promise.resolve([]),
       mayDeliver && can(context.role, 'part.read')
         ? issuedPartsForJob(context, id)
+        : Promise.resolve([]),
+      // Quotes (slice 19). Whoever may read a quote sees the job's; the raise form offers the job's
+      // open findings as prefilled lines, which needs the report capability as well.
+      mayQuote ? quotesForJob(context, id) : Promise.resolve([]),
+      mayWriteQuote && can(context.role, 'report.read.all')
+        ? openFindingsForJob(context, id).catch((error: unknown) => {
+            if (error instanceof NotFoundError) return []
+            throw error
+          })
         : Promise.resolve([]),
     ])
   const job = jobResult.job
@@ -638,6 +656,68 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                   timezone={settings.timezone}
                 />
               </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {mayQuote ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-slate-900">Quotes</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            What the customer has been offered for this job, including variations. Accepting a quote
+            moves the job to Approved.
+          </p>
+
+          {quotes.length > 0 ? (
+            <ul className="mt-3 space-y-2 text-sm">
+              {quotes.map((quote) => (
+                <li
+                  key={quote.id}
+                  className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 pb-2 last:border-0"
+                >
+                  <span>
+                    <Link
+                      href={`/quotes/${quote.id}`}
+                      className="font-medium text-slate-900 underline"
+                    >
+                      {quote.number}
+                    </Link>{' '}
+                    <QuoteStatusBadge status={quote.status} />
+                  </span>
+                  <span className="text-slate-600">
+                    {formatMoney(quote.total, settings.currency)}
+                    {quote.validUntil
+                      ? ` · valid until ${formatDate(quote.validUntil, settings.timezone)}`
+                      : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-slate-600">
+              None yet. Raise one below, or record a finding on the report first.
+            </p>
+          )}
+
+          {mayWriteQuote ? (
+            <div className="mt-4 border-t border-slate-200 pt-4">
+              <details>
+                <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                  Raise a quote
+                </summary>
+                <div className="mt-3">
+                  <QuoteForm
+                    action={createQuoteAction.bind(null, job.id)}
+                    findings={quotableFindings.map((finding) => ({
+                      id: finding.id,
+                      component: finding.component,
+                      description: finding.description,
+                      recommendation: finding.recommendation,
+                    }))}
+                  />
+                </div>
+              </details>
             </div>
           ) : null}
         </section>

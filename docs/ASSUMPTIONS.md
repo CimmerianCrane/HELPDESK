@@ -551,6 +551,29 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     uploads through the existing signed-URL route (`kind: 'DELIVERY_SIGNATURE'`) with
     `entity: 'DeliveryOrder'`/`entityId`, and `receiveDeliveryOrder` refuses a File that belongs to a different
     DO. The same `SignaturePad` the phone uses draws it; nothing about the upload path is new.
+115. **A quote's expiry is computed, not stored.** `EXPIRED` means a `SENT` quote whose `validUntil` day key is
+    behind today's in the operating timezone — the same doctrine as an overdue certificate or a lapsed SLA. There
+    is no nightly job to run, and the stored status cannot disagree with the date. The consequence accepted: a
+    quote lapses silently, with no email to the customer, because nothing sweeps the list.
+116. **A quote belongs to a job, and the customer comes from the job.** `Quote.jobId` is required. "Quote from a
+    set of findings" is a prefill on the job's form (the job's open findings become drafts of lines), not a
+    separate customer-level quote. This keeps the accept → `QUOTED` → `APPROVED` move unambiguous: there is
+    exactly one job to move.
+117. **Finance may read quotes; only dispatch and admin may write them.** Quoting is a commercial offer made by
+    the people running the job, so `quote.write` stays where it was. Finance gets the new `quote.read` because
+    it needs the total before invoicing. The capability and `quoteReadWhere` move together — a grant without a
+    scope filter would be a bug under CLAUDE.md rule 1.
+118. **Quoting a finding does not change the finding's status.** The prefill copies the finding's recommendation
+    into a line marked as a variation; moving a finding to `QUOTED` is the report flow's decision and needs
+    `finding.write`, which a dispatcher does not hold. The form says so rather than implying otherwise.
+119. **The GST rate is snapshotted on the quote when it is saved**, in `Quote.gstRate` (a new additive column,
+    like `Invoice.gstRate`). The alternative — back-computing a rate from the stored amounts — shows 9.01% on
+    a rounded subtotal, which is worse than storing four decimals. Editing a draft reprices it at the rate in
+    force at that save.
+120. **A quote may be raised with any validity date, but not sent once that date has passed.** Raising it records
+    the offer; sending it is the act of putting it in front of the customer, so a lapsed one is refused with the
+    date named rather than mailed as already-expired. The same rule stops an expired quote being accepted: the
+    office raises a fresh one.
 
 ## Not assumed — deliberately left to you
 
