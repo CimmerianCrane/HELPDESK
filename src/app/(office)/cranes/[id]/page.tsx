@@ -10,11 +10,17 @@ import {
 import { cardClass } from '@/components/office/ui'
 import { AuditTrailLink, AuditTrailPanel } from '@/components/office/audit-trail'
 import { ArchiveScheduleButton, ScheduleForm } from '@/components/office/crane-schedule-forms'
+import {
+  ArchiveCertificateButton,
+  CertificateForm,
+} from '@/components/office/certificate-forms'
 import { formatDate } from '@/lib/format'
 import { SCHEDULE_TYPE_LABELS } from '@/lib/validation/schedules'
+import { CERTIFICATE_TYPE_LABELS } from '@/lib/validation/certificates'
 import { DueBadge } from '@/components/office/job-badges'
 import { daysUntil } from '@/server/schedules/recurrence'
 import { schedulesForCrane } from '@/server/schedules/schedules'
+import { certificatesForCrane, certificateDueLabel } from '@/server/certificates/certificates'
 import { requireAuth } from '@/server/auth/context'
 import { NotFoundError } from '@/server/auth/errors'
 import { can } from '@/server/auth/permissions'
@@ -40,6 +46,11 @@ import {
   createScheduleAction,
   updateScheduleAction,
 } from '../../schedules/actions'
+import {
+  archiveCertificateAction,
+  createCertificateAction,
+  updateCertificateAction,
+} from '../../certificates/actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,7 +81,7 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
     throw error
   }
 
-  const [sites, settings, timeline, trail, schedules] = await Promise.all([
+  const [sites, settings, timeline, trail, schedules, certificates] = await Promise.all([
     listSites(context, { customerId: crane.site.customerId }),
     getSettings(),
     craneReportTimeline(context, crane.id),
@@ -78,11 +89,15 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
       ? auditTrail(context, 'Crane', crane.id, 20)
       : Promise.resolve([]),
     schedulesForCrane(context, crane.id),
+    can(context.role, 'certificate.read')
+      ? certificatesForCrane(context, crane.id)
+      : Promise.resolve([]),
   ])
 
   const mayWrite = can(context.role, 'crane.write')
   const mayRestrict = can(context.role, 'crane.restrict')
   const mayManageSchedules = can(context.role, 'schedule.manage')
+  const mayWriteCertificates = can(context.role, 'certificate.write')
   const siteOptions = sites.map((row) => ({ id: row.id, name: row.name }))
   const restricted = crane.status === 'RESTRICTED'
 
@@ -295,6 +310,137 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
               crane={{ id: crane.id, assetTag: crane.assetTag, siteName: crane.site.name }}
               submitLabel="Add schedule"
               idPrefix="crane-schedule"
+            />
+          </details>
+        ) : null}
+      </section>
+
+      <section className={cardClass} aria-labelledby="certificates-heading">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="certificates-heading" className="font-semibold text-slate-900">
+            Certificates
+          </h2>
+          <Link href="/certificates" className="text-sm text-slate-600 underline">
+            All certificates
+          </Link>
+        </div>
+        <p className="mt-2 text-sm text-slate-600">
+          Documents issued to this crane by someone else — an Authorised Examiner, a calibration lab.
+          Our technicians&rsquo; reports are company inspections and appear in the timeline below; they
+          are never certificates.
+        </p>
+
+        {certificates.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-600">
+            Nothing is on file for this crane yet.
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-slate-100 text-sm">
+            {certificates.map((certificate) => {
+              const days = daysUntil(certificate.dueDate)
+              return (
+                <li key={certificate.id} className="py-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-slate-900">
+                        {CERTIFICATE_TYPE_LABELS[certificate.type]}
+                        <span
+                          className={
+                            certificate.statutory
+                              ? 'ml-2 rounded border border-indigo-300 bg-indigo-50 px-1.5 py-0.5 text-xs font-normal text-indigo-800'
+                              : 'ml-2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-normal text-slate-600'
+                          }
+                        >
+                          {certificate.statutory ? 'AE statutory certificate' : 'Supporting document'}
+                        </span>
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {certificate.certificateNumber ?? 'No number'}
+                        {certificate.issuer ? ` · ${certificate.issuer}` : ''}
+                        {certificate.statedSwlKg !== null
+                          ? ` · ${certificate.statedSwlKg.toLocaleString()} kg`
+                          : ''}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Issued {formatDate(certificate.issueDate, settings.timezone)}
+                        {' · '}expires {formatDate(certificate.expiryDate, settings.timezone)}
+                        {certificate.nextDueDate
+                          ? ` · next due ${formatDate(certificate.nextDueDate, settings.timezone)}`
+                          : ''}
+                        {certificate.job ? (
+                          <>
+                            {' · '}
+                            <Link href={`/jobs/${certificate.job.id}`} className="underline">
+                              {certificate.job.number}
+                            </Link>
+                          </>
+                        ) : null}
+                        {certificate.file ? (
+                          <>
+                            {' · '}
+                            <a href={certificate.file.downloadUrl} className="underline">
+                              {certificate.file.filename}
+                            </a>
+                          </>
+                        ) : null}
+                      </p>
+                      {certificate.notes ? (
+                        <p className="mt-1 text-xs text-slate-600">{certificate.notes}</p>
+                      ) : null}
+                    </div>
+                    <div className="text-right">
+                      <DueBadge bucket={certificate.dueBucket} days={days} />
+                      <p className="mt-1 text-xs text-slate-500">{certificateDueLabel(certificate)}</p>
+                      {mayWriteCertificates ? (
+                        <div className="mt-2">
+                          <ArchiveCertificateButton
+                            action={archiveCertificateAction.bind(
+                              null,
+                              certificate.id,
+                              crane.id,
+                            )}
+                            label={CERTIFICATE_TYPE_LABELS[certificate.type].toLowerCase()}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  {mayWriteCertificates ? (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-sm text-slate-700 underline">
+                        Edit this certificate
+                      </summary>
+                      <div className="mt-3">
+                        <CertificateForm
+                          action={updateCertificateAction.bind(null, certificate.id)}
+                          craneId={crane.id}
+                          value={certificate}
+                          submitLabel="Save certificate"
+                          idPrefix={`certificate-${certificate.id}`}
+                        />
+                      </div>
+                    </details>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        {mayWriteCertificates ? (
+          <details className="mt-5 border-t border-slate-100 pt-4">
+            <summary className="cursor-pointer text-sm font-medium text-slate-900">
+              Add a certificate
+            </summary>
+            <p className="mt-2 mb-4 text-sm text-slate-600">
+              Record what was issued and when it lapses. Nothing here is signed by us: the issuer is
+              the Authorised Examiner, lab or firm named on the document.
+            </p>
+            <CertificateForm
+              action={createCertificateAction}
+              craneId={crane.id}
+              submitLabel="Add certificate"
+              idPrefix="crane-certificate"
             />
           </details>
         ) : null}

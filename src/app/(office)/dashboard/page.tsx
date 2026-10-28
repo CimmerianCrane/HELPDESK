@@ -166,7 +166,9 @@ export default async function DashboardPage() {
                         : 'mt-0.5 text-lg font-semibold text-slate-900'
                     }
                   >
-                    {dashboard.certificatesExpiring}
+                    <Link href="/certificates?due=30" className="underline decoration-amber-200">
+                      {dashboard.certificatesExpiring}
+                    </Link>
                   </dd>
                 </div>
               </dl>

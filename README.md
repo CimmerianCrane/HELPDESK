@@ -10,7 +10,8 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
 **Status:** Phase 1 complete (slice 11: the end-to-end happy path and the demo dataset); Phase 2 under
-way (slice 12: schedules on the crane page). See "What works today" below.
+way (slices 12 and 13: schedules on the crane page, and the certificate register). See "What works
+today" below.
 
 ---
 
@@ -172,6 +173,26 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 13 — the certificate register and the compliance queue
+
+- **Every crane's paper, on its page.** Kind, certificate number, issuer, issue date, expiry, next due,
+  stated SWL and the linked job, with the scan itself downloadable. Under `certificate.write` the
+  section adds, edits and archives a certificate; archiving is a soft delete, so the record, its file
+  and its audit trail stay.
+- **`/certificates`, the compliance queue.** Everything visible soonest-expiring-first, with search
+  (asset tag, customer, site, number, issuer), an expiring bucket (overdue, 30, 60, 90, no date) and a
+  kind filter, plus a count line. The dashboard's "Certificates expiring" tile reads the same service
+  and links to the 30-day filter.
+- **A statutory certificate stays distinct from our work.** Only the Authorised Examiner's certificate
+  of test and examination is labelled "AE statutory certificate"; every other document is a "Supporting
+  document". Our technicians' reports are company inspections and appear on the crane timeline, never
+  in this register.
+- **Uploading a scan** uses the same signed-URL flow as the phone's photographs — a PDF or an image up
+  to 5 MB, stored in Supabase Storage (or local disk in development) with `FileKind.CERTIFICATE`.
+- **Try it:** open a crane from `/cranes`, add a certificate with an expiry a few weeks away under
+  *Certificates*, then open `/certificates` — it appears in the 30-day bucket and the dashboard tile
+  counts it.
 
 ### Slice 12 — schedules on the crane page
 

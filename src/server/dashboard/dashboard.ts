@@ -4,6 +4,7 @@ import { addDays } from '@/lib/time'
 import { assertCan } from '@/server/auth/permissions'
 import { jobReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
+import { certificateCounts } from '@/server/certificates/certificates'
 import { jobSla } from '@/server/jobs/jobs'
 import { scheduleCounts } from '@/server/schedules/schedules'
 
@@ -28,6 +29,7 @@ export interface DashboardCounts {
   dueWithin30Days: number
   /** Recurring obligations already past their due date (slice 12). */
   schedulesOverdue: number
+  /** Certificates expiring in the next 30 days, excluding any already lapsed (slice 13). */
   certificatesExpiring: number
 }
 
@@ -67,7 +69,7 @@ export async function dashboardSummary(
 
   const horizon = addDays(now, 30)
 
-  const [jobs, expiringCertificates, upcoming, visitsBooked, dueSchedules] = await Promise.all([
+  const [jobs, certificates, upcoming, visitsBooked, dueSchedules] = await Promise.all([
     client.job.findMany({
       where: { ...jobReadWhere(context), status: { notIn: CLOSED } },
       select: {
@@ -84,13 +86,9 @@ export async function dashboardSummary(
         onHoldReason: true,
       },
     }),
-    client.certificate.count({
-      where: {
-        deletedAt: null,
-        expiryDate: { gte: now, lte: horizon },
-        crane: { deletedAt: null },
-      },
-    }),
+    // Through the certificate service, not a count of its own, so this tile and the `/certificates`
+    // list it links to bucket the same dates the same way (slice 13; the slice-10 lesson).
+    certificateCounts(context, client, now),
     client.job.findMany({
       where: {
         ...jobReadWhere(context),
@@ -155,7 +153,7 @@ export async function dashboardSummary(
     visitsBooked,
     dueWithin30Days: dueSchedules.dueWithin30Days,
     schedulesOverdue: dueSchedules.overdue,
-    certificatesExpiring: expiringCertificates,
+    certificatesExpiring: certificates.dueWithin30Days,
     onHoldByReason: [...holdCounts.entries()]
       .map(([reason, count]) => ({ reason, count }))
       .sort((a, b) => b.count - a.count),

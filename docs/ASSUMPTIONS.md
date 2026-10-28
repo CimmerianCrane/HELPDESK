@@ -386,6 +386,36 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     for a technician's cranes, and a second `OR` on the same object would have replaced it, letting a
     search for another customer's asset tag through. `tests/integration/schedules.test.ts` asserts that.
 
+88. **A certificate's compliance date is `expiryDate ?? nextDueDate`, bucketed on every read.** The
+    certificate register answers "what is about to lapse", so it uses the same `dueBucket` (overdue,
+    30, 60, 90, later, none) the schedule list uses, and nothing stores an overdue flag. The dashboard
+    tile keeps its existing 30-day window and its "Certificates expiring" wording, because it sits in
+    the dashboard's "The next 30 days" card; `/certificates` headlines the 90-day window the brief asks
+    for and shows overdue separately. Both read `certificateCounts`, so the tile and the list cannot
+    disagree about the window they share.
+89. **Only the statutory test and examination is labelled an AE statutory certificate.** The brief says
+    an Authorised Examiner issues the certificate of test and examination, and that is the one type
+    marked as statutory in the UI. Every other `CertificateType` — load test, calibration, registration,
+    competency, lifting gear examination, repair/modification record — is shown as a "Supporting
+    document" rather than claiming an issuer we do not know. No regulatory interval or issuer is
+    hard-coded: the register records what the document says, and the standing note on both screens says
+    our own reports are company inspections, never certificates (CLAUDE.md rule 3).
+90. **Certificate scans use the same signed-URL upload path as photos, with `FileKind.CERTIFICATE`.**
+    The file is uploaded by the browser directly to storage, so a PDF never passes through a server
+    action (Vercel caps a function body at 4.5 MB). The `File` row is owned by the crane
+    (`entity: 'Crane'`, `entityId: craneId`), and the certificate write checks that the file is a
+    `CERTIFICATE` belonging to that same crane. `completeUpload` decides whether a PDF is acceptable
+    from the File row's `kind`, never from the request, because the declared MIME type is not a trust
+    boundary. Re-uploading with the same client-generated id rewrites the row and follows the new
+    storage key, so replacing a PDF with a photograph cannot leave the certificate pointing at bytes
+    that were never stored.
+91. **The certificate register resolves its files in one batched lookup.** `Certificate.fileId` is a
+    plain id with no Prisma relation to `File`; the list queries the files by id in one `findMany` and
+    signs a short-lived download link per row. Adding a relation would be a schema change for a lookup
+    this cheap, and would only be worth it if certificates ever need to be joined through files.
+    `certificateReadWhere` follows `craneReadWhere` — a technician reads certificates on cranes they are
+    assigned work at and nobody else's; writing needs `certificate.write`.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

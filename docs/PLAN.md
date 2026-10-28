@@ -1387,7 +1387,7 @@ historical jobs, 2 open P1 tickets, 40 parts with some below reorder level, demo
 
 **Phase 2 is Compliance & recurring work, then the paperwork.** It is sliced below the same way Phase 1 was: one
 vertical slice per session, database → service → API/action → UI → tests, `npm run verify:full` and a commit before the
-summary. **Slice 12 is built and verified; slice 13 is the next session's work (§7.2).**
+summary. **Slices 12 and 13 are built and verified; slice 14 is the next session's work (§7.2).**
 Do not start a second slice in the same session. Slice 11's e2e path
 (`tests/e2e/happy-path.spec.ts`) is the Phase 1 regression guard: it must still pass, and it must not be edited to make a
 Phase 2 change fit.
@@ -1396,7 +1396,8 @@ Phase 2 change fit.
 
 Verified in the code, not inferred from the brief. This is the gap list Phase 2 closes. **It is the state as Phase 1
 left it, kept as the record of why Phase 2 is sliced the way it is — slice 12 has since closed the first two rows and the
-dashboard row of the fourth.** For the live state of the tree, read `KICKOFF.md` "Where the build stands".
+dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** For the live state of the tree, read
+`KICKOFF.md` "Where the build stands".
 
 | Item | State today | What is missing |
 |---|---|---|
@@ -1416,7 +1417,7 @@ dashboard row of the fourth.** For the live state of the tree, read `KICKOFF.md`
 | # | Slice | Delivers | Where the work lands | Brief § |
 |---|---|---|---|---|
 | **12** | **Schedules on the crane page** (**built** — finish per §7.3) | The "next due" block on crane detail (type, interval, last done, next due, overdue state, source); create / edit / archive a schedule under `schedule.manage`, audited; a `/office/schedules` list (overdue, then due in 30/60/90) that the dashboard tile links to; **completing a job offers "mark schedule done" for that journey's cranes**, which writes `lastDoneDate` and recomputes `nextDueDate` | `src/server/schedules/` (new), `src/app/(office)/cranes/[id]/page.tsx`, `src/app/(office)/schedules/` (new), `src/app/(office)/dashboard/page.tsx`, `src/server/jobs/status.ts` or the completion action | §8, §12 |
-| **13** | **Certificates & compliance dashboard** | Certificate register per crane: type, number, issuer, issue/expiry/next-due, stated SWL, linked job, file upload through the existing storage adapter (`CERTIFICATE`), soft-delete only; `/office/certificates` with **expiring in 90/60/30 and overdue**; the dashboard tile becomes a real count and links to it. Company inspection vs AE statutory certificate kept visually distinct | `src/server/certificates/` (new), `src/app/(office)/certificates/` (new), crane detail section, `src/server/dashboard/dashboard.ts` | §6.6, §7.2 |
+| **13** | **Certificates & compliance dashboard** (**built** — see §7.4) | Certificate register per crane: type, number, issuer, issue/expiry/next-due, stated SWL, linked job, file upload through the existing storage adapter (`CERTIFICATE`), soft-delete only; `/office/certificates` with **expiring in 90/60/30 and overdue**; the dashboard tile becomes a real count and links to it. Company inspection vs AE statutory certificate kept visually distinct | `src/server/certificates/` (new), `src/app/(office)/certificates/` (new), crane detail section, `src/server/dashboard/dashboard.ts` | §6.6, §7.2 |
 | **14** | **ComplianceRule admin** | Admin screen to maintain rules (`craneType × scheduleType`, interval, `requiresAE`, effective dates, **required `sourceReference` and `reviewedAt`**), carrying `Setting.complianceNotice` verbatim; a schedule can adopt a rule (`source = RULE`, interval copied); "re-registration may be required" reminder when a crane's `ownerEntity`/customer UEN changes or it is re-assembled at another site | `src/app/(office)/admin/compliance/` (new), `src/server/compliance/` (new), `src/server/cranes/cranes.ts` (change detection) | §7 |
 | **15** | **Reminder engine in the daily cron** | `/api/cron/daily` evaluates every `CraneSchedule.nextDueDate` at `reminderOffsetsDays` (default 90/60/30) then overdue, notifies the account owner in-app + email via the existing `notify` fan-out, and honours `autoCreateDraftJobs`; at-most-once per (schedule, offset, period) so a re-run sends nothing twice — needs an additive migration for the dispatch key | `src/app/api/cron/daily/route.ts`, `src/server/reminders/` (new), migration | §8 |
 | **16** | **Findings & one-click follow-up jobs** | Finding status flow (open → quoted → scheduled → rectified / declined), open findings on the crane page, **one click creates a follow-up job** pre-filled from the finding (job type, crane, description, priority from severity) linked by `followUpJobId`/`parentJobId`; customer-declined critical repair captured with name, signature and date | `src/server/findings/` (new), report page, crane page, `src/server/jobs/jobs.ts` | §4.2, §6.4 |
@@ -1477,13 +1478,65 @@ commit message names so a later `git log` does not read it as schedules work. Sl
 gap, recorded in `ASSUMPTIONS.md` 84: an archived schedule is invisible outside the audit log, because
 `/schedules` has no "ended" view yet.
 
-**Two build traps found here, both worth knowing.** `npm run build` and `npm run dev` share `.next`:
-running the build against a live dev server corrupts both (the build dies on
-`Invariant: no direct app page entry found for /login`, then every dev route 500s) — stop the dev
-server first, and note that a running dev server also holds the old Prisma engine after a schema
-change.
+**One build trap found here, since fixed.** `npm run build` and `npm run dev` used to share `.next`, so
+building against a live dev server corrupted both (the build died on
+`Invariant: no direct app page entry found for /login`, then every dev route 500s). `next dev` now
+writes `.next-dev` (`next.config.ts` keys `distDir` on `NODE_ENV`), so the two never meet, a build
+still lands in `.next` where Vercel expects it, and stopping the dev server first is no longer
+needed. `npm run dev:stop` stops whatever holds the dev port, for the remaining case — a schema
+change still needs the dev server restarted, because it keeps serving the Prisma engine it started
+with.
 
-### 7.4 Phase 3 and Phase 4 (outline, not sliced yet)
+### 7.4 Slice 13 — certificates and the compliance dashboard (**built**)
+
+**Goal:** the `Certificate` model stops being a table nothing writes. A crane's paper — the AE's
+certificate of test and examination, load test certificates, calibration and registration documents —
+gets a register, a queue sorted by what is about to lapse, and a dashboard count that agrees with it.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 88–91):
+
+1. **One service behind every screen.** `src/server/certificates/certificates.ts` is the only query
+   path: the crane page, `/certificates` and the dashboard tile all read through it, so the tile cannot
+   say "two expiring" while the list shows three. `certificateReadWhere` follows `craneReadWhere`, so a
+   technician sees certificates on cranes they are assigned work at and nobody else's; office roles
+   with `crane.register.read` see the register. Writes need `certificate.write`, which already existed.
+2. **The effective date is `expiryDate ?? nextDueDate`**, computed on every read through the existing
+   `dueBucket` (overdue / 30 / 60 / 90 / later / none). Nothing stores "overdue". `expiryDate` is what
+   the tile has always counted; `nextDueDate` is the fallback for a renewal that falls before expiry.
+3. **Company inspection stays distinct from a statutory certificate.** Only
+   `STATUTORY_TEST_EXAMINATION` is labelled "AE statutory certificate"; every other type is a
+   "Supporting document". Both the crane section and `/certificates` say in words that our reports are
+   company inspections and appear on the timeline, never in this register (CLAUDE.md rule 3).
+4. **Uploads reuse the signed-URL route, not a server action.** `/api/files/upload-url` now branches
+   on `kind: 'CERTIFICATE'`, checks `certificate.write`, creates a `File` row owned by the crane
+   (`entity: 'Crane'`, `kind: FileKind.CERTIFICATE`) and returns the same short-lived upload URL the
+   phone uses. The certificate write then verifies the file is a certificate for that same crane. The
+   form uploads on file selection, so a scanned PDF never passes through a function body.
+
+Build order: `certificateReadWhere` → `src/lib/validation/certificates.ts` → the service (list,
+per-crane, counts, create, update, archive) → actions → `/certificates` → the crane page section →
+the dashboard tile → integration tests → docs.
+
+**As built.** `src/server/certificates/certificates.ts` (`listCertificates`, `certificatesForCrane`,
+`certificateCounts`, `createCertificate`, `updateCertificate`, `archiveCertificate`,
+`certificateDueDate`, `certificateDueLabel`); `certificateReadWhere` in `scope.ts`;
+`src/lib/validation/certificates.ts` (types, labels, date rules, upload schema);
+`src/components/office/certificate-forms.tsx`; the crane page's Certificates section with add, edit and
+archive; `/certificates` with a q/due/kind filter and a count line; the nav link; the dashboard's
+"Certificates expiring" tile now counting the 30-day window through `certificateCounts` and linking to
+`/certificates?due=30`; and the upload branch in `src/server/storage/files.ts` (PDF and images allowed
+for `CERTIFICATE` only). **No migration was needed** — the `Certificate` model, its `deletedAt` and the
+`FileKind.CERTIFICATE` enum value all already existed. New integration coverage:
+`tests/integration/certificates.test.ts` (7 tests: audit on create, technician scoping, soft delete,
+changed-fields-only update, bucket counts, a role without `certificate.write`, and a linked job that
+does not cover the crane).
+
+**Known limit, not a gap in this slice:** `Certificate` has no Prisma relation to `File` (only
+`fileId`), so the list resolves file names and signed links in one batched lookup rather than an
+`include`. Adding a relation would be a schema change for a lookup this cheap; revisit if certificates
+ever need to be joined through files.
+
+### 7.5 Phase 3 and Phase 4 (outline, not sliced yet)
 
 **Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;
 stock movements linked to jobs and DOs; serial/batch traceability; reorder alerts grouped by supplier; purchase orders

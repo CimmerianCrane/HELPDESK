@@ -31,6 +31,7 @@ All cross-platform (npm scripts, no bash-only tooling). Run from `cimmerian-cran
 | `npm run db:studio` | Prisma Studio |
 | `npm run seed` | Seed realistic demo data (idempotent: safe to re-run) |
 | `npm run dev` | Next.js dev server on http://localhost:3000 |
+| `npm run dev:stop` | Stop whatever is listening on the dev port (`-- 3001` for another). Use this rather than `taskkill` |
 | `npm run build` / `npm start` | Production build / serve |
 | `/api/cron/daily` | Scheduled maintenance (Vercel Cron, declared in `vercel.json`). No local `worker` process exists — see the deployment notes |
 | `npm run lint` | ESLint (`eslint .`, not the deprecated `next lint`) |

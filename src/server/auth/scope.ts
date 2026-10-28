@@ -90,6 +90,20 @@ export function craneScheduleReadWhere(ctx: AuthContext): Prisma.CraneScheduleWh
 }
 
 /**
+ * Filter for `Certificate` (slice 13).
+ *
+ * Capability first, then the crane: whoever browses the register sees every live certificate, and a
+ * technician — who holds `certificate.read` so they can see a crane's paperwork on a visit — sees only
+ * certificates on cranes they can read. A customer user has no certificate capability yet, so it
+ * fails closed for them rather than leaking another customer's documents.
+ */
+export function certificateReadWhere(ctx: AuthContext): Prisma.CertificateWhereInput {
+  if (!can(ctx.role, 'certificate.read')) return DENY
+  if (can(ctx.role, 'crane.register.read')) return { ...LIVE, crane: { ...LIVE } }
+  return { ...LIVE, crane: { ...craneReadWhere(ctx), deletedAt: null } }
+}
+
+/**
  * Filter for `Site`. Follows the same shape as `craneReadWhere`: a role that browses sites sees all
  * of them, a technician sees the sites their jobs are at (they need the address and access notes),
  * and a customer user sees their own.

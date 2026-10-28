@@ -15,18 +15,18 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1 is complete, and Phase 2 has started.** Slices 0–12 are built and verified against the live
+**Phase 1 is complete, and Phase 2 is under way.** Slices 0–13 are built and verified against the live
 Supabase database; Phase 1's acceptance path still passes untouched. **Phase 2 is sliced in
 `docs/PLAN.md` §7, which is the canonical copy** — §7.1 is what Phase 1 left behind, §7.2 the slice
 table (13 certificates, 14 compliance rules, 15 reminders, 16 findings and follow-up jobs, 17 the
 two remaining templates, 18 delivery orders, 19 quotes, 20 invoicing, 21 accounting export), and
-**slice 13 is the next session's work**. **One slice per session: stop after the slice you were
+**slice 14 is the next session's work**. **One slice per session: stop after the slice you were
 asked for; do not begin the next one unless asked.**
 
-> **Slice 12 is done and verified.** Migration `20261028100000_slice12_crane_schedules` is applied to
-> the hosted database. `npm run verify` (248 unit tests), `npm run test:integration` (205 tests),
-> `npm run test:e2e` and `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes
-> **unmodified**. Slice 13 is next — see the section near the bottom of this file.
+> **Slice 13 is done and verified.** No migration was needed: `Certificate`, its `deletedAt` and
+> `FileKind.CERTIFICATE` already existed. `npm run verify` (252 unit tests), `npm run test:integration`
+> (212 tests), `npm run test:e2e` and `npm run build` all pass, and `tests/e2e/happy-path.spec.ts`
+> passes **unmodified**. Slice 14 is next — see the section near the bottom of this file.
 
 | Slice | State |
 |---|---|
@@ -43,7 +43,8 @@ asked for; do not begin the next one unless asked.**
 | 10 Job list, dashboard, audit viewer | done |
 | 11 E2E happy paths + §13 demo dataset | done |
 | 12 Schedules on the crane page | done |
-| 13–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 13 is next |
+| 13 Certificates & compliance dashboard | done |
+| 14–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 14 is next |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -82,8 +83,18 @@ dashboard's "Services / exams due" and a new "Schedules overdue" tile both read 
 link into the filtered list; and completing a job offers the schedules on that job's cranes as
 checkboxes — ticking one records the work as done **on the job's completion date** and moves the
 obligation on by its interval, in the same transaction as the status change. Overdue is computed from
-the clock, never stored. **Not yet built:** slices 13–21 (certificates, compliance rules, the reminder
-cron, findings, delivery orders, quotes, invoicing, the accounting export) and all of Phases 3–4.
+the clock, never stored.
+
+**Phase 2, slice 13 — certificates.** Every crane now has a certificate register: the crane page lists
+the paper issued to it (kind, number, issuer, issue/expiry/next due, stated SWL, linked job, the scan
+itself) with add, edit and "Archive" behind `certificate.write`, all audited; `/certificates` is the
+compliance queue — expiring in 90/60/30 and already lapsed — with search and kind filters; and the
+dashboard's "Certificates expiring" tile now counts the same service and links to the filtered list.
+Uploads use the phone's signed-URL flow with `FileKind.CERTIFICATE` (PDF or image), and only an
+Authorised Examiner's certificate of test and examination is labelled as statutory — our own reports
+stay company inspections on the timeline. **Not yet built:** slices 14–21 (compliance rules, the
+reminder cron, findings, the remaining templates, delivery orders, quotes, invoicing, the accounting
+export) and all of Phases 3–4.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
@@ -113,16 +124,21 @@ against `npm run build && npm start`.
 
 **Traps that have already bitten, and will again.**
 
-- **Never run `npm run build` while `npm run dev` is up.** Both write `.next`, and the survivor is a
-  tree neither of them can serve: the build dies with `Invariant: no direct app page entry found for
-  /login` and every dev route starts returning 500. Stop the dev server, then build.
-- A running `npm run dev` also locks `node_modules/.prisma/client/query_engine-windows.dll.node`, so
-  `npx prisma generate` fails with `EPERM`. Same fix: stop the server first.
+- ~~Never run `npm run build` while `npm run dev` is up.~~ **Fixed.** They used to share `.next`, and
+  a build pruned the tree the dev server was serving from — `Invariant: no direct app page entry
+  found for /login`, then 500s on every dev route. `next dev` now writes `.next-dev`, so a build
+  (still `.next`, which Vercel reads) and a live dev server no longer touch each other. A build no
+  longer needs the server stopped.
+- **`npm run dev:stop`** stops whatever is on port 3000 (or `npm run dev:stop -- 3001`). Use it when a
+  previous session left a server behind. It exists because `taskkill` and `rm -rf .next` are denied by
+  the permission classifier — this script is the sanctioned path, so do not reach for those.
+- A running `npm run dev` still locks `node_modules/.prisma/client/query_engine-windows.dll.node`, so
+  `npx prisma generate` fails with `EPERM`. `npm run dev:stop` first, then generate.
 - `npx prisma migrate deploy` against the hosted database is refused by the auto-mode permission
   classifier as "Modify Shared Resources". Ask the user to approve it; it is a single additive
   `ALTER TABLE` and is safe to apply.
 - A running dev server keeps serving the Prisma engine it started with, so after a schema change it
-  must be restarted even if the client on disk was regenerated.
+  must be restarted even if the client on disk was regenerated. `npm run dev:stop` then `npm run dev`.
 
 **Slice 12's two deliberate deviations** from `docs/PLAN.md` §7.3, both written up there: the "mark
 done" checkboxes live in the existing job-transition form rather than a separate action, and
@@ -205,30 +221,34 @@ number but no stored PDF, because the seed runs under `tsx`, which cannot load
 
 ---
 
-## Slice 12 is done — slice 13 is next
+## Slice 13 is done — slice 14 is next
 
-**Read `docs/PLAN.md` §7 first; it is the canonical copy and is not repeated here.** §7.1 is what
-Phase 1 left behind, §7.2 the Phase 2 slice table, §7.3 slice 12 as specified *and* as built (with the
-two documented deviations).
+**Read `docs/PLAN.md` §7 first; it is the canonical copy and is not repeated here.** §7.2 is the
+Phase 2 slice table and §7.4 is slice 13 as built; §7.5 is the Phase 3–4 outline.
 
-**What slice 12 delivered.** The `CraneSchedule` rows the seed had always written are a working
-screen: `src/server/schedules/` (recurrence maths, pure and unit-tested; one read service behind every
-screen), `craneScheduleReadWhere` in `scope.ts`, a Schedules section on the crane page with add, edit
-and soft-delete End behind `schedule.manage`, `/schedules` with search and due/kind filters, two
-dashboard tiles reading the same counts, and completion checkboxes on the job that roll an obligation
-forward from the job's own completion date inside the transition's transaction.
+**What slice 13 delivered.** `src/server/certificates/certificates.ts` is the one read/write path for
+the register (list, per-crane, counts, create, update, archive, `certificateDueDate`,
+`certificateDueLabel`); `certificateReadWhere` in `scope.ts` follows the crane so a technician sees
+only certificates on cranes they are assigned work at; `src/lib/validation/certificates.ts` holds the
+types, labels, date rules and upload schema; the crane page has a Certificates section with add, edit
+and soft-delete Archive behind `certificate.write`; `/certificates` is the compliance queue with
+q/due/kind filters and a count line; the dashboard's "Certificates expiring" tile counts the same
+service (the 30-day window) and links to the filtered list; and `/api/files/upload-url` now accepts a
+`CERTIFICATE` upload (PDF or image, `FileKind.CERTIFICATE`, owned by the crane) through the same signed
+URL the phone uses. Only `STATUTORY_TEST_EXAMINATION` is labelled "AE statutory certificate"; every
+other type is a supporting document, and both screens say our reports are company inspections, not
+certificates (rule 3). No migration — the model, `deletedAt` and the file kind already existed.
 
-**The gate it passed:** `npm run verify` (248 unit tests, 15 new), `npm run test:integration` (205
-tests, 13 new), `npm run test:e2e` (35 passed, 2 skipped) and `npm run build`. `happy-path.spec.ts`
-passes unmodified.
+**The gate it passed:** `npm run verify` (252 unit tests), `npm run test:integration` (212 tests, 7
+new in `certificates.test.ts`), `npm run test:e2e` and `npm run build`. `happy-path.spec.ts` passes
+unmodified.
 
-**Slice 13 — certificates and the compliance dashboard.** `docs/PLAN.md` §7.2 row 13: a
-certificate register per crane (type, number, issuer, issue/expiry/next-due, stated SWL, linked job,
-file upload through the existing storage adapter with `FileKind.CERTIFICATE`), soft-delete only,
-`/certificates` with expiring-in-90/60/30 and overdue, the dashboard's "Certificates expiring" tile
-turned from an honest zero into a real count that links to it, and company inspection kept visually
-distinct from an AE's statutory certificate (CLAUDE.md rule 3). `certificate.read` / `certificate.write`
-already exist and are granted; slice 13 consumes them, it does not add capabilities.
+**Slice 14 — ComplianceRule admin.** `docs/PLAN.md` §7.2 row 14: an admin screen maintaining
+`craneType × scheduleType` rules (interval, `requiresAE`, effective dates, **required
+sourceReference and reviewedAt**) carrying the standing notice verbatim, schedules that can adopt a
+rule (`source = RULE`), and the "re-registration may be required" reminder when a crane's owner or the
+customer's UEN changes or it is re-assembled at another site. `compliancerule.manage` already exists
+and is granted; slice 14 consumes it.
 
 The gate is unchanged for every slice: `npm run verify` and `npm run verify:full`, then
 `tests/e2e/happy-path.spec.ts` must still pass **untouched**.

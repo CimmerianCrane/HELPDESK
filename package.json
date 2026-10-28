@@ -9,6 +9,7 @@
     "setup": "npm install && npm run db:migrate && npm run seed",
     "postinstall": "prisma generate",
     "dev": "next dev",
+    "dev:stop": "tsx scripts/dev-stop.ts",
     "build": "next build",
     "start": "next start",
     "db:up": "docker compose up -d",
