@@ -177,3 +177,36 @@ export const stockEntrySchema = z.object({
 })
 
 export type StockEntryInput = z.infer<typeof stockEntrySchema>
+
+/**
+ * Moving stock from one place to another (slice 23). Both ends are named: a transfer with no
+ * destination is a write-off, and one with no source is a receipt, so an unnamed end is refused
+ * rather than guessed at the way a receipt's location is.
+ */
+export const transferSchema = z
+  .object({
+    fromLocationId: z.string().trim().min(1, 'Choose the location it is leaving.'),
+    toLocationId: z.string().trim().min(1, 'Choose the location it is going to.'),
+    quantity: z.coerce
+      .number()
+      .positive('A transfer quantity must be above zero.')
+      .max(1_000_000, 'That is not a plausible quantity.'),
+    serialOrBatch: z
+      .string()
+      .trim()
+      .max(120)
+      .optional()
+      .transform((value) => (value ? value : null)),
+    reasonCode: z
+      .string()
+      .trim()
+      .max(80)
+      .optional()
+      .transform((value) => (value ? value : null)),
+  })
+  .refine((value) => value.fromLocationId !== value.toLocationId, {
+    message: 'Choose two different locations.',
+    path: ['toLocationId'],
+  })
+
+export type TransferInput = z.infer<typeof transferSchema>

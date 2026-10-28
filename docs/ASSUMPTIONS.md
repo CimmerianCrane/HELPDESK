@@ -654,6 +654,22 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     its number; the form says so and asks for it to be restored rather than letting a unique violation reach the
     screen as an unreadable error. There is no restore action yet — archiving a part is not built either.
 
+142. **A location is retired, never deleted, and one holding stock cannot be retired.** Every movement keeps
+    naming the location it touched (rule 4), so `isActive` is the soft delete; retiring one with stock still on
+    it is refused, and the form says to transfer it out first — which is the moment the shelf and the figure
+    are reconciled.
+143. **A transfer names both ends.** A receipt falls back to the store and an adjustment works out its own
+    direction, but a movement with no source is a receipt and one with no destination is a write-off, so a
+    transfer with either end blank is refused rather than guessed.
+144. **A transfer larger than the source holds is refused, naming what it holds.** This is the opposite of an
+    **issue**, which may take a level negative (item 136): an issue is a signed field document that must not be
+    lost, while a transfer is a store action with the shelf in front of the person.
+145. **A bin's parent must be a warehouse, checked in the service.** `Location.parentId` has never been a foreign
+    key, so the rule lives where it can be tested: the parent must exist and must be a `WAREHOUSE`.
+146. **`stock.move` gates a transfer, and locations are not tenant data.** A technician holds `stock.move`
+    already (issuing and returning parts), so a van-to-bin move is theirs too; finance reads the book and moves
+    nothing. Locations, like the catalogue, have no row filter.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

@@ -15,18 +15,23 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phases 1 and 2 are complete, and Phase 3 (Inventory) is under way.** Slices 0–22 are built; Phase 1's
+**Phases 1 and 2 are complete, and Phase 3 (Inventory) is under way.** Slices 0–23 are built; Phase 1's
 acceptance path still passes untouched. **`docs/PLAN.md` §7 is the canonical copy** — §7.2 is the
 Phase 2 slice table, §7.3–§7.12 each Phase 2 slice's fixed decisions as built, and **§7.13 is the
-Phase 3 slice table plus slice 22 as built**; §7.14 outlines Phase 4.
-**The Phase 3 slices are 22 → 28 (parts book → back-orders); slice 23 is next — read §7.13, then ask
+Phase 3 slice table plus slice 22 as built and §7.13.1 slice 23 as built**; §7.14 outlines Phase 4.
+**The Phase 3 slices are 22 → 28 (parts book → back-orders); slice 24 is next — read §7.13, then ask
 before starting the next slice.**
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
 
-> **Slice 22 is done and verified.** No migration was needed. `npm run verify` (363 unit tests),
-> `npm run test:integration` (291), `npm run test:e2e` (36 passed, 2 offline-only skipped) and
+> **Slice 23 is done and verified.** No migration was needed. `npm run verify` (369 unit tests),
+> `npm run test:integration` (299), `npm run test:e2e` (36 passed, 2 offline-only skipped) and
 > `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes **unmodified**.
+
+> **Slice 23 — stock locations and transfers.** `/parts/locations` manages the store, bins, vans and
+> customer-site locations — what each holds, and a refusal to retire one that still holds stock — and
+> the part page posts the `TRANSFER` the ledger always had a type for. It also fixed the receiving form,
+> which had been offering only the locations the part already sat in. See `docs/PLAN.md` §7.13.1.
 
 > **Slice 22 — the parts book and the stock ledger.** `/parts` is the catalogue — search by number,
 > description or crane model, filter by brand, and a "below reorder" filter whose count is the number
@@ -62,7 +67,8 @@ asked.**
 | 20 Invoicing, GST & payments | done |
 | 21 Accounting export & Phase 2 acceptance | done |
 | 22 Parts book & stock ledger | done |
-| 23 Locations & transfers | next |
+| 23 Locations & transfers | done |
+| 24 Serial & batch traceability | next |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -166,9 +172,9 @@ filters applied to the file. `AccountingExporter` is the seam a Xero/QuickBooks 
 `tests/e2e/phase2.spec.ts` walks the whole of Phase 2 in one browser run, starting with a compliance rule
 added on `/admin/compliance`, adopted on a crane, and ending with the invoice exported.
 
-**Not yet built:** the rest of Phase 3 (slices 23–28: locations and transfers, serial traceability, reorder
-alerts and purchase orders, stock take, suppliers, back-orders) and all of Phase 4 (the customer portal and
-reporting). The Phase 3 slice table is `docs/PLAN.md` §7.13.
+**Not yet built:** the rest of Phase 3 (slices 24–28: serial traceability, reorder alerts and purchase
+orders, stock take, suppliers, back-orders) and all of Phase 4 (the customer portal and reporting). The
+Phase 3 slice table is `docs/PLAN.md` §7.13.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 

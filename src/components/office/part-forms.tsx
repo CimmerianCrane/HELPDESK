@@ -2,6 +2,11 @@
 
 import { useActionState } from 'react'
 import { IDLE_FORM, type FormState } from '@/server/action-result'
+import {
+  LOCATION_TYPES,
+  LOCATION_TYPE_LABELS,
+  type LocationTypeName,
+} from '@/lib/validation/locations'
 import { MOVEMENT_TYPE_LABELS, STOCK_ENTRY_TYPES } from '@/lib/validation/parts'
 import { FieldError, FormMessage, buttonClass, inputClass, labelClass } from './ui'
 
@@ -26,6 +31,14 @@ export interface PartFormValues {
   reorderLevel: number | null
   reorderQty: number | null
   trackSerialOrBatch: boolean
+}
+
+export interface LocationFormValues {
+  id: string
+  name: string
+  type: LocationTypeName
+  parentId: string | null
+  isActive: boolean
 }
 
 export function PartForm({
@@ -319,3 +332,205 @@ export function StockEntryForm({
     </form>
   )
 }
+
+/**
+ * Moving stock between two locations (slice 23).
+ *
+ * Both ends are chosen here rather than reusing the stock form: a transfer is the one movement with
+ * two locations that both matter, and a form whose meaning changes with a dropdown is the thing this
+ * slice was written to stop guessing at.
+ */
+export function TransferForm({
+  action,
+  locations,
+}: {
+  action: ServerAction
+  locations: Array<{ id: string; name: string; type: string }>
+}) {
+  const [state, formAction, pending] = useActionState(action, IDLE_FORM)
+
+  return (
+    <form action={formAction} className="space-y-4">
+      <FormMessage state={state} />
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="transfer-from" className={labelClass}>
+            From
+          </label>
+          <select id="transfer-from" name="fromLocationId" required defaultValue="" className={inputClass}>
+            <option value="">Choose a location</option>
+            {locations.map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.name}
+              </option>
+            ))}
+          </select>
+          <FieldError state={state} name="fromLocationId" />
+        </div>
+
+        <div>
+          <label htmlFor="transfer-to" className={labelClass}>
+            To
+          </label>
+          <select id="transfer-to" name="toLocationId" required defaultValue="" className={inputClass}>
+            <option value="">Choose a location</option>
+            {locations.map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.name}
+              </option>
+            ))}
+          </select>
+          <FieldError state={state} name="toLocationId" />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="transfer-quantity" className={labelClass}>
+            Quantity
+          </label>
+          <input
+            id="transfer-quantity"
+            name="quantity"
+            type="number"
+            step="0.001"
+            min="0"
+            required
+            className={inputClass}
+          />
+          <FieldError state={state} name="quantity" />
+        </div>
+
+        <div>
+          <label htmlFor="transfer-serial" className={labelClass}>
+            Serial or batch
+          </label>
+          <input id="transfer-serial" name="serialOrBatch" maxLength={120} className={inputClass} />
+          <FieldError state={state} name="serialOrBatch" />
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="transfer-reason" className={labelClass}>
+          Reason
+        </label>
+        <input
+          id="transfer-reason"
+          name="reasonCode"
+          maxLength={80}
+          placeholder="To the van for tomorrow's jobs…"
+          className={inputClass}
+        />
+        <FieldError state={state} name="reasonCode" />
+      </div>
+
+      <button type="submit" disabled={pending} className={buttonClass}>
+        {pending ? 'Transferring…' : 'Transfer stock'}
+      </button>
+    </form>
+  )
+}
+
+/**
+ * One location: its name, its kind, and — for a bin — the warehouse it sits in. A retired location
+ * stays listed so the movements that name it still read.
+ */
+export function LocationForm({
+  action,
+  values,
+  warehouses,
+  submitLabel,
+}: {
+  action: ServerAction
+  values: LocationFormValues | null
+  warehouses: Array<{ id: string; name: string }>
+  submitLabel: string
+}) {
+  const [state, formAction, pending] = useActionState(action, IDLE_FORM)
+  const id = values?.id ?? 'new'
+
+  return (
+    <form action={formAction} className="space-y-4">
+      <FormMessage state={state} />
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor={`${id}-name`} className={labelClass}>
+            Name
+          </label>
+          <input
+            id={`${id}-name`}
+            name="name"
+            required
+            maxLength={120}
+            defaultValue={values?.name ?? ''}
+            placeholder="Main store, Bin B-14, Van 1…"
+            className={inputClass}
+          />
+          <FieldError state={state} name="name" />
+        </div>
+
+        <div>
+          <label htmlFor={`${id}-type`} className={labelClass}>
+            Kind
+          </label>
+          <select
+            id={`${id}-type`}
+            name="type"
+            defaultValue={values?.type ?? 'WAREHOUSE'}
+            className={inputClass}
+          >
+            {LOCATION_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {LOCATION_TYPE_LABELS[type]}
+              </option>
+            ))}
+          </select>
+          <FieldError state={state} name="type" />
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor={`${id}-parent`} className={labelClass}>
+          Inside (bins only)
+        </label>
+        <select
+          id={`${id}-parent`}
+          name="parentId"
+          defaultValue={values?.parentId ?? ''}
+          className={inputClass}
+        >
+          <option value="">Not inside another location</option>
+          {warehouses.map((warehouse) => (
+            <option key={warehouse.id} value={warehouse.id}>
+              {warehouse.name}
+            </option>
+          ))}
+        </select>
+        <FieldError state={state} name="parentId" />
+      </div>
+
+      <div className="flex items-start gap-2">
+        <input
+          id={`${id}-active`}
+          name="isActive"
+          type="checkbox"
+          defaultChecked={values?.isActive ?? true}
+          className="mt-1 size-4 rounded border-slate-300"
+        />
+        <label htmlFor={`${id}-active`} className="text-sm text-slate-700">
+          Active
+          <span className="block text-xs text-slate-500">
+            A retired location still appears on past movements, but no new stock goes there.
+          </span>
+        </label>
+      </div>
+
+      <button type="submit" disabled={pending} className={buttonClass}>
+        {pending ? 'Saving…' : submitLabel}
+      </button>
+    </form>
+  )
+}
+

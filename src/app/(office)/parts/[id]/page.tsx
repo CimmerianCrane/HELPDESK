@@ -1,17 +1,18 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { PartForm, StockEntryForm } from '@/components/office/part-forms'
+import { PartForm, StockEntryForm, TransferForm } from '@/components/office/part-forms'
 import { cardClass } from '@/components/office/ui'
 import { formatDateTime, formatMoney } from '@/lib/format'
 import { MOVEMENT_TYPE_LABELS } from '@/lib/validation/parts'
 import { requireAuth } from '@/server/auth/context'
 import { can } from '@/server/auth/permissions'
+import { locationOptions } from '@/server/inventory/locations'
 import { getPart } from '@/server/inventory/parts'
 import { getSettings } from '@/server/settings/settings'
 import { isAppError } from '@/server/auth/errors'
 import type { MovementType } from '@prisma/client'
-import { postStockAction, updatePartAction } from '../actions'
+import { postStockAction, transferStockAction, updatePartAction } from '../actions'
 
 export const metadata: Metadata = { title: 'Part — Cimmerian Crane Services' }
 export const dynamic = 'force-dynamic'
@@ -26,12 +27,15 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
   const context = await requireAuth()
   const { id } = await params
 
-  const [part, settings] = await Promise.all([
+  const [part, settings, locations] = await Promise.all([
     getPart(context, id).catch((error: unknown) => {
       if (isAppError(error) && error.status === 404) notFound()
       throw error
     }),
     getSettings(),
+    // Every active location, not only the ones this part already sits in: receiving into a new bin is
+    // the common case, and the old list could only offer places the part had already been.
+    locationOptions(context),
   ])
 
   const mayWrite = can(context.role, 'part.write')
@@ -141,14 +145,27 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
             the difference is written as a movement with your name on it.
           </p>
           <div className="mt-4">
-            <StockEntryForm
-              action={postStockAction.bind(null, part.id)}
-              locations={part.levels.map((level) => ({
-                id: level.locationId,
-                name: level.locationName,
-                type: level.locationType,
-              }))}
-            />
+            <StockEntryForm action={postStockAction.bind(null, part.id)} locations={locations} />
+          </div>
+        </section>
+      ) : null}
+
+      {mayMove ? (
+        <section className={cardClass} aria-labelledby="transfer-heading">
+          <h2 id="transfer-heading" className="font-semibold text-slate-900">
+            Transfer to another location
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Takes stock out of one location and puts it in another — the store to a van, a van back to
+            a bin. The source must hold what you transfer; post a count first if it does not.
+            Locations are maintained under{' '}
+            <Link href="/parts/locations" className="underline">
+              stock locations
+            </Link>
+            .
+          </p>
+          <div className="mt-4">
+            <TransferForm action={transferStockAction.bind(null, part.id)} locations={locations} />
           </div>
         </section>
       ) : null}

@@ -5,13 +5,15 @@ import {
   needsReorder,
   partFilterSchema,
   stockEntrySchema,
+  transferSchema,
   updatePartSchema,
 } from '@/lib/validation/parts'
 import { parseInput } from '@/lib/validation/parse'
 import { withAudit, type AuditLogger } from '@/server/audit/audit'
-import { NotFoundError, ValidationError } from '@/server/auth/errors'
+import { NotFoundError, RuleError, ValidationError } from '@/server/auth/errors'
 import { assertCan } from '@/server/auth/permissions'
 import type { AuthContext } from '@/server/auth/types'
+import { assertLocationsExist } from './locations'
 import { defaultLocation, issueLocationFor, postMovement } from './stock'
 
 /**
@@ -331,6 +333,8 @@ export async function postStockEntry(
         throw new ValidationError({ quantity: ['A quantity must be above zero.'] })
       }
 
+      await assertLocationsExist(tx, [locationId])
+
       await postMovement(tx, log, {
         partId: part.id,
         type: input.type,
@@ -339,6 +343,62 @@ export async function postStockEntry(
         serialOrBatch: input.serialOrBatch,
         reasonCode: input.reasonCode,
         unitCost: input.unitCost ?? Number(part.cost),
+        movedById: context.userId,
+      })
+    },
+    client,
+  )
+}
+
+/**
+ * Moves stock from one location to another (slice 23).
+ *
+ * A `TRANSFER` needs both ends named: a movement with no destination is a write-off and one with no
+ * source is a receipt, so an unnamed end is a form that meant a different movement, not a transfer.
+ * The source must actually hold the quantity — unlike an issue (which is a signed field document, so
+ * it is never refused), a transfer is a store action with the shelf in front of the person, and
+ * refusing it names the discrepancy right when it is cheapest to fix.
+ */
+export async function transferStock(
+  context: AuthContext,
+  partId: string,
+  raw: unknown,
+  client: Tx = db,
+): Promise<void> {
+  assertCan(context, 'stock.move')
+  const input = parseInput(transferSchema, raw)
+
+  await withAudit(
+    context,
+    async (tx, log) => {
+      const part = await tx.part.findFirst({
+        where: { id: partId, deletedAt: null },
+        select: { id: true, cost: true, uom: true },
+      })
+      if (!part) throw new NotFoundError('No such part.')
+
+      await assertLocationsExist(tx, [input.fromLocationId, input.toLocationId])
+
+      const level = await tx.stockLevel.findUnique({
+        where: { partId_locationId: { partId: part.id, locationId: input.fromLocationId } },
+        select: { quantity: true },
+      })
+      const held = level ? Number(level.quantity) : 0
+      if (held < input.quantity) {
+        throw new RuleError(
+          `That location holds ${round3(held)} ${part.uom}. Transfer no more than it holds, or post a count first.`,
+        )
+      }
+
+      await postMovement(tx, log, {
+        partId: part.id,
+        type: 'TRANSFER',
+        quantity: input.quantity,
+        fromLocationId: input.fromLocationId,
+        toLocationId: input.toLocationId,
+        serialOrBatch: input.serialOrBatch,
+        reasonCode: input.reasonCode,
+        unitCost: Number(part.cost),
         movedById: context.userId,
       })
     },

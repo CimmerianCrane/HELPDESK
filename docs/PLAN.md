@@ -1919,7 +1919,7 @@ designed up front (§3.8) and is already migrated — **no migration is expected
 | # | Slice | Delivers | Where the work lands | Brief § |
 |---|---|---|---|---|
 | **22** | **The parts book and the stock ledger** (**built** — see below) | `/parts` (search by number, description or crane model; brand filter; below-reorder filter and count) and `/parts/[id]` (on-hand, per-location levels, the part's own last 20 movements, add/edit behind `part.write`); a store form that posts `RECEIVE`, `RETURN` and `ADJUST`; **one writer** for `StockMovement` + `StockLevel`, which the report path now uses too, so issuing a part on a report finally moves the shelf | `src/server/inventory/` (new), `src/lib/validation/parts.ts` (new), `src/app/(office)/parts/` (new), `src/server/reports/reports.ts` (re-pointed) | §9 |
-| 23 | Locations and transfers | Manage `Location` (warehouse, bin, van, customer site), see stock by location across the book, transfer between locations (the ledger type exists; the form does not) | `src/server/inventory/`, `/parts` | §9 |
+| **23** | **Locations and transfers** (**built** — see §7.13.1) | `/parts/locations` (every location with what it holds; add and edit behind `part.write`; retired, never deleted), and a transfer form on the part page posting the `TRANSFER` the ledger always had a type for. The receiving form now offers **every active location**, not only the ones the part already sits in | `src/server/inventory/locations.ts` (new), `src/lib/validation/locations.ts` (new), `src/app/(office)/parts/locations/` (new), `/parts/[id]` | §9 |
 | 24 | Serial and batch traceability | Record and trace a serial on `trackSerialOrBatch` parts: which crane received which rope or hook, and where the rest of the batch is. The issue path already stores `serialOrBatch`; this is the report and the lookup | `/parts/[id]`, the report form | §9 |
 | 25 | Reorder alerts and a suggested purchase order | Group what is below reorder by preferred supplier, suggest the reorder quantity, and raise a `PurchaseOrder` from the group. Receiving a PO posts `RECEIVE` | `/parts` (or `/inventory`), `src/server/inventory/` | §9 |
 | 26 | Stock take | Session → blind count → variance → recount → approve, posting one `ADJUST`/`WRITEOFF` per line difference, and flagging a part/location that keeps disagreeing | `/stock-takes` (new), `src/server/inventory/` | §9 |
@@ -1974,6 +1974,56 @@ only come from the seed. Serial numbers are stored on the issue but there is no 
 There is no purchase order, supplier screen, reorder suggestion or stock take yet (25–27). The below-reorder
 filter reads the whole catalogue and filters in memory; at a few hundred parts that is cheaper than the
 subquery, and it is the first thing to change if a customer's catalogue passes a few thousand lines.
+
+#### 7.13.1 Slice 23 — locations and transfers (**built**)
+
+**Goal:** the store can say where the stock is, not just how much of it there is, and can move it
+without writing a movement by hand in a database console.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 142–146):
+
+1. **A location is retired, never deleted.** `isActive` is the soft delete, because every movement
+   that ever touched a location keeps naming it — the same reasoning as reports and certificates
+   (rule 4). A location that still holds stock **cannot** be retired; the form says to transfer it out
+   first, which is also the moment somebody finds out the shelf and the figure disagree.
+2. **A transfer needs both ends named**, unlike a receipt (which falls back to the store) or an
+   adjustment. A movement with no destination is a write-off and one with no source is a receipt, so
+   an unnamed end is a form that meant a different movement.
+3. **A transfer larger than the source holds is refused**, naming what it holds. An **issue** may take
+   a level negative (rule 11 — a signed field document is never refused); a transfer is a store action
+   with the shelf in front of the person, so refusing it names the discrepancy where it is cheapest.
+   The total on hand does not change, and the ledger gains exactly one `TRANSFER` row.
+4. **`Location.parentId` is not a foreign key** (it was never one), so a bin's parent is checked in the
+   service: it must exist, and it must be a warehouse. A bin inside a van is not modelled.
+5. **Locations are not tenant data**, like the catalogue: `part.read` is the whole read check and
+   `part.write` maintains them, so there is no `locationReadWhere`.
+6. **`stock.move` gates a transfer**, the same capability every other stock write uses — a technician
+   holds it because issuing and returning parts is the job, and a van-to-bin move is the same act.
+   Finance reads the book and moves nothing.
+
+**As built.** `src/lib/validation/locations.ts` holds the four kinds, their labels, the location
+schema and the transfer schema (both ends required, and different). `src/server/inventory/locations.ts`
+holds `listLocations` (with lines and quantity per location), `locationOptions`, `createLocation`,
+`updateLocation`, `assertLocationsExist` and the name/parent/retire rules.
+`transferStock` in `parts.ts` posts through `postMovement` exactly like every other movement.
+`/parts/locations` is the screen; `/parts/[id]` gains the transfer form; the nav is unchanged (the
+location screen is reached from **Parts**) and the audit viewer is unchanged — `Location` is audited
+but is not yet a labelled entity in the viewer.
+
+**Two bugs the slice found and fixed.** The receiving form on the part page offered only the
+locations the part *already sat in* — `part.levels` — so stock could never be received into a new bin,
+and a part that had never been received had an empty location list whose only option was "Main store".
+It now offers every active location. The same form's `locationId` was never checked to exist; it now
+says so rather than letting a foreign-key violation reach the screen.
+
+**Migration:** none. `Location`, `LocationType`, `StockLevel` and `StockMovement` were designed in
+Phase 1.
+
+**Known limits.** The transfer form lives on a part page and moves one part; there is no "stock by
+location" screen that lists every part in a van at once — the location list shows counts, and the
+per-part breakdown is on the part. A location cannot be deleted, only retired. `Location.siteId` is
+unused by any screen: a customer-site location is named, not linked to the Site record, so a parts
+transfer form does not need `customer.read`.
 
 ### 7.14 Phase 4 (outline, not sliced yet)
 

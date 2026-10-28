@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { createLocationSchema } from '@/lib/validation/locations'
 import {
   createPartSchema,
   movementSigns,
   needsReorder,
   partFilterSchema,
   stockEntrySchema,
+  transferSchema,
 } from '@/lib/validation/parts'
 
 /**
@@ -134,5 +136,54 @@ describe('part filters', () => {
     expect(partFilterSchema.parse({ level: 'below' }).level).toBe('below')
     expect(partFilterSchema.parse({ level: '' }).level).toBeNull()
     expect(partFilterSchema.parse({}).level).toBeNull()
+  })
+})
+
+describe('a transfer', () => {
+  it('needs both ends named and two different places', () => {
+    expect(transferSchema.safeParse({ fromLocationId: 'a', toLocationId: 'a', quantity: '1' }).success).toBe(false)
+    expect(transferSchema.safeParse({ fromLocationId: '', toLocationId: 'b', quantity: '1' }).success).toBe(false)
+    expect(transferSchema.safeParse({ fromLocationId: 'a', toLocationId: '', quantity: '1' }).success).toBe(false)
+    expect(transferSchema.safeParse({ fromLocationId: 'a', toLocationId: 'b', quantity: '1' }).success).toBe(true)
+  })
+
+  it('refuses a zero or negative quantity', () => {
+    expect(transferSchema.safeParse({ fromLocationId: 'a', toLocationId: 'b', quantity: '0' }).success).toBe(false)
+    expect(transferSchema.safeParse({ fromLocationId: 'a', toLocationId: 'b', quantity: '-3' }).success).toBe(false)
+  })
+
+  it('reads a blank serial or reason as absent', () => {
+    const parsed = transferSchema.parse({
+      fromLocationId: 'a',
+      toLocationId: 'b',
+      quantity: '2',
+      serialOrBatch: '',
+      reasonCode: '',
+    })
+    expect(parsed.serialOrBatch).toBeNull()
+    expect(parsed.reasonCode).toBeNull()
+  })
+})
+
+describe('a location as the store types it', () => {
+  const valid = { name: ' Bridge store ', type: 'WAREHOUSE', parentId: '', isActive: 'on' }
+
+  it('trims the name, reads the kind and defaults to active', () => {
+    expect(createLocationSchema.parse(valid)).toEqual({
+      name: 'Bridge store',
+      type: 'WAREHOUSE',
+      parentId: null,
+      isActive: true,
+    })
+  })
+
+  /** An unticked checkbox sends nothing, and a location nobody ticked should not be active. */
+  it('reads a missing checkbox as retired', () => {
+    expect(createLocationSchema.parse({ ...valid, isActive: undefined }).isActive).toBe(false)
+  })
+
+  it('refuses a blank name and a kind that is not a location type', () => {
+    expect(createLocationSchema.safeParse({ ...valid, name: ' ' }).success).toBe(false)
+    expect(createLocationSchema.safeParse({ ...valid, type: 'GARAGE' }).success).toBe(false)
   })
 })

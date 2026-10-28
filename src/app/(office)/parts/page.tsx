@@ -61,6 +61,14 @@ export default async function PartsPage({
           adjustments after a count. It is never typed in directly: a change is a movement, with a
           reason and a person against it.
         </p>
+        <p className="mt-2 text-sm">
+          <Link href="/parts/locations" className="text-slate-700 underline hover:text-slate-900">
+            Stock locations
+          </Link>{' '}
+          <span className="text-slate-500">
+            — the store, bins, vans and parts held on site, and what each one holds.
+          </span>
+        </p>
       </div>
 
       <form method="get" className="flex flex-wrap items-end gap-3">

@@ -9,13 +9,10 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Architecture, data model, screens and the phase plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
-**Status:** Phase 1 complete (slice 11: the end-to-end happy path and the demo dataset); Phase 2 under
-way (slices 12–20: schedules on the crane page, the certificate register, compliance rules, the
-daily reminder scan, findings with one-click follow-up jobs, the completed load test and visual
-inspection templates with calibration checks, delivery orders built from issued parts, quotes with
-variations, GST and an accept path that moves the job on, and tax invoices with payments recorded
-against them). Slice 21 — the accounting export and the Phase 2 acceptance path — is next. See "What
-works today" below.
+**Status:** Phases 1 and 2 are complete. Phase 3 (inventory) is under way: slice 22 built the parts
+book and made the stock ledger the single writer of every quantity, and slice 23 added stock
+locations and transfers. Next is slice 24 — serial and batch traceability. See "What works today"
+below.
 
 ---
 
@@ -177,6 +174,24 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 23 — stock locations and transfers
+
+- **The store, the bins, the vans and the sites.** `/parts/locations` lists every place stock can be, what kind
+  of place it is and what it currently holds. A bin can sit inside a warehouse. A location is retired, never
+  deleted, because every movement that touched it keeps naming it — and one still holding stock cannot be
+  retired until its stock is transferred out.
+- **Stock moves between locations.** The part page carries a transfer form: from one location to another,
+  posting a single `TRANSFER` row in the ledger and moving both levels. The source must hold what you move;
+  unlike an issue, a transfer is refused rather than allowed to go negative.
+- **Receiving finally offers everywhere.** The stock form used to list only the locations the part was already
+  in, so stock could not be received into a new bin. It now offers every active location.
+- **Try it:** **Parts** → *Stock locations* → add *Van 1* as a van; open a wire-rope line and transfer some of it
+  from *Main store* to *Van 1*; the part shows two locations and the book's on-hand is unchanged.
+- **Tests** — 6 unit tests (the transfer schema's both-ends rule and quantity, the location schema's checkbox
+  and kind) and an 8-case integration suite (the audit row, the duplicate name, bin-inside-warehouse, the
+  refusal to retire a location holding stock, the counts the list reports, a transfer moving both levels and
+  leaving the total alone, the over-transfer refusal writing nothing, and the permission split).
 
 ### Slice 22 — the parts book and the stock ledger
 

@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { formValues } from '@/lib/validation/parse'
 import { runAction, type FormState } from '@/server/action-result'
 import { requireAuth } from '@/server/auth/context'
-import { createPart, postStockEntry, updatePart } from '@/server/inventory/parts'
+import { createPart, postStockEntry, transferStock, updatePart } from '@/server/inventory/parts'
 
 /**
  * Thin by design: form to plain object, service, revalidate. Permissions live in the services.
@@ -51,4 +51,18 @@ export async function postStockAction(
     revalidatePath('/parts')
     revalidatePath(`/parts/${partId}`)
   }, 'Stock movement posted.')
+}
+
+/** A transfer moves the same total between two shelves, so the book's line count does not change. */
+export async function transferStockAction(
+  partId: string,
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  return runAction(async () => {
+    await transferStock(await requireAuth(), partId, formValues(formData))
+    revalidatePath('/parts')
+    revalidatePath(`/parts/${partId}`)
+    revalidatePath('/parts/locations')
+  }, 'Stock transferred.')
 }
