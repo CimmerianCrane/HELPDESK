@@ -36,6 +36,7 @@ const NAV: readonly {
   { href: '/schedule', label: 'Schedule', capability: 'job.schedule' },
   { href: '/schedules', label: 'Schedules', capability: 'crane.read' },
   { href: '/certificates', label: 'Certificates', capability: 'certificate.read' },
+  { href: '/admin/compliance', label: 'Compliance', capability: 'compliancerule.manage' },
   { href: '/admin/users', label: 'Users', capability: 'user.manage' },
   { href: '/admin/audit', label: 'Audit', capability: 'audit.read' },
 ]

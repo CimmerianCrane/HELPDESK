@@ -62,6 +62,9 @@ export interface CraneDetail extends CraneSummary {
   hourMeter: number | null
   notes: string | null
   restrictedAt: Date | null
+  /** Set when a change that may require re-registration was detected (slice 14, brief §7.3). */
+  reregistrationRequiredAt: Date | null
+  reregistrationReason: string | null
 }
 
 const craneSelect = {
@@ -180,6 +183,8 @@ export const getCrane = cache(async function getCrane(
       hourMeter: true,
       notes: true,
       restrictedAt: true,
+      reregistrationRequiredAt: true,
+      reregistrationReason: true,
       _count: { select: { jobs: true, reports: true } },
     },
   })
@@ -195,6 +200,8 @@ export const getCrane = cache(async function getCrane(
     hourMeter: toNumber(row.hourMeter),
     notes: row.notes,
     restrictedAt: row.restrictedAt,
+    reregistrationRequiredAt: row.reregistrationRequiredAt,
+    reregistrationReason: row.reregistrationReason,
   }
 })
 
@@ -305,13 +312,14 @@ export async function updateCrane(
     async (tx, log) => {
       const before = await tx.crane.findFirst({
         where: { id: craneId, ...craneReadWhere(context) },
-        select: { ...craneSelect, deletedAt: true },
+        // `ownerEntity` and `siteId` are read for the re-registration prompt below, not the summary.
+        select: { ...craneSelect, deletedAt: true, ownerEntity: true, siteId: true },
       })
       if (!before || before.deletedAt) throw new NotFoundError('No such crane.')
 
       const site = await tx.site.findFirst({
         where: { id: input.siteId, deletedAt: null, customer: customerReadWhere(context) },
-        select: { id: true, customerId: true },
+        select: { id: true, name: true, customerId: true },
       })
       if (!site) throw new NotFoundError('No such site.')
       if (site.customerId !== input.customerId) {
@@ -355,12 +363,99 @@ export async function updateCrane(
         select: craneSelect,
       })
 
+      // Brief §7.3: re-registration is required when the equipment changes owner, the owner's UEN
+      // changes, or a disassembled unit is re-assembled at another location. The first two are this
+      // edit; the third is a site move. Raised here rather than in a cron so it is visible on the
+      // crane the moment somebody saves the change that caused it.
+      const reasons: string[] = []
+      if (before.ownerEntity !== input.ownerEntity) {
+        reasons.push(
+          `Owner of record changed from “${before.ownerEntity ?? 'not recorded'}” to “${input.ownerEntity ?? 'not recorded'}”.`,
+        )
+      }
+      if (before.siteId !== site.id) {
+        reasons.push(`Moved from site “${before.site.name}” to “${site.name}”.`)
+      }
+      if (reasons.length > 0) {
+        await tx.crane.update({
+          where: { id: craneId },
+          data: {
+            reregistrationRequiredAt: new Date(),
+            reregistrationReason: reasons.join(' '),
+          },
+        })
+      }
+
       await log({
         entity: 'Crane',
         entityId: craneId,
         action: 'UPDATE',
         before: { ...toSummary(before) },
-        after: { ...toSummary(after) },
+        after: {
+          ...toSummary(after),
+          ...(reasons.length > 0 ? { reregistrationPrompt: reasons.join(' ') } : {}),
+        },
+      })
+      return after
+    },
+    client,
+  )
+
+  return toSummary(updated)
+}
+
+/**
+ * Records that a change to the crane's owner or the customer's UEN may require re-registration
+ * (brief §7.3). Called from `updateCrane` and from the customer edit that changes a UEN — the UEN
+ * belongs to the customer, but the obligation belongs to every crane registered under it.
+ *
+ * It is a prompt, never a claim: the wording says "may be required", because only the Authorised
+ * Examiner can say for certain.
+ */
+export async function raiseReregistrationPrompt(
+  tx: Tx,
+  craneIds: readonly string[],
+  reason: string,
+): Promise<void> {
+  if (craneIds.length === 0) return
+  await tx.crane.updateMany({
+    where: { id: { in: [...craneIds] }, deletedAt: null },
+    data: { reregistrationRequiredAt: new Date(), reregistrationReason: reason },
+  })
+}
+
+/**
+ * Somebody has checked whether the crane needs re-registering. Clears the prompt and records the
+ * check in the audit log — the prompt is the thing worth keeping visible, not the clearing of it.
+ */
+export async function acknowledgeReregistration(
+  context: AuthContext,
+  craneId: string,
+  client: Tx = db,
+): Promise<CraneSummary> {
+  assertCan(context, 'crane.write')
+
+  const updated = await withAudit(
+    context,
+    async (tx, log) => {
+      const before = await tx.crane.findFirst({
+        where: { id: craneId, ...craneReadWhere(context) },
+        select: { ...craneSelect, reregistrationRequiredAt: true },
+      })
+      if (!before) throw new NotFoundError('No such crane.')
+
+      const after = await tx.crane.update({
+        where: { id: craneId },
+        data: { reregistrationRequiredAt: null, reregistrationReason: null },
+        select: craneSelect,
+      })
+
+      await log({
+        entity: 'Crane',
+        entityId: craneId,
+        action: 'UPDATE',
+        before: { reregistrationRequiredAt: before.reregistrationRequiredAt },
+        after: { reregistrationRequiredAt: null, note: 'Checked for re-registration.' },
       })
       return after
     },

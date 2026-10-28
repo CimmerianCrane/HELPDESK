@@ -99,7 +99,7 @@ function CustomerFields({ value }: { value?: CustomerFormValues }) {
         </label>
         <input id="uen" name="uen" defaultValue={value?.uen ?? ''} className={inputClass} />
         <p className="mt-1 text-xs text-slate-500">
-          A change here will raise a re-registration reminder once the compliance engine is built.
+          Changing this raises a re-registration prompt on every crane filed under the customer.
         </p>
       </div>
 

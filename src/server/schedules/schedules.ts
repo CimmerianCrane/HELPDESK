@@ -1,5 +1,6 @@
-import type { Prisma, ScheduleSource, ScheduleType } from '@prisma/client'
+import type { CraneType, Prisma, ScheduleSource, ScheduleType } from '@prisma/client'
 import { db, type Tx } from '@/lib/db'
+import { isRuleInForce } from '@/lib/validation/compliance'
 import { parseInput } from '@/lib/validation/parse'
 import {
   createScheduleSchema,
@@ -15,6 +16,46 @@ import type { AuthContext } from '@/server/auth/types'
 import { getSettings } from '@/server/settings/settings'
 import { formatDate } from '@/lib/format'
 import { daysUntil, dueBucket, isOverdue, recomputeNextDue, type DueBucket } from './recurrence'
+
+/**
+ * Resolves the compliance rule a schedule is being based on, inside the caller's transaction.
+ *
+ * The rule decides the kind of obligation and the interval, not the form: adopting a rule and then
+ * running the schedule on a different cadence would leave a citation on record that does not
+ * describe the work. `sourceReference` lives on the rule, so it is checked here too — a rule that has
+ * been superseded is refused with the reason, rather than silently recorded as the basis.
+ */
+async function resolveRule(
+  tx: Tx,
+  crane: { id: string; type: CraneType; assetTag: string },
+  ruleId: string,
+) {
+  const rule = await tx.complianceRule.findUnique({
+    where: { id: ruleId },
+    select: {
+      id: true,
+      craneType: true,
+      scheduleType: true,
+      intervalMonths: true,
+      isActive: true,
+      effectiveFrom: true,
+      effectiveTo: true,
+      sourceReference: true,
+    },
+  })
+  if (!rule) throw new NotFoundError('No such compliance rule.')
+  if (rule.craneType !== crane.type) {
+    throw new RuleError(
+      `“${rule.sourceReference}” is written for a different kind of crane than ${crane.assetTag}.`,
+    )
+  }
+  if (!isRuleInForce(rule)) {
+    throw new RuleError(
+      `“${rule.sourceReference}” is not in force today. Base the schedule on the rule that replaced it, or configure it by hand.`,
+    )
+  }
+  return rule
+}
 
 /**
  * Recurring obligations for a crane (brief §8, slice 12).
@@ -37,6 +78,10 @@ export interface ScheduleSummary {
   lastDoneDate: Date | null
   nextDueDate: Date | null
   source: ScheduleSource
+  /** The compliance rule this was adopted from, and the citation it carries (slice 14). */
+  ruleId: string | null
+  ruleReference: string | null
+  requiresAE: boolean
   reminderOffsetsDays: number[]
   autoCreateDraftJob: boolean
   notes: string | null
@@ -58,6 +103,8 @@ const scheduleSelect = {
   lastDoneDate: true,
   nextDueDate: true,
   source: true,
+  ruleId: true,
+  rule: { select: { sourceReference: true, requiresAE: true } },
   reminderOffsetsDays: true,
   autoCreateDraftJob: true,
   notes: true,
@@ -65,6 +112,7 @@ const scheduleSelect = {
     select: {
       id: true,
       assetTag: true,
+      type: true,
       status: true,
       site: { select: { name: true, customer: { select: { legalName: true } } } },
     },
@@ -81,6 +129,9 @@ function toSummary(row: ScheduleRow, now: Date): ScheduleSummary {
     lastDoneDate: row.lastDoneDate,
     nextDueDate: row.nextDueDate,
     source: row.source,
+    ruleId: row.ruleId,
+    ruleReference: row.rule?.sourceReference ?? null,
+    requiresAE: row.rule?.requiresAE ?? false,
     reminderOffsetsDays: row.reminderOffsetsDays,
     autoCreateDraftJob: row.autoCreateDraftJob,
     notes: row.notes,
@@ -250,14 +301,18 @@ export async function createSchedule(
     async (tx, log) => {
       const crane = await tx.crane.findFirst({
         where: { id: input.craneId, ...craneReadWhere(context) },
-        select: { id: true, assetTag: true },
+        select: { id: true, assetTag: true, type: true },
       })
       if (!crane) throw new NotFoundError('No such crane.')
+
+      const rule = input.ruleId ? await resolveRule(tx, crane, input.ruleId) : null
+      const scheduleType = rule?.scheduleType ?? input.scheduleType
+      const intervalMonths = rule ? rule.intervalMonths : input.intervalMonths
 
       // `deletedAt: null` matters: an archived obligation must not block the same kind being raised
       // again later, which is the whole reason archiving is a soft delete.
       const clash = await tx.craneSchedule.findFirst({
-        where: { craneId: crane.id, scheduleType: input.scheduleType, deletedAt: null },
+        where: { craneId: crane.id, scheduleType, deletedAt: null },
         select: { id: true },
       })
       if (clash) {
@@ -267,7 +322,7 @@ export async function createSchedule(
       }
 
       const nextDueDate = recomputeNextDue({
-        intervalMonths: input.intervalMonths,
+        intervalMonths,
         lastDoneDate: input.lastDoneDate,
         nextDueDate: input.nextDueDate,
       })
@@ -275,10 +330,12 @@ export async function createSchedule(
       const row = await tx.craneSchedule.create({
         data: {
           craneId: crane.id,
-          scheduleType: input.scheduleType,
-          intervalMonths: input.intervalMonths,
+          scheduleType,
+          intervalMonths,
           lastDoneDate: input.lastDoneDate,
           nextDueDate,
+          source: rule ? 'RULE' : 'MANUAL',
+          ruleId: rule?.id ?? null,
           reminderOffsetsDays: input.reminderOffsets.length
             ? input.reminderOffsets
             : (await defaultReminderOffsets(tx)),
@@ -315,8 +372,30 @@ export async function updateSchedule(
       })
       if (!before) throw new NotFoundError('No such schedule.')
 
+      // An unchanged rule is not re-resolved: a schedule keeps citing the circular it was raised
+      // against even after that circular is superseded, and ending a rule must not make its schedules
+      // uneditable. A *new* rule is still checked for crane type and being in force.
+      const ruleChanged = input.ruleId !== before.ruleId
+      const rule =
+        ruleChanged && input.ruleId
+          ? await resolveRule(
+              tx,
+              { id: before.crane.id, type: before.crane.type, assetTag: before.crane.assetTag },
+              input.ruleId,
+            )
+          : null
+      const keepsRule = Boolean(input.ruleId) && !ruleChanged
+      const scheduleType = rule?.scheduleType ?? input.scheduleType
+      const intervalMonths = rule ? rule.intervalMonths : input.intervalMonths
+
+      if (scheduleType !== before.scheduleType) {
+        throw new RuleError(
+          'The kind of obligation cannot change once a schedule exists — end this one and add the one that applies instead.',
+        )
+      }
+
       const nextDueDate = recomputeNextDue({
-        intervalMonths: input.intervalMonths,
+        intervalMonths,
         lastDoneDate: input.lastDoneDate,
         nextDueDate: input.nextDueDate,
       })
@@ -324,10 +403,11 @@ export async function updateSchedule(
       const row = await tx.craneSchedule.update({
         where: { id: scheduleId },
         data: {
-          scheduleType: input.scheduleType,
-          intervalMonths: input.intervalMonths,
+          intervalMonths,
           lastDoneDate: input.lastDoneDate,
           nextDueDate,
+          source: rule || keepsRule ? 'RULE' : 'MANUAL',
+          ruleId: input.ruleId,
           reminderOffsetsDays: input.reminderOffsets.length
             ? input.reminderOffsets
             : before.reminderOffsetsDays,
@@ -495,6 +575,8 @@ function auditShape(row: ScheduleRow): Record<string, unknown> {
     intervalMonths: row.intervalMonths,
     lastDoneDate: row.lastDoneDate,
     nextDueDate: row.nextDueDate,
+    source: row.source,
+    rule: row.rule?.sourceReference ?? null,
     reminderOffsetsDays: row.reminderOffsetsDays,
     autoCreateDraftJob: row.autoCreateDraftJob,
     notes: row.notes,

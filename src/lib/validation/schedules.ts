@@ -96,14 +96,25 @@ const scheduleFields = {
   autoCreateDraftJob: z
     .union([z.literal('on'), z.literal('true'), z.literal(''), z.undefined()])
     .transform((value) => value === 'on' || value === 'true'),
+  /**
+   * The compliance rule this obligation is based on (slice 14). The kind of obligation and the
+   * interval then come from the rule, not from the form — a schedule "based on" a rule but running
+   * on a different cadence would be a citation that does not describe the work.
+   */
+  ruleId: z
+    .union([z.literal(''), z.string().trim().max(40)])
+    .optional()
+    .transform((value) => (value ? value : null)),
   notes: optionalText(2000),
 }
 
 /** The interval and a typed date are alternatives; one of the two has to be there. */
 function checkDueBasis(
-  input: { intervalMonths: number | null; nextDueDate: Date | null },
+  input: { intervalMonths: number | null; nextDueDate: Date | null; ruleId: string | null },
   ctx: z.RefinementCtx,
 ) {
+  // A rule supplies the interval, so "one of the two" is already satisfied by it.
+  if (input.ruleId) return
   if (input.intervalMonths && input.nextDueDate) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -119,7 +130,6 @@ function checkDueBasis(
     })
   }
 }
-
 export const createScheduleSchema = z
   .object({
     craneId: z.string().trim().min(1, 'Choose a crane.').max(40),

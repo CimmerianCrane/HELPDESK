@@ -98,7 +98,7 @@ cimmerian-crane/
     app/
       (auth)/login/        # unauthenticated
       (office)/            # desktop-first: dashboard, customers, cranes, tickets, jobs (+ /jobs/export),
-                           # schedule, reports, admin (users, audit log)
+                           # schedule, schedules, certificates, reports, admin (users, compliance rules, audit log)
       (tech)/m/            # mobile-first technician PWA: my jobs, job detail, report form (slice 8)
       offline/             # the /offline fallback: renders the deep-linked job from the Dexie cache
       sw.ts                # Serwist worker source (built to public/sw.js, which is gitignored)
@@ -111,6 +111,9 @@ cimmerian-crane/
       dashboard/           # the office board's morning counts, derived from jobSla
       sla/                 # SLA computation
       schedule/            # crane next-due recomputation
+      schedules/           # a crane's recurring obligations, and rolling them forward on completion
+      compliance/          # ComplianceRule — the rulebook, its adoption check and the admin screen
+      certificates/        # the certificate register and the expiring/overdue queue
       documents/           # numbering, PDF render, email-on-close
       tech/                # the field phone's read layer and its one-call sync bundle
       reports/             # report queue, approval/return/amendment, issued-PDF lookup, email retry

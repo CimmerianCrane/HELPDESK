@@ -15,18 +15,19 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1 is complete, and Phase 2 is under way.** Slices 0–13 are built and verified against the live
-Supabase database; Phase 1's acceptance path still passes untouched. **Phase 2 is sliced in
-`docs/PLAN.md` §7, which is the canonical copy** — §7.1 is what Phase 1 left behind, §7.2 the slice
-table (13 certificates, 14 compliance rules, 15 reminders, 16 findings and follow-up jobs, 17 the
-two remaining templates, 18 delivery orders, 19 quotes, 20 invoicing, 21 accounting export), and
-**slice 14 is the next session's work**. **One slice per session: stop after the slice you were
-asked for; do not begin the next one unless asked.**
+**Phase 1 is complete, and Phase 2 is under way.** Slices 0–14 are built; Phase 1's acceptance path
+still passes untouched. **Phase 2 is sliced in `docs/PLAN.md` §7, which is the canonical copy** —
+§7.1 is what Phase 1 left behind, §7.2 the slice table (13 certificates, 14 compliance rules,
+15 reminders, 16 findings and follow-up jobs, 17 the two remaining templates, 18 delivery orders,
+19 quotes, 20 invoicing, 21 accounting export), and **slice 15 is the next session's work**.
+**One slice per session: stop after the slice you were asked for; do not begin the next one unless
+asked.**
 
-> **Slice 13 is done and verified.** No migration was needed: `Certificate`, its `deletedAt` and
-> `FileKind.CERTIFICATE` already existed. `npm run verify` (252 unit tests), `npm run test:integration`
-> (212 tests), `npm run test:e2e` and `npm run build` all pass, and `tests/e2e/happy-path.spec.ts`
-> passes **unmodified**. Slice 14 is next — see the section near the bottom of this file.
+> **Slice 14 is built; its migration is awaiting approval.** It adds two columns to `Crane`
+> (`reregistrationRequiredAt`, `reregistrationReason`) in `20261028200000_slice14_compliance_rules`.
+> `npm run verify` (261 unit tests) and `npm run build` pass. `npm run test:integration` and
+> `npm run test:e2e` have **not** been run yet, because `npm run db:deploy` against hosted Supabase
+> needs the user's approval first. Slice 15 is next — see the section near the bottom of this file.
 
 | Slice | State |
 |---|---|
@@ -44,7 +45,8 @@ asked for; do not begin the next one unless asked.**
 | 11 E2E happy paths + §13 demo dataset | done |
 | 12 Schedules on the crane page | done |
 | 13 Certificates & compliance dashboard | done |
-| 14–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 14 is next |
+| 14 Compliance rule admin, adoption, re-registration prompts | built — migration pending |
+| 15–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 15 is next |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -92,9 +94,23 @@ compliance queue — expiring in 90/60/30 and already lapsed — with search and
 dashboard's "Certificates expiring" tile now counts the same service and links to the filtered list.
 Uploads use the phone's signed-URL flow with `FileKind.CERTIFICATE` (PDF or image), and only an
 Authorised Examiner's certificate of test and examination is labelled as statutory — our own reports
-stay company inspections on the timeline. **Not yet built:** slices 14–21 (compliance rules, the
-reminder cron, findings, the remaining templates, delivery orders, quotes, invoicing, the accounting
-export) and all of Phases 3–4.
+stay company inspections on the timeline.
+
+**Phase 2, slice 14 — compliance rules.** `/admin/compliance` maintains the rulebook: one row per
+kinds-of-crane × kind-of-obligation with its interval, whether an AE is required, the dates it applies
+between, and the two fields that make it defensible — a required **source reference** and a required
+**reviewed-on** date — under the standing notice copied verbatim from the brief. Rules are never
+deleted: a replacement is entered and the old one given an end date, and a second rule overlapping the
+same pair is refused by naming the one it clashes with. A schedule can be **adopted from a rule** on
+the crane form, which copies the kind and the interval and keeps citing that rule even after it is
+superseded; the rule — not the form — decides both, so a schedule cannot claim a basis it is not
+running on. Changing a crane's owner of record, moving it to another site, or changing a customer's UEN
+raises a **"re-registration may be required"** prompt on the crane, with a one-click "Mark as checked"
+that records the check in the audit log. In force and overlapping are computed from the clock and the
+dates, never stored.
+
+**Not yet built:** slices 15–21 (the reminder cron, findings, the remaining templates, delivery orders,
+quotes, invoicing, the accounting export) and all of Phases 3–4.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
@@ -221,10 +237,26 @@ number but no stored PDF, because the seed runs under `tsx`, which cannot load
 
 ---
 
-## Slice 13 is done — slice 14 is next
+## Slice 14 is built — slice 15 is next
 
 **Read `docs/PLAN.md` §7 first; it is the canonical copy and is not repeated here.** §7.2 is the
-Phase 2 slice table and §7.4 is slice 13 as built; §7.5 is the Phase 3–4 outline.
+Phase 2 slice table, §7.4 is slice 13 as built, §7.5 is slice 14 as built (its six fixed decisions and
+one known limit), and §7.6 is the Phase 3–4 outline.
+
+**What slice 14 delivered.** `src/server/compliance/rules.ts` is the one path for the rulebook — list
+(admin), `rulesForCraneType` (the in-force rules a schedule may adopt), create, update, the overlap
+check that refuses a second rule in force for the same pair and names the one it clashes with, and the
+`adoptedCount` that says how many schedules cite a rule; `isRuleInForce` is a db-free function in
+`src/lib/validation/compliance.ts` so "in force today" has one definition. `/admin/compliance` is the
+admin screen behind `compliancerule.manage`: the standing notice verbatim, the rules with their source
+reference and reviewed-on date, inline editing, and the help text that says how to replace a rule
+(give the old one an end date first). The crane form's **Based on a rule** select adopts a rule —
+kind and interval come from the rule, not the form, and the citation survives that rule being
+superseded. `updateCrane` and the customer UEN change raise a re-registration prompt on the crane,
+shown as an amber banner with "Mark as checked", and audited.
+
+**The gate:** `npm run verify` (261 unit tests, 9 of them new) and `npm run build` pass.
+`npm run test:integration` and `npm run test:e2e` are pending the migration below.
 
 **What slice 13 delivered.** `src/server/certificates/certificates.ts` is the one read/write path for
 the register (list, per-crane, counts, create, update, archive, `certificateDueDate`,
@@ -243,12 +275,10 @@ certificates (rule 3). No migration — the model, `deletedAt` and the file kind
 new in `certificates.test.ts`), `npm run test:e2e` and `npm run build`. `happy-path.spec.ts` passes
 unmodified.
 
-**Slice 14 — ComplianceRule admin.** `docs/PLAN.md` §7.2 row 14: an admin screen maintaining
-`craneType × scheduleType` rules (interval, `requiresAE`, effective dates, **required
-sourceReference and reviewedAt**) carrying the standing notice verbatim, schedules that can adopt a
-rule (`source = RULE`), and the "re-registration may be required" reminder when a crane's owner or the
-customer's UEN changes or it is re-assembled at another site. `compliancerule.manage` already exists
-and is granted; slice 14 consumes it.
+**Slice 15 — reminder engine in the daily cron.** `docs/PLAN.md` §7.2 row 15:
+`/api/cron/daily` evaluates every `CraneSchedule.nextDueDate` at `reminderOffsetsDays`, then overdue,
+notifies the account owner through the existing `notify` fan-out, and honours `autoCreateDraftJobs`;
+at-most-once per (schedule, offset, period) needs an additive migration for the dispatch key.
 
 The gate is unchanged for every slice: `npm run verify` and `npm run verify:full`, then
 `tests/e2e/happy-path.spec.ts` must still pass **untouched**.

@@ -416,6 +416,43 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     `certificateReadWhere` follows `craneReadWhere` — a technician reads certificates on cranes they are
     assigned work at and nobody else's; writing needs `certificate.write`.
 
+92. **`ComplianceRule` needed no schema change; `reviewedAt` is required in Zod, not in the column.**
+    The model already had a NOT NULL `sourceReference` and a nullable `reviewedAt`. The brief requires
+    both fields on a rule, so the form and the service refuse a rule without a review date, and saving
+    records the reviewer in `reviewedById`. The column stays nullable so a rule written by a script or
+    an earlier build is not retro-invalidated. The only migration in slice 14 is the two additive
+    `Crane` prompt columns.
+93. **Two capabilities cover two different jobs.** `compliancerule.manage` (Admin only) reads and writes
+    the whole rulebook, superseded rules included — that screen *is* the configuration. A dispatcher
+    needs only `schedule.manage` on `rulesForCraneType`, which returns the in-force rules for one kind
+    of crane so they can be adopted: they can base an obligation on a rule without being able to
+    invent one. The nav link follows `compliancerule.manage`, so only an Admin sees it — which also
+    keeps `/admin/*`'s `user.manage` layout gate honest.
+94. **Adopting a rule copies its kind and interval, and the form's own values are ignored.** A schedule
+    "based on" a circular but running on a different cadence is a citation that does not describe the
+    work. `createSchedule`/`updateSchedule` resolve the rule, refuse one written for another crane type
+    or not in force today (naming the reference), then write `source = 'RULE'`, `ruleId`, and the
+    rule's `scheduleType`/`intervalMonths`. The kind of obligation is fixed once a schedule exists —
+    changing it is ending one obligation and adding another.
+95. **One rule in force per `craneType × scheduleType`, enforced at write time.** Effective windows are
+    inclusive and may be blank at either end (unbounded). An overlapping live rule is refused with a
+    message telling the office to end the old rule first; superseding is `effectiveTo` or untick *In
+    force*, never two live answers to one question. Deactivating a rule does **not** rewrite the
+    schedules already citing it: their copied interval and `ruleId` are the honest record of what they
+    were based on, and re-pointing them is a deliberate edit.
+96. **The re-registration reminder is a stored prompt on the crane, not a `Notification` row.** There is
+    no in-app notification inbox anywhere in the app (the `Notification` model is written by the
+    notify fan-out and read by email only), so a notification would be invisible where the crane lives.
+    `Crane.reregistrationRequiredAt`/`reregistrationReason` carry the prompt and its cause; the crane
+    page shows it in amber with a Mark-as-checked button, and acknowledging clears it and audits the
+    check. It is raised by `updateCrane` on an owner change or a site move, and fanned out by
+    `updateCustomer` to every live crane when the customer's UEN changes. The wording says "may be
+    required" — only the AE can decide for certain.
+97. **No compliance rules are seeded.** Seeding an interval, an AE requirement or a citation would be
+    inventing a regulatory fact (CLAUDE.md rule 2), and the brief explicitly says not to assume which
+    MOM circular governs. The screen therefore ships with an empty state, and until a rule is added a
+    schedule's interval and AE requirement are typed by hand on the crane as they were in slice 12.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

@@ -1387,7 +1387,7 @@ historical jobs, 2 open P1 tickets, 40 parts with some below reorder level, demo
 
 **Phase 2 is Compliance & recurring work, then the paperwork.** It is sliced below the same way Phase 1 was: one
 vertical slice per session, database → service → API/action → UI → tests, `npm run verify:full` and a commit before the
-summary. **Slices 12 and 13 are built and verified; slice 14 is the next session's work (§7.2).**
+summary. **Slices 12, 13 and 14 are built and verified; slice 15 is the next session's work (§7.2).**
 Do not start a second slice in the same session. Slice 11's e2e path
 (`tests/e2e/happy-path.spec.ts`) is the Phase 1 regression guard: it must still pass, and it must not be edited to make a
 Phase 2 change fit.
@@ -1418,7 +1418,7 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 |---|---|---|---|---|
 | **12** | **Schedules on the crane page** (**built** — finish per §7.3) | The "next due" block on crane detail (type, interval, last done, next due, overdue state, source); create / edit / archive a schedule under `schedule.manage`, audited; a `/office/schedules` list (overdue, then due in 30/60/90) that the dashboard tile links to; **completing a job offers "mark schedule done" for that journey's cranes**, which writes `lastDoneDate` and recomputes `nextDueDate` | `src/server/schedules/` (new), `src/app/(office)/cranes/[id]/page.tsx`, `src/app/(office)/schedules/` (new), `src/app/(office)/dashboard/page.tsx`, `src/server/jobs/status.ts` or the completion action | §8, §12 |
 | **13** | **Certificates & compliance dashboard** (**built** — see §7.4) | Certificate register per crane: type, number, issuer, issue/expiry/next-due, stated SWL, linked job, file upload through the existing storage adapter (`CERTIFICATE`), soft-delete only; `/office/certificates` with **expiring in 90/60/30 and overdue**; the dashboard tile becomes a real count and links to it. Company inspection vs AE statutory certificate kept visually distinct | `src/server/certificates/` (new), `src/app/(office)/certificates/` (new), crane detail section, `src/server/dashboard/dashboard.ts` | §6.6, §7.2 |
-| **14** | **ComplianceRule admin** | Admin screen to maintain rules (`craneType × scheduleType`, interval, `requiresAE`, effective dates, **required `sourceReference` and `reviewedAt`**), carrying `Setting.complianceNotice` verbatim; a schedule can adopt a rule (`source = RULE`, interval copied); "re-registration may be required" reminder when a crane's `ownerEntity`/customer UEN changes or it is re-assembled at another site | `src/app/(office)/admin/compliance/` (new), `src/server/compliance/` (new), `src/server/cranes/cranes.ts` (change detection) | §7 |
+| **14** | **ComplianceRule admin** (**built** — see §7.5) | Admin screen to maintain rules (`craneType × scheduleType`, interval, `requiresAE`, effective dates, **required `sourceReference` and `reviewedAt`**), carrying `Setting.complianceNotice` verbatim; a schedule can adopt a rule (`source = RULE`, interval copied); "re-registration may be required" reminder when a crane's `ownerEntity`/customer UEN changes or it is re-assembled at another site | `src/app/(office)/admin/compliance/` (new), `src/server/compliance/` (new), `src/server/cranes/cranes.ts` (change detection) | §7 |
 | **15** | **Reminder engine in the daily cron** | `/api/cron/daily` evaluates every `CraneSchedule.nextDueDate` at `reminderOffsetsDays` (default 90/60/30) then overdue, notifies the account owner in-app + email via the existing `notify` fan-out, and honours `autoCreateDraftJobs`; at-most-once per (schedule, offset, period) so a re-run sends nothing twice — needs an additive migration for the dispatch key | `src/app/api/cron/daily/route.ts`, `src/server/reminders/` (new), migration | §8 |
 | **16** | **Findings & one-click follow-up jobs** | Finding status flow (open → quoted → scheduled → rectified / declined), open findings on the crane page, **one click creates a follow-up job** pre-filled from the finding (job type, crane, description, priority from severity) linked by `followUpJobId`/`parentJobId`; customer-declined critical repair captured with name, signature and date | `src/server/findings/` (new), report page, crane page, `src/server/jobs/jobs.ts` | §4.2, §6.4 |
 | **17** | **Load test & visual inspection templates built out** | The two templates completed against §6.3 (test load / radii / SWL per radius / instruments / pre- and post-test exam / AE attendance; structure, safety devices, markings, wire rope and hook), with **calibration-expiry validation against `Resource.calibrationDueDate` at the test date — warn, never block** | `src/server/templates/definitions.ts`, `src/lib/templates/schema.ts`, the report form, `prisma/seed.ts` (new versions) | §6.3 |
@@ -1536,7 +1536,59 @@ does not cover the crane).
 `include`. Adding a relation would be a schema change for a lookup this cheap; revisit if certificates
 ever need to be joined through files.
 
-### 7.5 Phase 3 and Phase 4 (outline, not sliced yet)
+### 7.5 Slice 14 — compliance rules, adoption and the re-registration prompt (**built**)
+
+**Goal:** `ComplianceRule` stops being a model with a capability nobody consumes. Rule 2 — intervals,
+AE requirements and legal references are data, editable by Admin, each carrying its source and review
+date — becomes provable in the UI, and a crane's obligations can cite a rule instead of being typed
+free-hand.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 92–97):
+
+1. **`ComplianceRule` itself needed no schema change.** `sourceReference` was already `String`
+   (required at the database level) and `reviewedAt` already existed. The brief's "required
+   `reviewedAt`" is enforced in Zod, where the form lives, so the column stays nullable and a rule
+   written by an earlier slice or by a script is not retro-invalidated. The only migration adds the
+   two `Crane` prompt columns.
+2. **Two capabilities, deliberately different.** `compliancerule.manage` (Admin only) reads and
+   writes the rulebook — that is the configuration itself. A dispatcher configuring a crane only
+   needs `schedule.manage` on `rulesForCraneType`, which returns the in-force rules for one crane
+   type so they can be adopted. The nav link follows `compliancerule.manage`, which also keeps the
+   `/admin/*` layout's `user.manage` gate honest: only an Admin ever reaches the page.
+3. **Adopting a rule copies its kind and interval.** `createSchedule`/`updateSchedule` resolve the
+   rule, verify its `craneType` matches the crane and that `isRuleInForce` says yes today, then write
+   `source = 'RULE'`, `ruleId`, and the rule's `scheduleType`/`intervalMonths`. The form's own values
+   are ignored when a rule is chosen — a citation that does not describe the cadence is worse than
+   none. The kind of obligation cannot change on an existing schedule at all.
+4. **One rule in force per `craneType × scheduleType`.** `assertNoOverlap` refuses a new or edited
+   rule whose effective window overlaps a live one, with the message telling the office to end the
+   old rule first. Two live rules would leave `CraneSchedule.ruleId` recording whichever was adopted
+   first.
+5. **The re-registration reminder is a stored prompt on the crane**, not a `Notification` row: there
+   is no in-app notification inbox anywhere in the app, so a notification would be invisible. Owner
+   change and site move are detected in `updateCrane`; a customer UEN change fans out to every live
+   crane under that customer through `raiseReregistrationPrompt`. `acknowledgeReregistration` clears
+   it and audits the check. The wording says "may be required" — only the AE can say for certain.
+6. **No seeded rules.** Seeding an interval would be inventing a regulatory fact (CLAUDE.md rule 2),
+   so the screen ships with an empty state that says what adopting a rule does.
+
+**As built.** `src/server/compliance/rules.ts` (`listComplianceRules`, `rulesForCraneType`,
+`createComplianceRule`, `updateComplianceRule`, batched `adoptedCounts`, `findOverlap`);
+`src/lib/validation/compliance.ts` (schemas plus the pure `isRuleInForce`);
+`/admin/compliance` with the notice verbatim, the rule table (state, dates, adopted count, inline
+edit) and an add form; `src/components/office/compliance-forms.tsx`; the rule select on the crane's
+schedule forms; `ScheduleSummary.ruleId`/`ruleReference`/`requiresAE` and the citation on the crane
+page; the amber re-registration banner and its acknowledge button; `reregistrationRequiredAt`/
+`reregistrationReason` on `Crane` (migration `20261028200000`); `ComplianceRule` in the audit
+viewer's entity list, links and labels. New coverage: `tests/unit/compliance.test.ts` (9) and
+`tests/integration/compliance.test.ts` (9).
+
+**Known limit:** ending a rule does not rewrite the schedules already citing it. A schedule keeps its
+copied interval and its `ruleId`, which is the honest record of what it was based on; the rule simply
+stops being offered for new adoptions. Re-pointing existing schedules is a deliberate edit, not a
+cascade.
+
+### 7.6 Phase 3 and Phase 4 (outline, not sliced yet)
 
 **Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;
 stock movements linked to jobs and DOs; serial/batch traceability; reorder alerts grouped by supplier; purchase orders

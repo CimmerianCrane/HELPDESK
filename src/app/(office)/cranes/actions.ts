@@ -6,6 +6,7 @@ import { formValuesNested } from '@/lib/validation/parse'
 import { runAction, type FormState } from '@/server/action-result'
 import { requireAuth } from '@/server/auth/context'
 import {
+  acknowledgeReregistration,
   archiveCrane,
   createCrane,
   restrictCrane,
@@ -71,6 +72,20 @@ export async function unrestrictCraneAction(
     revalidatePath('/cranes')
     revalidatePath(`/cranes/${craneId}`)
   }, 'Restriction cleared. The crane is back in service.')
+}
+
+export async function acknowledgeReregistrationAction(
+  craneId: string,
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  void formData
+
+  return runAction(async () => {
+    await acknowledgeReregistration(await requireAuth(), craneId)
+    revalidatePath(`/cranes/${craneId}`)
+    revalidatePath('/cranes')
+  }, 'Recorded. The check is in the audit log.')
 }
 
 export async function archiveCraneAction(

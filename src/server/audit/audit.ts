@@ -190,6 +190,7 @@ export const AUDIT_ENTITIES = [
   'Site',
   'Crane',
   'CraneSchedule',
+  'ComplianceRule',
   'Ticket',
   'Job',
   'Report',
@@ -214,6 +215,8 @@ export interface AuditEntityLabel {
 const ENTITY_HREFS: Record<string, (id: string) => string> = {
   // Schedules have no page of their own; the crane is where they live and where they are read.
   CraneSchedule: () => '/schedules',
+  // Rules have one screen; it lists them all, so the id need not appear in the link.
+  ComplianceRule: () => '/admin/compliance',
   Job: (id) => `/jobs/${id}`,
   Crane: (id) => `/cranes/${id}`,
   Customer: (id) => `/customers/${id}`,
@@ -226,7 +229,7 @@ const ENTITY_HREFS: Record<string, (id: string) => string> = {
 /**
  * Human labels for the rows an audit entry points at — `Crane 01J…` is not a useful viewer cell, and
  * an id is what an office user will read as "nothing". One query per entity type present, not one per
- * row, so a 100-row page costs at most seven lookups.
+ * row, so an 100-row page costs at most one lookup per entity type.
  */
 export async function auditEntityLabels(
   context: AuthContext,
@@ -240,7 +243,7 @@ export async function auditEntityLabels(
   ]
   const present = (entity: string) => rows.some((row) => row.entity === entity)
 
-  const [jobs, cranes, customers, sites, tickets, reports, users] = await Promise.all([
+  const [jobs, cranes, customers, sites, tickets, reports, users, rules] = await Promise.all([
     present('Job')
       ? client.job.findMany({ where: { id: { in: idsFor('Job') } }, select: { id: true, number: true } })
       : [],
@@ -277,6 +280,12 @@ export async function auditEntityLabels(
           select: { id: true, name: true },
         })
       : [],
+    present('ComplianceRule')
+      ? client.complianceRule.findMany({
+          where: { id: { in: idsFor('ComplianceRule') } },
+          select: { id: true, sourceReference: true },
+        })
+      : [],
   ])
 
   const labels = new Map<string, AuditEntityLabel>()
@@ -296,6 +305,7 @@ export async function auditEntityLabels(
   // An unissued report has no number yet; its job is the only useful handle it has.
   for (const row of reports) put('Report', row.id, row.documentNumber ?? 'Draft report')
   for (const row of users) put('User', row.id, row.name)
+  for (const row of rules) put('ComplianceRule', row.id, row.sourceReference)
 
   return labels
 }

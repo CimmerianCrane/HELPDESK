@@ -23,6 +23,10 @@ export interface ScheduleFormValues {
   nextDueDate: Date | null
   reminderOffsetsDays: number[]
   autoCreateDraftJob: boolean
+  ruleId: string | null
+  /** The citation and AE flag as stored, so a rule that has since been superseded is still shown. */
+  ruleReference: string | null
+  requiresAE: boolean
   notes: string | null
 }
 
@@ -30,6 +34,15 @@ export interface CraneOption {
   id: string
   assetTag: string
   siteName: string
+}
+
+/** One rule in force for this kind of crane, offered as the basis for a new obligation. */
+export interface RuleOption {
+  id: string
+  scheduleType: string
+  intervalMonths: number | null
+  requiresAE: boolean
+  sourceReference: string
 }
 
 /** `YYYY-MM-DD` for a date input; the stored value is already UTC midnight on the day it means. */
@@ -41,11 +54,13 @@ function ScheduleFields({
   value,
   crane,
   cranes,
+  rules,
   idPrefix,
 }: {
   value?: ScheduleFormValues
   crane?: CraneOption
   cranes?: CraneOption[]
+  rules?: RuleOption[]
   idPrefix: string
 }) {
   const id = (name: string) => `${idPrefix}-${name}`
@@ -70,6 +85,48 @@ function ScheduleFields({
         <p className="text-sm text-slate-600 sm:col-span-2">
           Obligation for <span className="font-medium text-slate-900">{crane.assetTag}</span>.
         </p>
+      ) : null}
+
+      {/* Shown even with no rules in force when the schedule already cites one, so the citation
+          stays visible and submitted instead of being dropped by a hidden field. */}
+      {rules && (rules.length > 0 || value?.ruleId) ? (
+        <div className="sm:col-span-2">
+          <label htmlFor={id('ruleId')} className={labelClass}>
+            Based on a rule
+          </label>
+          <select
+            id={id('ruleId')}
+            name="ruleId"
+            defaultValue={value?.ruleId ?? ''}
+            className={inputClass}
+          >
+            <option value="">Not from a rule — set the kind and interval myself</option>
+            {rules.map((rule) => (
+              <option key={rule.id} value={rule.id}>
+                {SCHEDULE_TYPE_LABELS[rule.scheduleType as keyof typeof SCHEDULE_TYPE_LABELS] ??
+                  rule.scheduleType}
+                {rule.intervalMonths ? ` · every ${rule.intervalMonths} mo` : ''}
+                {rule.requiresAE ? ' · AE' : ''} · {rule.sourceReference}
+              </option>
+            ))}
+            {/* A schedule citing a rule that has since been ended keeps its citation. Without this
+                option the browser would select the first one and saving would quietly drop it. */}
+            {value?.ruleId && !rules.some((rule) => rule.id === value.ruleId) ? (
+              <option value={value.ruleId}>
+                {SCHEDULE_TYPE_LABELS[
+                  value.scheduleType as keyof typeof SCHEDULE_TYPE_LABELS
+                ] ?? value.scheduleType}
+                {value.intervalMonths ? ` · every ${value.intervalMonths} mo` : ''}
+                {value.requiresAE ? ' · AE' : ''} · {value.ruleReference ?? 'the rule this is based on'}{' '}
+                (no longer offered)
+              </option>
+            ) : null}
+          </select>
+          <p className="mt-1 text-xs text-slate-500">
+            Adopting a rule copies its kind and interval, and records the reference on this schedule.
+            The rule itself is maintained under Compliance.
+          </p>
+        </div>
       ) : null}
 
       <div>
@@ -187,6 +244,7 @@ export function ScheduleForm({
   value,
   crane,
   cranes,
+  rules,
   submitLabel,
   idPrefix,
 }: {
@@ -194,6 +252,7 @@ export function ScheduleForm({
   value?: ScheduleFormValues
   crane?: CraneOption
   cranes?: CraneOption[]
+  rules?: RuleOption[]
   submitLabel: string
   idPrefix: string
 }) {
@@ -201,7 +260,13 @@ export function ScheduleForm({
 
   return (
     <form action={formAction} className="space-y-5">
-      <ScheduleFields value={value} crane={crane} cranes={cranes} idPrefix={idPrefix} />
+      <ScheduleFields
+        value={value}
+        crane={crane}
+        cranes={cranes}
+        rules={rules}
+        idPrefix={idPrefix}
+      />
       <FormMessage state={state} />
       {/* A rule that spans two fields (interval versus a typed date) is reported against the form. */}
       <FieldError state={state} name="_form" />

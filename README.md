@@ -174,6 +174,28 @@ development and keeping Supabase for deployment; the app does not care which one
 
 ## What works today
 
+### Slice 14 — compliance rules, adoption and re-registration prompts
+
+- **`/admin/compliance`, the rulebook.** Every rule with its kind of crane, obligation, interval,
+  whether an AE is required, its effective window, the source it came from, the date it was last
+  reviewed and how many live schedules use it. Admins add and edit rules under
+  `compliancerule.manage`; the standing notice — *Rules are configured by your team. Verify against
+  current MOM requirements with your Authorised Examiner.* — is shown verbatim from
+  `Setting.complianceNotice`.
+- **Source and review date are required.** A rule cannot be saved without both, so a question about a
+  crane can be answered with the circular it came from. Saving records who reviewed it.
+- **A schedule can adopt a rule.** The crane's schedule form offers the rules in force for that kind of
+  crane; choosing one copies its obligation and interval and records the citation on the schedule
+  (`source = RULE`). The crane page shows "from '<reference>'" beside the obligation.
+- **One rule at a time per crane type and obligation.** A second rule whose effective window overlaps
+  a live one is refused — give the old rule an end date before adding its replacement.
+- **"Re-registration may be required".** Changing a crane's owner of record or moving it to another
+  site, or changing the customer's UEN, raises an amber prompt on the crane saying what changed and
+  when. Anyone with `crane.write` can mark it as checked; the check goes into the audit log.
+- **Try it:** as an Admin, open `/admin/compliance` and add a rule for an overhead crane and an annual
+  examination, then open a crane of that type, add a schedule, and pick the rule — the interval comes
+  from the rule. Edit the crane's owner and watch the prompt appear.
+
 ### Slice 13 — the certificate register and the compliance queue
 
 - **Every crane's paper, on its page.** Kind, certificate number, issuer, issue date, expiry, next due,

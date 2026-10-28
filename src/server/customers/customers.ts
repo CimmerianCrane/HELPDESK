@@ -15,6 +15,7 @@ import { NotFoundError, RuleError } from '@/server/auth/errors'
 import { assertCan } from '@/server/auth/permissions'
 import { customerReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
+import { raiseReregistrationPrompt } from '@/server/cranes/cranes'
 
 /**
  * Customers and their contacts (brief §12.3). Every function takes the caller's context first and
@@ -345,6 +346,21 @@ export async function updateCustomer(
           billingAddress: input.address as Prisma.InputJsonValue,
         },
       })
+
+      // Brief §7.3: a change to the owner's UEN means the equipment registered under it may have to
+      // be re-registered. The UEN is the customer's; the obligation is on every crane filed under
+      // them, so the prompt is raised on those cranes rather than buried in the customer record.
+      if (before.uen !== input.uen) {
+        const cranes = await tx.crane.findMany({
+          where: { customerId, deletedAt: null },
+          select: { id: true },
+        })
+        await raiseReregistrationPrompt(
+          tx,
+          cranes.map((crane) => crane.id),
+          `Customer UEN changed from “${before.uen ?? 'not recorded'}” to “${input.uen ?? 'not recorded'}”.`,
+        )
+      }
 
       const after = await tx.customer.findUniqueOrThrow({
         where: { id: customerId },

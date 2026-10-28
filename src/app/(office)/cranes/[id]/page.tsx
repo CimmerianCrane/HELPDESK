@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
+  AcknowledgeReregistrationButton,
   ArchiveCraneButton,
   CraneForm,
   RestrictCraneButton,
@@ -34,8 +35,10 @@ import {
   CRANE_TYPE_LABELS,
 } from '@/lib/cranes/labels'
 import { getSettings } from '@/server/settings/settings'
+import { rulesForCraneType } from '@/server/compliance/rules'
 import { listSites } from '@/server/sites/sites'
 import {
+  acknowledgeReregistrationAction,
   archiveCraneAction,
   restrictCraneAction,
   unrestrictCraneAction,
@@ -81,7 +84,7 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
     throw error
   }
 
-  const [sites, settings, timeline, trail, schedules, certificates] = await Promise.all([
+  const [sites, settings, timeline, trail, schedules, certificates, rules] = await Promise.all([
     listSites(context, { customerId: crane.site.customerId }),
     getSettings(),
     craneReportTimeline(context, crane.id),
@@ -91,6 +94,11 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
     schedulesForCrane(context, crane.id),
     can(context.role, 'certificate.read')
       ? certificatesForCrane(context, crane.id)
+      : Promise.resolve([]),
+    // The rules a schedule can be based on. Only the ones in force for this kind of crane, and only
+    // for someone who can write a schedule — everyone else has no form to put them in.
+    can(context.role, 'schedule.manage')
+      ? rulesForCraneType(context, crane.type)
       : Promise.resolve([]),
   ])
 
@@ -150,6 +158,25 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
           <p className="mt-2 text-xs text-red-800">
             Restricted {formatDate(crane.restrictedAt, settings.timezone)}.
           </p>
+        </div>
+      ) : null}
+
+      {crane.reregistrationRequiredAt ? (
+        <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4">
+          <h2 className="font-semibold text-amber-900">Re-registration may be required</h2>
+          <p className="mt-1 text-sm text-amber-900">{crane.reregistrationReason}</p>
+          <p className="mt-2 text-xs text-amber-800">
+            Flagged {formatDate(crane.reregistrationRequiredAt, settings.timezone)}. Whether the unit
+            must be re-registered is the Authorised Examiner&rsquo;s call — this is a prompt, not a
+            finding.
+          </p>
+          {mayWrite ? (
+            <div className="mt-3">
+              <AcknowledgeReregistrationButton
+                action={acknowledgeReregistrationAction.bind(null, crane.id)}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -247,7 +274,7 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
                       {SCHEDULE_TYPE_LABELS[schedule.scheduleType]}
                       <span className="ml-2 text-xs font-normal text-slate-500">
                         {schedule.intervalMonths ? `every ${schedule.intervalMonths} mo` : 'one-off'}
-                        {schedule.source === 'RULE' ? ' · from a rule' : ''}
+                        {schedule.ruleReference ? ` · from “${schedule.ruleReference}”` : ''}
                       </span>
                     </p>
                     <p className="text-xs text-slate-500">
@@ -283,6 +310,7 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
                         <ScheduleForm
                           action={updateScheduleAction.bind(null, schedule.id)}
                           value={schedule}
+                          rules={rules}
                           submitLabel="Save schedule"
                           idPrefix={`schedule-${schedule.id}`}
                         />
@@ -308,6 +336,7 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
             <ScheduleForm
               action={createScheduleAction}
               crane={{ id: crane.id, assetTag: crane.assetTag, siteName: crane.site.name }}
+              rules={rules}
               submitLabel="Add schedule"
               idPrefix="crane-schedule"
             />

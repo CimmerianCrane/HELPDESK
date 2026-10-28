@@ -315,6 +315,23 @@ export function UnrestrictCraneButton({ action }: { action: ServerAction }) {
   )
 }
 
+export function AcknowledgeReregistrationButton({ action }: { action: ServerAction }) {
+  const [state, formAction, pending] = useActionState<FormState, FormData>(action, IDLE_FORM)
+
+  return (
+    <form action={formAction} className="space-y-2">
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded-md border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-60"
+      >
+        {pending ? 'Recording…' : 'Mark as checked'}
+      </button>
+      <FormMessage state={state} />
+    </form>
+  )
+}
+
 export function ArchiveCraneButton({
   action,
   assetTag,
