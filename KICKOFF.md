@@ -23,11 +23,11 @@ still passes untouched. **Phase 2 is sliced in `docs/PLAN.md` §7, which is the 
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
 
-> **Slice 14 is built; its migration is awaiting approval.** It adds two columns to `Crane`
-> (`reregistrationRequiredAt`, `reregistrationReason`) in `20261028200000_slice14_compliance_rules`.
-> `npm run verify` (261 unit tests) and `npm run build` pass. `npm run test:integration` and
-> `npm run test:e2e` have **not** been run yet, because `npm run db:deploy` against hosted Supabase
-> needs the user's approval first. Slice 15 is next — see the section near the bottom of this file.
+> **Slice 14 is done and verified.** Migration `20261028200000_slice14_compliance_rules` (two nullable
+> `Crane` columns) is applied to hosted Supabase. `npm run verify` (261 unit tests),
+> `npm run test:integration` (221 tests), `npm run test:e2e` (35 passed, 2 skipped — the offline-only
+> phone checks that need `npm start`) and `npm run build` all pass, and `tests/e2e/happy-path.spec.ts`
+> passes **unmodified**. Slice 15 is next — see the section near the bottom of this file.
 
 | Slice | State |
 |---|---|
@@ -45,7 +45,7 @@ asked.**
 | 11 E2E happy paths + §13 demo dataset | done |
 | 12 Schedules on the crane page | done |
 | 13 Certificates & compliance dashboard | done |
-| 14 Compliance rule admin, adoption, re-registration prompts | built — migration pending |
+| 14 Compliance rule admin, adoption, re-registration prompts | done |
 | 15–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 15 is next |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
@@ -255,8 +255,9 @@ kind and interval come from the rule, not the form, and the citation survives th
 superseded. `updateCrane` and the customer UEN change raise a re-registration prompt on the crane,
 shown as an amber banner with "Mark as checked", and audited.
 
-**The gate:** `npm run verify` (261 unit tests, 9 of them new) and `npm run build` pass.
-`npm run test:integration` and `npm run test:e2e` are pending the migration below.
+**The gate it passed:** `npm run verify` (261 unit tests, 9 new), `npm run test:integration` (221
+tests, 9 new in `tests/integration/compliance.test.ts`), `npm run test:e2e` (35 passed, 2 skipped as
+offline-only) and `npm run build`. `happy-path.spec.ts` passes unmodified.
 
 **What slice 13 delivered.** `src/server/certificates/certificates.ts` is the one read/write path for
 the register (list, per-crane, counts, create, update, archive, `certificateDueDate`,
