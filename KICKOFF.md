@@ -15,20 +15,27 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1 and Phase 2 are complete.** Slices 0–21 are built; Phase 1's acceptance path still passes
-untouched. **Phase 2 is described in `docs/PLAN.md` §7, which is the canonical copy** — §7.2 is the
-slice table, §7.3–§7.12 each built slice's fixed decisions as built, §7.13 the Phase 3–4 outline.
-**Phase 3 (Inventory) has not been sliced yet, and that is the next session's work — ask before
-writing the first slice of it.**
+**Phases 1 and 2 are complete, and Phase 3 (Inventory) is under way.** Slices 0–22 are built; Phase 1's
+acceptance path still passes untouched. **`docs/PLAN.md` §7 is the canonical copy** — §7.2 is the
+Phase 2 slice table, §7.3–§7.12 each Phase 2 slice's fixed decisions as built, and **§7.13 is the
+Phase 3 slice table plus slice 22 as built**; §7.14 outlines Phase 4.
+**The Phase 3 slices are 22 → 28 (parts book → back-orders); slice 23 is next — read §7.13, then ask
+before starting the next slice.**
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
 
-> **Slice 21 is done and verified.** No migration was needed. `npm run verify` (348 unit tests),
-> `npm run test:integration` (281), `npm run test:e2e` (36 passed, 2 offline-only skipped) and
-> `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes **unmodified**. Phase 2's
-> acceptance path is `tests/e2e/phase2.spec.ts`. The spec found two real bugs (the crane page's "Add a
-> schedule" and "Add a certificate" forms never posted `craneId`); both are fixed — see
-> `docs/PLAN.md` §7.12.
+> **Slice 22 is done and verified.** No migration was needed. `npm run verify` (363 unit tests),
+> `npm run test:integration` (291), `npm run test:e2e` (36 passed, 2 offline-only skipped) and
+> `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes **unmodified**.
+
+> **Slice 22 — the parts book and the stock ledger.** `/parts` is the catalogue — search by number,
+> description or crane model, filter by brand, and a "below reorder" filter whose count is the number
+> the store acts on; `/parts/[id]` shows on-hand, the stock in each location, the part's last twenty
+> movements and the store's receipt / return / count form. **The slice's real work is underneath it:**
+> `postMovement` in `src/server/inventory/stock.ts` is now the only function that writes a
+> `StockMovement` *and* the `StockLevel` it moves, and the report path was re-pointed at it — until
+> this slice the seed was the only code that ever moved an on-hand level, so every part issued on a
+> report changed the ledger and not the shelf.
 
 | Slice | State |
 |---|---|
@@ -54,6 +61,8 @@ asked.**
 | 19 Quotes & variations | done |
 | 20 Invoicing, GST & payments | done |
 | 21 Accounting export & Phase 2 acceptance | done |
+| 22 Parts book & stock ledger | done |
+| 23 Locations & transfers | next |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -157,7 +166,9 @@ filters applied to the file. `AccountingExporter` is the seam a Xero/QuickBooks 
 `tests/e2e/phase2.spec.ts` walks the whole of Phase 2 in one browser run, starting with a compliance rule
 added on `/admin/compliance`, adopted on a crane, and ending with the invoice exported.
 
-**Not yet built:** all of Phases 3–4 (inventory, then the customer portal and reporting).
+**Not yet built:** the rest of Phase 3 (slices 23–28: locations and transfers, serial traceability, reorder
+alerts and purchase orders, stock take, suppliers, back-orders) and all of Phase 4 (the customer portal and
+reporting). The Phase 3 slice table is `docs/PLAN.md` §7.13.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
@@ -525,8 +536,9 @@ submission from a crane page failed validation. Each now posts a hidden `craneId
 
 **Before continuing:** `npx prisma migrate status` should report nothing pending — this slice added none.
 
-**Phase 2 is complete.** The next session starts Phase 3 (inventory), whose first slice is not yet written into
-`docs/PLAN.md` §7.13. Write that slice before building it.
+**Phase 2 is complete; Phase 3 has started.** Slice 22 (the parts book and the stock ledger) is built and written
+up in `docs/PLAN.md` §7.13, which also carries the rest of the Phase 3 slice table (23–28). Slice 23 — locations
+and transfers — is next.
 
 The gate is unchanged for every slice: `npm run verify` and `npm run verify:full`, then
 `tests/e2e/happy-path.spec.ts` must still pass **untouched**.

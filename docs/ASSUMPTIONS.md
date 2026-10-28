@@ -632,6 +632,28 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     invoice book's own `q`/`status` filters. `AccountingExporter` is the seam: the Xero/QuickBooks push renders
     the same `InvoiceExportRow`/`PaymentExportRow` shapes rather than adding a second export path.
 
+135. **One function writes stock, and it writes the movement and the level together.** `postMovement` in
+    `src/server/inventory/stock.ts` is the only writer of `StockMovement` and `StockLevel`, because a movement
+    whose level the app does not apply is a ledger nobody can trust — which is what the app had until slice 22,
+    when the seed was the only path that wrote a level. Item 58 recorded issuing "with no source location" as a
+    temporary state; it ends here.
+136. **Stock is allowed to go negative.** A signed field report is never refused because the shelf count is one
+    short; the level goes negative and both parts screens say "more issued than received" in red. The
+    alternative — refusing the report — loses field data to a stock error, which CLAUDE.md rule 11 forbids.
+137. **A stock adjustment carries the counted quantity, not a difference.** The person counting says what is on
+    the shelf. An upward difference posts as `ADJUST`; a downward one as `WRITEOFF`, since `WRITEOFF` already
+    means stock left without a sale and a two-directional `ADJUST` would need a second sign convention.
+138. **The store screen posts `RECEIVE`, `RETURN` and `ADJUST` only.** `ISSUE` is written where the part was
+    consumed (the report) and `TRANSFER` needs a second location to be meaningful — slices 23 and 26.
+139. **On-hand is computed, never stored** — the sum of `StockLevel` rows read with the part — for the same
+    reason overdue dates and quote expiry are derived: a stored total is a second truth that drifts.
+140. **The catalogue is not tenant data, so it has no row filter.** Every role holding `part.read` sees the same
+    book; the capability is the whole check, and the split that matters is read vs write. Finance was given
+    `part.read` to value what it holds and nothing more.
+141. **A part number is unique and survives archiving.** The column is unique, so an archived part still holds
+    its number; the form says so and asks for it to be restored rather than letting a unique violation reach the
+    screen as an unreadable error. There is no restore action yet — archiving a part is not built either.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

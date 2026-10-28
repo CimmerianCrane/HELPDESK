@@ -9,6 +9,7 @@ import { ForbiddenError, NotFoundError, RuleError, ValidationError } from '@/ser
 import { assertCan, can } from '@/server/auth/permissions'
 import { jobReadWhere, reportReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
+import { issuePartForReport } from '@/server/inventory/parts'
 
 /**
  * Submitting a report from the phone (slice 8).
@@ -264,23 +265,18 @@ export async function applyReport(
   }
 
   // Parts issued on a job are StockMovements — never a JSON list that stock could drift from
-  // (CLAUDE.md rule 10). Shortcut: no source location yet; Phase 3 adds van bins and reconciles
-  // StockLevel from these movements.
+  // (CLAUDE.md rule 10). Since slice 22 they go through `postMovement`, which is the only writer of
+  // the ledger and the on-hand level, so issuing from the field now decrements the shelf too.
   for (const used of input.parts) {
     const part = partByNumber.get(used.partNumber)!
-    const movement = await tx.stockMovement.create({
-      data: {
-        partId: part.id,
-        quantity: used.quantity,
-        type: 'ISSUE',
-        unitCost: part.cost,
-        serialOrBatch: used.serialOrBatch,
-        jobId: input.jobId,
-        reportId: report.id,
-        movedById: context.userId,
-      },
+    await issuePartForReport(tx, log, context, {
+      partId: part.id,
+      quantity: used.quantity,
+      unitCost: Number(part.cost),
+      serialOrBatch: used.serialOrBatch,
+      jobId: input.jobId,
+      reportId: report.id,
     })
-    await log({ entity: 'StockMovement', entityId: movement.id, action: 'CREATE', after: movement })
   }
 
   return { reportId: report.id, status: 'SUBMITTED', submittedAt: submittedAt.toISOString() }

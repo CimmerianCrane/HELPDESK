@@ -1,0 +1,226 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { PartForm, StockEntryForm } from '@/components/office/part-forms'
+import { cardClass } from '@/components/office/ui'
+import { formatDateTime, formatMoney } from '@/lib/format'
+import { MOVEMENT_TYPE_LABELS } from '@/lib/validation/parts'
+import { requireAuth } from '@/server/auth/context'
+import { can } from '@/server/auth/permissions'
+import { getPart } from '@/server/inventory/parts'
+import { getSettings } from '@/server/settings/settings'
+import { isAppError } from '@/server/auth/errors'
+import type { MovementType } from '@prisma/client'
+import { postStockAction, updatePartAction } from '../actions'
+
+export const metadata: Metadata = { title: 'Part — Cimmerian Crane Services' }
+export const dynamic = 'force-dynamic'
+
+/**
+ * One part: where the stock is, where it went, and the two forms that change either (slice 22).
+ *
+ * The movement list is the part's own history — the thing a storekeeper reads when the shelf and the
+ * figure disagree — so it shows the job that took it and the serial when there is one.
+ */
+export default async function PartPage({ params }: { params: Promise<{ id: string }> }) {
+  const context = await requireAuth()
+  const { id } = await params
+
+  const [part, settings] = await Promise.all([
+    getPart(context, id).catch((error: unknown) => {
+      if (isAppError(error) && error.status === 404) notFound()
+      throw error
+    }),
+    getSettings(),
+  ])
+
+  const mayWrite = can(context.role, 'part.write')
+  const mayMove = can(context.role, 'stock.move')
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <Link href="/parts" className="text-sm text-slate-600 underline hover:text-slate-900">
+          ← Parts
+        </Link>
+        <h1 className="mt-2 font-mono text-2xl font-semibold text-slate-900">{part.partNumber}</h1>
+        <p className="mt-1 text-slate-600">{part.description}</p>
+        <p className="mt-1 text-sm text-slate-500">
+          {part.brand ?? 'No brand'}
+          {part.compatibleModels.length > 0
+            ? ` · fits ${part.compatibleModels.join(', ')}`
+            : ''}
+          {part.trackSerialOrBatch ? ' · traced by serial or batch' : ''}
+        </p>
+      </div>
+
+      <section className={`${cardClass} grid gap-6 sm:grid-cols-4`} aria-label="Stock summary">
+        <div>
+          <p className="text-xs tracking-wide text-slate-500 uppercase">On hand</p>
+          <p
+            className={
+              part.onHand < 0
+                ? 'mt-1 text-2xl font-semibold text-red-700'
+                : part.belowReorder
+                  ? 'mt-1 text-2xl font-semibold text-amber-800'
+                  : 'mt-1 text-2xl font-semibold text-slate-900'
+            }
+          >
+            {part.onHand}{' '}
+            <span className="text-base font-normal text-slate-500">{part.uom}</span>
+          </p>
+          {part.belowReorder ? (
+            <p className="mt-1 text-xs text-amber-800">
+              {part.reorderLevel === null
+                ? 'Below reorder level'
+                : `Below the reorder level of ${part.reorderLevel} ${part.uom}`}
+            </p>
+          ) : null}
+        </div>
+        <div>
+          <p className="text-xs tracking-wide text-slate-500 uppercase">Reorder at</p>
+          <p className="mt-1 text-lg text-slate-900">
+            {part.reorderLevel === null ? '—' : `${part.reorderLevel} ${part.uom}`}
+          </p>
+          {part.reorderQty !== null ? (
+            <p className="mt-1 text-xs text-slate-500">
+              Order {part.reorderQty} {part.uom} at a time
+            </p>
+          ) : null}
+        </div>
+        <div>
+          <p className="text-xs tracking-wide text-slate-500 uppercase">Cost</p>
+          <p className="mt-1 text-lg text-slate-900">{formatMoney(part.cost, settings.currency)}</p>
+        </div>
+        <div>
+          <p className="text-xs tracking-wide text-slate-500 uppercase">Sell</p>
+          <p className="mt-1 text-lg text-slate-900">{formatMoney(part.sellPrice, settings.currency)}</p>
+        </div>
+      </section>
+
+      <section aria-labelledby="levels-heading">
+        <h2 id="levels-heading" className="font-semibold text-slate-900">
+          Where it is
+        </h2>
+        {part.levels.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-500">
+            No stock has been received at any location yet.
+          </p>
+        ) : (
+          <ul className="mt-3 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white text-sm">
+            {part.levels.map((level) => (
+              <li key={level.locationId} className="flex items-baseline justify-between px-4 py-3">
+                <span className="text-slate-900">
+                  {level.locationName}
+                  <span className="ml-2 text-xs text-slate-500">
+                    {level.locationType === 'WAREHOUSE'
+                      ? 'Warehouse'
+                      : level.locationType === 'VAN'
+                        ? 'Van'
+                        : level.locationType === 'CUSTOMER_SITE'
+                          ? 'Customer site'
+                          : 'Bin'}
+                  </span>
+                </span>
+                <span className={level.quantity < 0 ? 'font-medium text-red-700' : 'text-slate-900'}>
+                  {level.quantity} {part.uom}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {mayMove ? (
+        <section className={`${cardClass}`} aria-labelledby="stock-form-heading">
+          <h2 id="stock-form-heading" className="font-semibold text-slate-900">
+            Post a stock movement
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Receiving and returning add stock. An adjustment is a count: type what is on the shelf and
+            the difference is written as a movement with your name on it.
+          </p>
+          <div className="mt-4">
+            <StockEntryForm
+              action={postStockAction.bind(null, part.id)}
+              locations={part.levels.map((level) => ({
+                id: level.locationId,
+                name: level.locationName,
+                type: level.locationType,
+              }))}
+            />
+          </div>
+        </section>
+      ) : null}
+
+      <section aria-labelledby="movements-heading">
+        <h2 id="movements-heading" className="font-semibold text-slate-900">
+          Last 20 movements
+        </h2>
+        {part.movements.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-500">Nothing has moved yet.</p>
+        ) : (
+          <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+            <table className="w-full text-left text-sm">
+              <caption className="sr-only">Stock movements for this part, newest first</caption>
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+                <tr>
+                  <th scope="col" className="px-4 py-3 font-medium">When</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Movement</th>
+                  <th scope="col" className="px-4 py-3 text-right font-medium">Qty</th>
+                  <th scope="col" className="px-4 py-3 font-medium">From → to</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Against</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {part.movements.map((movement) => (
+                  <tr key={movement.id}>
+                    <td className="px-4 py-3 whitespace-nowrap text-slate-600">
+                      {formatDateTime(movement.movedAt, settings.timezone)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-900">
+                      {MOVEMENT_TYPE_LABELS[movement.type as MovementType]}
+                      {movement.serialOrBatch ? (
+                        <span className="block font-mono text-xs text-slate-500">
+                          {movement.serialOrBatch}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 text-right text-slate-900">
+                      {movement.quantity} {part.uom}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {movement.fromLocation ?? '—'} → {movement.toLocation ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {movement.job ? (
+                        <Link href={`/jobs/${movement.job.id}`} className="underline">
+                          {movement.job.number}
+                        </Link>
+                      ) : (
+                        (movement.reasonCode ?? '—')
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {mayWrite ? (
+        <details className={cardClass}>
+          <summary className="cursor-pointer font-semibold text-slate-900">Edit this part</summary>
+          <div className="mt-4">
+            <PartForm
+              action={updatePartAction.bind(null, part.id)}
+              values={part}
+              submitLabel="Save changes"
+            />
+          </div>
+        </details>
+      ) : null}
+    </div>
+  )
+}

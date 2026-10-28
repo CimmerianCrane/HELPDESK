@@ -8,6 +8,7 @@ import {
   type Role,
 } from '@prisma/client'
 import { nextDocumentNumber } from '../src/server/documents/sequence'
+import { postMovement } from '../src/server/inventory/stock'
 import { hashPassword } from '../src/server/auth/password'
 import { DEFAULT_SLA_POLICIES } from '../src/server/sla/sla'
 import { wallTimeToUtc } from '../src/lib/time'
@@ -1248,8 +1249,10 @@ async function seedDemoBook(): Promise<void> {
     if (quantity < reorderLevel) belowReorder += 1
 
     if (opened.has(partId)) continue
-    await db.stockMovement.create({
-      data: {
+    // Through the one stock writer, so the seed opens the ledger and the level the same way the
+    // receiving screen does (CLAUDE.md rule 10).
+    await db.$transaction((tx) =>
+      postMovement(tx, async () => {}, {
         partId,
         toLocationId: warehouse.id,
         quantity,
@@ -1257,13 +1260,8 @@ async function seedDemoBook(): Promise<void> {
         unitCost: cost,
         reasonCode: 'DEMO-OPENING',
         movedAt: atLocal(timeZone, -95, 10),
-      },
-    })
-    await db.stockLevel.upsert({
-      where: { partId_locationId: { partId, locationId: warehouse.id } },
-      create: { partId, locationId: warehouse.id, quantity },
-      update: { quantity },
-    })
+      }),
+    )
   }
   console.log(
     `Demo book: ${partsAdded} part(s) added (${DEMO_PARTS.length} in the catalogue, ${belowReorder} below reorder level).`,

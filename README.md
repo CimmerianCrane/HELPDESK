@@ -178,6 +178,30 @@ development and keeping Supabase for deployment; the app does not care which one
 
 ## What works today
 
+### Slice 22 — the parts book and the stock ledger
+
+- **A parts catalogue you can search.** `/parts` lists the book with part number, description, brand, what crane
+  models it fits, on hand, the reorder level and the sell price. Search matches the number, the description or a
+  crane model, and the brand dropdown narrows by maker.
+- **"Below reorder" is a filter with a count.** A part with a level set and less than that on the shelf is
+  flagged; a count at the top links straight to that view, which is the store's Monday morning list.
+- **One part, in detail.** `/parts/[id]` shows on hand, the stock in each location, the part's own last twenty
+  movements (with the job, the serial and where it went), and — for anyone holding `part.write` — the edit form.
+- **The store posts movements, not totals.** *Received*, *Returned* and *Adjusted* are the three the screen
+  offers. A count types what is on the shelf and the difference is written for you: up as an adjustment, down as
+  a write-off. Nothing here lets you type a stock figure directly.
+- **Underneath: the level finally moves.** Movements and the on-hand level are written by one function,
+  `postMovement`, in one transaction. Issuing a part on a report now goes through it, so a part taken off the
+  van for a job is no longer a ledger entry the shelf never noticed. Stock that was issued but never received
+  goes negative and is shown in red rather than hidden.
+- **Try it:** open **Parts** in the sidebar, filter to *Below reorder only*, open a line, receive ten into
+  *Main store*, then fill in a report that uses the part — come back and watch on hand drop.
+- **Tests** — 15 unit tests (the movement direction table, the reorder rule, the catalogue and stock-entry
+  schemas, the filters) plus a 10-case integration suite (the permission split for technicians and finance, the
+  duplicate part number, the search by crane model, the audit diff, a receipt moving the level, an issue moving
+  it back, the count correcting both ways, and the refusal of a stock movement to finance), and an assertion in
+  `reports.test.ts` that submitting a report now writes the level as well as the movement.
+
 ### Slice 21 — the accounting export, and Phase 2 proven end to end
 
 - **The invoice book exports to accounting.** `/invoices` carries *Export invoices CSV* and *Export payments CSV*,

@@ -1910,7 +1910,72 @@ dropdown.
 The acceptance spec signs in as ADMIN throughout; the per-role answers are the integration suite's job
 (`exportAccounting` refuses a technician, tested in `invoices.test.ts`).
 
-### 7.13 Phase 3 and Phase 4 (outline, not sliced yet)
+### 7.13 Phase 3 — Inventory (slice table and the first slice as built)
+
+Phase 3 is where the parts the app has been *recording* since Phase 1 become a stock system: a catalogue you
+can browse, a ledger that moves when stock moves, and the store's own screens. The schema for all of it was
+designed up front (§3.8) and is already migrated — **no migration is expected for the first three slices.**
+
+| # | Slice | Delivers | Where the work lands | Brief § |
+|---|---|---|---|---|
+| **22** | **The parts book and the stock ledger** (**built** — see below) | `/parts` (search by number, description or crane model; brand filter; below-reorder filter and count) and `/parts/[id]` (on-hand, per-location levels, the part's own last 20 movements, add/edit behind `part.write`); a store form that posts `RECEIVE`, `RETURN` and `ADJUST`; **one writer** for `StockMovement` + `StockLevel`, which the report path now uses too, so issuing a part on a report finally moves the shelf | `src/server/inventory/` (new), `src/lib/validation/parts.ts` (new), `src/app/(office)/parts/` (new), `src/server/reports/reports.ts` (re-pointed) | §9 |
+| 23 | Locations and transfers | Manage `Location` (warehouse, bin, van, customer site), see stock by location across the book, transfer between locations (the ledger type exists; the form does not) | `src/server/inventory/`, `/parts` | §9 |
+| 24 | Serial and batch traceability | Record and trace a serial on `trackSerialOrBatch` parts: which crane received which rope or hook, and where the rest of the batch is. The issue path already stores `serialOrBatch`; this is the report and the lookup | `/parts/[id]`, the report form | §9 |
+| 25 | Reorder alerts and a suggested purchase order | Group what is below reorder by preferred supplier, suggest the reorder quantity, and raise a `PurchaseOrder` from the group. Receiving a PO posts `RECEIVE` | `/parts` (or `/inventory`), `src/server/inventory/` | §9 |
+| 26 | Stock take | Session → blind count → variance → recount → approve, posting one `ADJUST`/`WRITEOFF` per line difference, and flagging a part/location that keeps disagreeing | `/stock-takes` (new), `src/server/inventory/` | §9 |
+| 27 | Suppliers | The supplier book and its price history, behind `supplier.write`, with the PO screens | `/suppliers` (new) | §9 |
+| 28 | Back-orders linked to jobs on hold | A part on order appears against the jobs held awaiting it, so "awaiting parts" says **which** part and when it lands | job page, `/parts` | §4.2, §9 |
+
+Slice 22 was taken first because a catalogue without a correct on-hand figure is a list of part numbers, and the
+figure was wrong: `StockLevel` was written only by the seed while every report's `ISSUE` bypassed it. Slices 23
+onward build on the ledger it introduced.
+
+#### Slice 22 — the parts book and the stock ledger (**built**)
+
+**Goal:** the store can answer its three questions — what is this part, do we have it, and what is running out —
+and the number it reads is the ledger's own.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 135–141):
+
+1. **`postMovement` in `src/server/inventory/stock.ts` is the only function that writes `StockMovement` or
+   `StockLevel`.** The movement and the level were already written together by the seed; every other path wrote
+   only the movement. Now one function does both in the caller's transaction, decides the sign from the type
+   (never from a signed number on a form), and audits the row. The report path was re-pointed at it, which is
+   the actual bug closed by this slice.
+2. **Stock is allowed to go negative.** A signed field report is not going to be refused because the shelf count
+   is one short. A negative level is shown in red on both screens as "more issued than received", and the next
+   count corrects it — which is a stock take's job (slice 26).
+3. **An `ADJUST` carries the counted quantity, not a difference.** The person counting says what is on the
+   shelf. Upward differences post as `ADJUST`, downward ones as `WRITEOFF`, because `WRITEOFF` already means
+   "stock left without a sale" and reusing `ADJUST` in both directions would need a second sign rule for one case.
+4. **The store's screen posts `RECEIVE`, `RETURN` and `ADJUST` only.** `ISSUE` belongs to the job that consumed
+   the part, and `TRANSFER` needs a second location to mean anything (slice 23).
+5. **On-hand is computed, never stored.** It is the sum of `StockLevel` rows read with the part, so it cannot
+   disagree with the ledger — the same rule the product applies to overdue dates and quote expiry.
+6. **The catalogue is not tenant data, so there is no `partReadWhere`.** A wire rope is the same wire rope on
+   whichever customer's crane it hangs; `part.read` is the whole check and the split that matters is read vs
+   write. Finance gained `part.read` — it reads the book for the value held and writes nothing.
+
+**As built.** `src/lib/validation/parts.ts` holds the pure rules: `movementSigns` (which side a type pushes),
+`needsReorder`, the part and stock-entry schemas, `MOVEMENT_TYPE_LABELS`. `src/server/inventory/stock.ts` holds
+`postMovement`, `defaultLocation` (the store, created if a fresh database has none) and `issueLocationFor`
+(the location holding the most). `src/server/inventory/parts.ts` holds `listParts`, `getPart`, `createPart`,
+`updatePart`, `postStockEntry` and `issuePartForReport`. `/parts` and `/parts/[id]` are the screens; the nav
+gains **Parts**; the audit viewer labels a `Part` and links a `StockMovement` to `/parts`. The job page's
+delivery orders and the invoice prefilling are untouched — they read the same ledger rows they always did.
+
+**Migration:** none. `Part`, `Location`, `StockLevel`, `StockMovement` and their enums were designed in Phase 1.
+The seed's opening balances now go through `postMovement` too, so the demo book and the receiving screen open
+stock the same way; it gained an optional `movedAt` on the input for that, so an opening balance stays dated
+where it was.
+
+**Known limits.** No transfer form and no location admin yet (slice 23) — a movement into a second location can
+only come from the seed. Serial numbers are stored on the issue but there is no traceability report (slice 24).
+There is no purchase order, supplier screen, reorder suggestion or stock take yet (25–27). The below-reorder
+filter reads the whole catalogue and filters in memory; at a few hundred parts that is cheaper than the
+subquery, and it is the first thing to change if a customer's catalogue passes a few thousand lines.
+
+### 7.14 Phase 4 (outline, not sliced yet)
 
 **Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;
 stock movements linked to jobs and DOs; serial/batch traceability; reorder alerts grouped by supplier; purchase orders

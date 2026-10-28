@@ -189,6 +189,8 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
     'writeoff.approve',
     'report.financial',
     'dashboard.office',
+    /** Finance reads the book for the value of what it holds; the store maintains it. */
+    'part.read',
   ],
 
   /**

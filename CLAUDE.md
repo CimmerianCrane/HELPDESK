@@ -118,6 +118,8 @@ cimmerian-crane/
       documents/           # numbering, PDF render, email-on-close
       tech/                # the field phone's read layer and its one-call sync bundle
       reports/             # report queue, approval/return/amendment, issued-PDF lookup, email retry
+      inventory/           # the parts book and the stock ledger; postMovement is the only writer
+                           # of StockMovement and StockLevel
       storage/             # StorageAdapter: disk | supabase (signed upload/download URLs)
       email/               # EmailAdapter: console | smtp
       notify/              # notification fan-out to channel adapters
@@ -161,6 +163,8 @@ check permission, call a service, return. Logic lives in the service, tests live
 | **On hold reason** | Mandatory enum whenever a job enters `On Hold` |
 | **CraneSchedule** | A recurring obligation for a crane (monthly service, annual exam, load test…) with `lastDoneDate`/`nextDueDate` |
 | **ComplianceRule** | Editable configuration mapping crane type → interval + whether an AE is required. Never hard-coded |
+| **StockMovement** | One append-only row per change to stock. The only way a quantity changes, posted through `postMovement`, which moves the `StockLevel` in the same transaction |
+| **On hand** | A part's summed `StockLevel`, computed on read. May go negative when a part is issued that was never received — shown in red, corrected by a count |
 
 ---
 
@@ -190,8 +194,10 @@ check permission, call a service, return. Logic lives in the service, tests live
 8. **All timestamps stored in UTC.** Timezone, currency and GST rate are settings, never constants. Dates display as
    `DD/MM/YYYY`.
 9. **Every input validated with Zod at the trust boundary** — form, server action and route handler alike.
-10. **Stock quantity changes only ever happen as a `StockMovement`.** Quantities are derived/reconciled from movements.
-    Issuing a part on a job writes to both the report's parts list and the DO.
+10. **Stock quantity changes only ever happen as a `StockMovement`, posted through `postMovement`.**
+    Quantities are derived/reconciled from movements, and that one function moves the materialised `StockLevel`
+    in the same transaction — never write either table directly. Issuing a part on a job writes to both the
+    report's parts list and the DO.
 11. **Never lose field data.** Reports auto-save locally every few seconds. Sync uses client-generated ids so a retry
     is idempotent. On conflict, the technician's own field data wins for their job report; office scheduling edits never
     overwrite field data; conflicts are logged.

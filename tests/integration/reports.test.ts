@@ -246,6 +246,13 @@ describe('submitting a report', () => {
       expect(report.partsUsed[0]?.type).toBe('ISSUE')
       expect(report.partsUsed[0]?.quantity.toNumber()).toBe(2)
       expect(report.partsUsed[0]?.serialOrBatch).toBe('B-42')
+      // The issue now moves the on-hand level too, through the one stock writer (slice 22). No stock
+      // was received first, so the shelf goes negative rather than the signed report being refused.
+      expect(report.partsUsed[0]?.fromLocationId).not.toBeNull()
+      const level = await tx.stockLevel.findFirst({
+        where: { partId: part.id, locationId: report.partsUsed[0]!.fromLocationId! },
+      })
+      expect(Number(level?.quantity)).toBe(-2)
 
       const audits = await tx.auditLog.findMany({
         where: {
