@@ -453,6 +453,34 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     MOM circular governs. The screen therefore ships with an empty state, and until a rule is added a
     schedule's interval and AE requirement are typed by hand on the crane as they were in slice 12.
 
+98. **"The account owner" is the office roles that own the work, not a per-customer person.** The
+    brief's §8 wording assumes an account owner per customer; there is no such field, and inventing one
+    would be a user question, not a schema guess. Reminders therefore go to the same recipients as a P1
+    alert — every active Admin and Dispatcher — through the same two-channel fan-out. If the office
+    wants one named person per customer, that is a `Customer` field and a recipient change, not a
+    rewrite of the scan.
+99. **A reminder is sent at most once per (schedule, threshold, due date).** `ReminderDispatch` holds
+    the claim, unique on all three, so a retried Vercel Cron or a twice-run scan is a no-op. `period`
+    is the due date as a calendar day in the operating timezone: a schedule that is done and rolled
+    forward starts a fresh period and can remind again. Two consequences are deliberate — a threshold
+    missed during an outage is not backfilled (the next one that is still open fires instead), and
+    "overdue" fires once per period rather than daily. The dashboard's overdue count is the ongoing
+    signal; a daily email about a service nobody has booked is how reminders get filtered away.
+100. **The scan emits in-app rows as well as email, but there is still no in-app inbox.** The
+    `Notification` model and fan-out are the brief's own mechanism (§4.3, §8) and are used unchanged;
+    until an inbox screen exists, the email is the channel that actually reaches somebody. This is the
+    same gap noted for slice 14 (item 96), recorded here so the next slice that touches notifications
+    closes it once for both.
+101. **An auto-created draft job needs a job type chosen by the office, and appears when the work falls
+    due.** `CraneSchedule.draftJobTypeId` is picked on the schedule form (required whenever the box is
+    ticked). Which kind of work discharges which obligation is operational configuration, not a
+    regulatory fact, so it is not mapped in code — the same position slice 12 took. The job is raised
+    only on or after the due date, not at the 90/60/30 reminders: a NEW job in the list three months
+    early is noise nobody schedules from. It is created with no actor (`createdById` null), with the
+    job type's default priority, normal SLA targets and an audit entry naming the schedule it came
+    from. An inactive or deleted job type logs a warning and raises nothing rather than falling back to
+    a guess.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

@@ -84,6 +84,8 @@ export interface ScheduleSummary {
   requiresAE: boolean
   reminderOffsetsDays: number[]
   autoCreateDraftJob: boolean
+  /** The job type the reminder scan raises when this falls due (slice 15); null means no job. */
+  draftJobTypeId: string | null
   notes: string | null
   dueBucket: DueBucket
   overdue: boolean
@@ -107,6 +109,7 @@ const scheduleSelect = {
   rule: { select: { sourceReference: true, requiresAE: true } },
   reminderOffsetsDays: true,
   autoCreateDraftJob: true,
+  draftJobTypeId: true,
   notes: true,
   crane: {
     select: {
@@ -134,6 +137,7 @@ function toSummary(row: ScheduleRow, now: Date): ScheduleSummary {
     requiresAE: row.rule?.requiresAE ?? false,
     reminderOffsetsDays: row.reminderOffsetsDays,
     autoCreateDraftJob: row.autoCreateDraftJob,
+    draftJobTypeId: row.draftJobTypeId,
     notes: row.notes,
     dueBucket: dueBucket(row.nextDueDate, now),
     overdue: isOverdue(row, now),
@@ -340,6 +344,7 @@ export async function createSchedule(
             ? input.reminderOffsets
             : (await defaultReminderOffsets(tx)),
           autoCreateDraftJob: input.autoCreateDraftJob,
+          draftJobTypeId: input.draftJobTypeId,
           notes: input.notes,
         },
         select: scheduleSelect,
@@ -412,6 +417,7 @@ export async function updateSchedule(
             ? input.reminderOffsets
             : before.reminderOffsetsDays,
           autoCreateDraftJob: input.autoCreateDraftJob,
+          draftJobTypeId: input.draftJobTypeId,
           notes: input.notes,
         },
         select: scheduleSelect,
@@ -579,6 +585,7 @@ function auditShape(row: ScheduleRow): Record<string, unknown> {
     rule: row.rule?.sourceReference ?? null,
     reminderOffsetsDays: row.reminderOffsetsDays,
     autoCreateDraftJob: row.autoCreateDraftJob,
+    draftJobTypeId: row.draftJobTypeId,
     notes: row.notes,
   }
 }

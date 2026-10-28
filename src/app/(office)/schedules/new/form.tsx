@@ -1,6 +1,7 @@
 import { ScheduleForm } from '@/components/office/crane-schedule-forms'
 import { requireAuth } from '@/server/auth/context'
 import { listCranes } from '@/server/cranes/cranes'
+import { listJobTypes } from '@/server/jobs/jobs'
 import { createScheduleAction } from '../actions'
 
 /**
@@ -11,7 +12,10 @@ import { createScheduleAction } from '../actions'
  */
 export async function CreateScheduleForm() {
   const context = await requireAuth()
-  const cranes = await listCranes(context, {})
+  const [cranes, jobTypes] = await Promise.all([
+    listCranes(context, {}),
+    listJobTypes(context),
+  ])
 
   if (cranes.length === 0) {
     return (
@@ -29,6 +33,7 @@ export async function CreateScheduleForm() {
         assetTag: crane.assetTag,
         siteName: crane.site.name,
       }))}
+      jobTypes={jobTypes}
       submitLabel="Add schedule"
       idPrefix="new-schedule"
     />

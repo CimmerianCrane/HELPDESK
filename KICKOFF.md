@@ -15,19 +15,20 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1 is complete, and Phase 2 is under way.** Slices 0–14 are built; Phase 1's acceptance path
+**Phase 1 is complete, and Phase 2 is under way.** Slices 0–15 are built; Phase 1's acceptance path
 still passes untouched. **Phase 2 is sliced in `docs/PLAN.md` §7, which is the canonical copy** —
 §7.1 is what Phase 1 left behind, §7.2 the slice table (13 certificates, 14 compliance rules,
 15 reminders, 16 findings and follow-up jobs, 17 the two remaining templates, 18 delivery orders,
-19 quotes, 20 invoicing, 21 accounting export), and **slice 15 is the next session's work**.
+19 quotes, 20 invoicing, 21 accounting export), and **slice 16 is the next session's work**.
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
 
-> **Slice 14 is done and verified.** Migration `20261028200000_slice14_compliance_rules` (two nullable
-> `Crane` columns) is applied to hosted Supabase. `npm run verify` (261 unit tests),
-> `npm run test:integration` (221 tests), `npm run test:e2e` (35 passed, 2 skipped — the offline-only
-> phone checks that need `npm start`) and `npm run build` all pass, and `tests/e2e/happy-path.spec.ts`
-> passes **unmodified**. Slice 15 is next — see the section near the bottom of this file.
+> **Slice 15 is done and verified.** Migration `20261028300000_slice15_reminders` (one nullable
+> `CraneSchedule` column and the `ReminderDispatch` table) is applied to hosted Supabase.
+> `npm run verify` (267 unit tests), `npm run test:integration` (227 tests), `npm run test:e2e`
+> (35 passed, 2 skipped — the offline-only phone checks that need `npm start`) and `npm run build` all
+> pass, and `tests/e2e/happy-path.spec.ts` passes **unmodified**. Slice 16 is next — see the section
+> near the bottom of this file.
 
 | Slice | State |
 |---|---|
@@ -46,7 +47,8 @@ asked.**
 | 12 Schedules on the crane page | done |
 | 13 Certificates & compliance dashboard | done |
 | 14 Compliance rule admin, adoption, re-registration prompts | done |
-| 15–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 15 is next |
+| 15 Reminder engine in the daily cron | done |
+| 16–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 16 is next |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -109,8 +111,16 @@ raises a **"re-registration may be required"** prompt on the crane, with a one-c
 that records the check in the audit log. In force and overlapping are computed from the clock and the
 dates, never stored.
 
-**Not yet built:** slices 15–21 (the reminder cron, findings, the remaining templates, delivery orders,
-quotes, invoicing, the accounting export) and all of Phases 3–4.
+**Phase 2, slice 15 — the reminder engine.** `/api/cron/daily` now evaluates every live crane schedule
+at its own reminder offsets (90/60/30 by default, then once when overdue) and tells the Admin and
+Dispatcher accounts by email and in-app row through the same fan-out a P1 uses. A schedule marked
+"raise a draft job" also raises a NEW job in the kind of work the office chose for it, on the day it
+falls due — with normal numbering, SLA targets and an audit entry naming the schedule. Each reminder is
+claimed in `ReminderDispatch`, unique per schedule, threshold and due date, so a retried cron run
+cannot email twice, and a schedule that is done and rolled forward can remind again.
+
+**Not yet built:** slices 16–21 (findings, the remaining templates, delivery orders, quotes, invoicing,
+the accounting export) and all of Phases 3–4.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
@@ -237,11 +247,29 @@ number but no stored PDF, because the seed runs under `tsx`, which cannot load
 
 ---
 
-## Slice 14 is done — slice 15 is next
+## Slice 15 is done — slice 16 is next
 
 **Read `docs/PLAN.md` §7 first; it is the canonical copy and is not repeated here.** §7.2 is the
 Phase 2 slice table, §7.4 is slice 13 as built, §7.5 is slice 14 as built (its six fixed decisions and
-one known limit), and §7.6 is the Phase 3–4 outline.
+one known limit), §7.6 is slice 15 as built, and §7.7 is the Phase 3–4 outline.
+
+**What slice 15 delivered.** `src/server/reminders/reminders.ts` is the scan: `runScheduleReminders`
+for the cron, `remindForSchedule` for one row (which is what the integration suite drives),
+`reminderOffsetFor` as the pure threshold rule, and the `ReminderDispatch` claim that makes a re-run a
+no-op (`INSERT … ON CONFLICT DO NOTHING`, because a unique-violation exception aborts the surrounding
+transaction). `notifyOfficeOfReminder` reuses the P1 fan-out through a shared `fanOut`;
+`createSystemJob` in the jobs service gives a cron job the same numbering, SLA snapshot and status
+history as one raised by a person, with no actor. `CraneSchedule.draftJobTypeId` is chosen on the
+schedule form and required whenever "raise a draft job" is ticked. The cron route reports what it did
+in its JSON and its log line.
+
+**The gate it passed:** `npm run verify` (267 unit tests, 6 new), `npm run test:integration` (227
+tests, 6 new in `tests/integration/reminders.test.ts`), `npm run test:e2e` (35 passed, 2 skipped as
+offline-only) and `npm run build`. `happy-path.spec.ts` passes unmodified.
+
+**Known limit carried forward:** the fan-out writes in-app `Notification` rows but there is still no
+inbox screen, so email is the channel that reaches anybody (`ASSUMPTIONS.md` 96 and 100). An inbox
+would serve P1 alerts and reminders together, and is worth doing before notifications multiply.
 
 **What slice 14 delivered.** `src/server/compliance/rules.ts` is the one path for the rulebook — list
 (admin), `rulesForCraneType` (the in-force rules a schedule may adopt), create, update, the overlap
@@ -289,12 +317,12 @@ certificates (rule 3). No migration — the model, `deletedAt` and the file kind
 new in `certificates.test.ts`), `npm run test:e2e` and `npm run build`. `happy-path.spec.ts` passes
 unmodified.
 
-**Slice 15 — reminder engine in the daily cron — is the next session's work.** `docs/PLAN.md` §7.2
-row 15: `/api/cron/daily` evaluates every `CraneSchedule.nextDueDate` at `reminderOffsetsDays`, then
-overdue, notifies the account owner through the existing `notify` fan-out, and honours
-`autoCreateDraftJobs`; at-most-once per (schedule, offset, period) needs an additive migration for the
-dispatch key. Start by confirming `npx prisma migrate status` reports nothing pending — slice 14's
-migration is applied, so the database matches the schema.
+**Slice 16 — findings and one-click follow-up jobs — is the next session's work.** `docs/PLAN.md`
+§7.2 row 16: the Finding status flow (open → quoted → scheduled → rectified / declined), open findings
+on the crane page, one click to raise a follow-up job pre-filled from a finding and linked by
+`followUpJobId`/`parentJobId`, and a customer-declined critical repair captured with name, signature
+and date. `finding.followUpJob` is already granted and unused. Start by confirming
+`npx prisma migrate status` reports nothing pending.
 
 The gate is unchanged for every slice: `npm run verify` and `npm run verify:full`, then
 `tests/e2e/happy-path.spec.ts` must still pass **untouched**.

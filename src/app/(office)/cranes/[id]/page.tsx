@@ -21,6 +21,7 @@ import { CERTIFICATE_TYPE_LABELS } from '@/lib/validation/certificates'
 import { DueBadge } from '@/components/office/job-badges'
 import { daysUntil } from '@/server/schedules/recurrence'
 import { schedulesForCrane } from '@/server/schedules/schedules'
+import { listJobTypes } from '@/server/jobs/jobs'
 import { certificatesForCrane, certificateDueLabel } from '@/server/certificates/certificates'
 import { requireAuth } from '@/server/auth/context'
 import { NotFoundError } from '@/server/auth/errors'
@@ -84,7 +85,9 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
     throw error
   }
 
-  const [sites, settings, timeline, trail, schedules, certificates, rules] = await Promise.all([
+  const mayManageSchedules = can(context.role, 'schedule.manage')
+
+  const [sites, settings, timeline, trail, schedules, certificates, rules, jobTypes] = await Promise.all([
     listSites(context, { customerId: crane.site.customerId }),
     getSettings(),
     craneReportTimeline(context, crane.id),
@@ -97,14 +100,14 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
       : Promise.resolve([]),
     // The rules a schedule can be based on. Only the ones in force for this kind of crane, and only
     // for someone who can write a schedule — everyone else has no form to put them in.
-    can(context.role, 'schedule.manage')
-      ? rulesForCraneType(context, crane.type)
-      : Promise.resolve([]),
+    mayManageSchedules ? rulesForCraneType(context, crane.type) : Promise.resolve([]),
+    // The kind of work a due schedule can raise (slice 15). Only the role with a form to put it in
+    // needs the list.
+    mayManageSchedules ? listJobTypes(context) : Promise.resolve([]),
   ])
 
   const mayWrite = can(context.role, 'crane.write')
   const mayRestrict = can(context.role, 'crane.restrict')
-  const mayManageSchedules = can(context.role, 'schedule.manage')
   const mayWriteCertificates = can(context.role, 'certificate.write')
   const siteOptions = sites.map((row) => ({ id: row.id, name: row.name }))
   const restricted = crane.status === 'RESTRICTED'
@@ -311,6 +314,7 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
                           action={updateScheduleAction.bind(null, schedule.id)}
                           value={schedule}
                           rules={rules}
+                          jobTypes={jobTypes}
                           submitLabel="Save schedule"
                           idPrefix={`schedule-${schedule.id}`}
                         />
@@ -337,6 +341,7 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
               action={createScheduleAction}
               crane={{ id: crane.id, assetTag: crane.assetTag, siteName: crane.site.name }}
               rules={rules}
+              jobTypes={jobTypes}
               submitLabel="Add schedule"
               idPrefix="crane-schedule"
             />

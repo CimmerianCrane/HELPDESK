@@ -532,15 +532,39 @@ model CraneSchedule {
   ruleId              String?
   rule                ComplianceRule? @relation(fields: [ruleId], references: [id])
   autoCreateDraftJob  Boolean        @default(false)
+  /// The kind of work the reminder scan raises when this falls due. Chosen by the office on the
+  /// schedule; which job type completes which obligation is not something the code decides (rule 2).
+  draftJobTypeId      String?
   notes               String?
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
   /// An obligation that no longer applies is ended, not erased (slice 12).
   deletedAt           DateTime?
 
+  dispatches ReminderDispatch[]
+
   @@index([nextDueDate])
   @@index([craneId, scheduleType])
   @@index([ruleId])
+}
+
+/// One reminder sent about one schedule, so the daily scan can run twice, or be retried after a
+/// failure, without telling the office twice (slice 15).
+///
+/// `period` is the due date this reminder was about, as a calendar day in the operating timezone.
+/// Recording it means a schedule that has been done and rolled forward starts a fresh period, while a
+/// re-run on the same day is a no-op. `offset` is the threshold that fired ("90", "60", "30",
+/// "overdue") or "draft-job" for the job it raised.
+model ReminderDispatch {
+  id         String        @id @default(uuid(7))
+  scheduleId String
+  schedule   CraneSchedule @relation(fields: [scheduleId], references: [id])
+  offset     String
+  period     String
+  createdAt  DateTime      @default(now())
+
+  @@unique([scheduleId, offset, period])
+  @@index([scheduleId])
 }
 
 /// CONFIGURATION, never code. Brief §7: model intervals as data with a free-text source, so a new

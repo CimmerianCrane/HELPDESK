@@ -51,15 +51,44 @@ async function notifyDispatchers(
   options: { link: string; jobId?: string; logKey: string },
 ): Promise<void> {
   const { link, jobId, logKey } = options
+  const appUrl = env().APP_BASE_URL.replace(/\/$/, '')
+  const subject = `P1 crane down — ${input.number} ${input.customerName}`
+  const text = alertBody(input, link, appUrl)
+  await fanOut(tx, { subject, text, link, jobId: jobId ?? null, logKey })
+}
+
+export interface OfficeMessage {
+  title: string
+  body: string
+  link: string
+}
+
+/**
+ * A recurring-obligation reminder (slice 15). Same recipients and the same two-channel fan-out as a
+ * P1, because "the monthly service on JPE-001 is due" is also a dispatcher's problem to book — it is
+ * simply not urgent enough to raise a job by itself.
+ */
+export async function notifyOfficeOfReminder(tx: Tx, message: OfficeMessage): Promise<void> {
+  await fanOut(tx, {
+    subject: message.title,
+    text: message.body,
+    link: message.link,
+    jobId: null,
+    logKey: 'notify.schedule',
+  })
+}
+
+/** Writes one row per recipient per channel, sends the emails, records each outcome separately. */
+async function fanOut(
+  tx: Tx,
+  options: { subject: string; text: string; link: string; jobId: string | null; logKey: string },
+): Promise<void> {
+  const { subject, text, link, jobId, logKey } = options
   const recipients = await alertRecipients(tx)
   if (recipients.length === 0) {
     logger.warn(`${logKey}.no-recipients`, { link })
     return
   }
-
-  const appUrl = env().APP_BASE_URL.replace(/\/$/, '')
-  const subject = `P1 crane down — ${input.number} ${input.customerName}`
-  const text = alertBody(input, link, appUrl)
 
   const notifications = await tx.notification.createManyAndReturn({
     data: recipients.flatMap((recipient) => [

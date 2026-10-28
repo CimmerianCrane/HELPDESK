@@ -23,6 +23,8 @@ export interface ScheduleFormValues {
   nextDueDate: Date | null
   reminderOffsetsDays: number[]
   autoCreateDraftJob: boolean
+  /** The kind of work the daily scan raises when this falls due (slice 15). */
+  draftJobTypeId: string | null
   ruleId: string | null
   /** The citation and AE flag as stored, so a rule that has since been superseded is still shown. */
   ruleReference: string | null
@@ -45,6 +47,12 @@ export interface RuleOption {
   sourceReference: string
 }
 
+/** One kind of work a draft job can be raised as. */
+export interface JobTypeOption {
+  id: string
+  name: string
+}
+
 /** `YYYY-MM-DD` for a date input; the stored value is already UTC midnight on the day it means. */
 function toDayInput(value: Date | null): string {
   return value ? value.toISOString().slice(0, 10) : ''
@@ -55,12 +63,16 @@ function ScheduleFields({
   crane,
   cranes,
   rules,
+  jobTypes,
+  state,
   idPrefix,
 }: {
   value?: ScheduleFormValues
   crane?: CraneOption
   cranes?: CraneOption[]
   rules?: RuleOption[]
+  jobTypes?: JobTypeOption[]
+  state: FormState
   idPrefix: string
 }) {
   const id = (name: string) => `${idPrefix}-${name}`
@@ -220,7 +232,7 @@ function ScheduleFields({
         />
       </div>
 
-      <div className="sm:col-span-2">
+      <div className="sm:col-span-2 space-y-3">
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
@@ -230,9 +242,30 @@ function ScheduleFields({
           />
           Raise a draft job when this becomes due
         </label>
-        <p className="mt-1 text-xs text-slate-500">
-          Stored now, honoured once the reminder scan exists (slice 15). Nothing creates jobs from a
-          due date today.
+        {jobTypes ? (
+          <div>
+            <label htmlFor={id('draftJobTypeId')} className={labelClass}>
+              Kind of work to raise
+            </label>
+            <select
+              id={id('draftJobTypeId')}
+              name="draftJobTypeId"
+              defaultValue={value?.draftJobTypeId ?? ''}
+              className={inputClass}
+            >
+              <option value="">Nothing — remind us only</option>
+              {jobTypes.map((jobType) => (
+                <option key={jobType.id} value={jobType.id}>
+                  {jobType.name}
+                </option>
+              ))}
+            </select>
+            <FieldError state={state} name="draftJobTypeId" />
+          </div>
+        ) : null}
+        <p className="text-xs text-slate-500">
+          The daily reminder run emails the office at the offsets above. A draft job is raised only on
+          the day it is due, in the kind of work chosen here.
         </p>
       </div>
     </div>
@@ -245,6 +278,7 @@ export function ScheduleForm({
   crane,
   cranes,
   rules,
+  jobTypes,
   submitLabel,
   idPrefix,
 }: {
@@ -253,6 +287,7 @@ export function ScheduleForm({
   crane?: CraneOption
   cranes?: CraneOption[]
   rules?: RuleOption[]
+  jobTypes?: JobTypeOption[]
   submitLabel: string
   idPrefix: string
 }) {
@@ -265,6 +300,8 @@ export function ScheduleForm({
         crane={crane}
         cranes={cranes}
         rules={rules}
+        jobTypes={jobTypes}
+        state={state}
         idPrefix={idPrefix}
       />
       <FormMessage state={state} />

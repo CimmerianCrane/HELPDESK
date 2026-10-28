@@ -10,8 +10,8 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
 **Status:** Phase 1 complete (slice 11: the end-to-end happy path and the demo dataset); Phase 2 under
-way (slices 12 and 13: schedules on the crane page, and the certificate register). See "What works
-today" below.
+way (slices 12–15: schedules on the crane page, the certificate register, compliance rules, and the
+daily reminder scan). See "What works today" below.
 
 ---
 
@@ -173,6 +173,23 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 15 — the daily reminder scan
+
+- **`/api/cron/daily` reminds the office before an obligation lapses.** Every live crane schedule is
+  evaluated at its own offsets (90/60/30 days by default, configurable per schedule), then once when
+  it is overdue. The reminder goes to every active Admin and Dispatcher, by email and as an in-app
+  row, through the same fan-out a P1 uses.
+- **It cannot send the same reminder twice.** Each send is claimed in `ReminderDispatch`, unique per
+  schedule, threshold and due date, so a retried cron run is a no-op — and a schedule that is
+  completed and rolled forward starts a fresh period.
+- **It can raise the job as well as the reminder.** Tick *Raise a draft job when this becomes due* on
+  a schedule and choose the kind of work; on the day it falls due, the scan creates a NEW job for that
+  crane at the site, with normal numbering, SLA targets and an audit entry naming the schedule.
+- **Try it:** create a schedule on a crane due in the next few weeks, then hit the endpoint with
+  `curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/daily` (the secret is
+  optional in development) — the JSON reports how many schedules were evaluated and how many
+  reminders and jobs it raised. In development the email is written to the server log.
 
 ### Slice 14 — compliance rules, adoption and re-registration prompts
 

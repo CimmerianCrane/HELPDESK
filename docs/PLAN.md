@@ -1387,7 +1387,7 @@ historical jobs, 2 open P1 tickets, 40 parts with some below reorder level, demo
 
 **Phase 2 is Compliance & recurring work, then the paperwork.** It is sliced below the same way Phase 1 was: one
 vertical slice per session, database → service → API/action → UI → tests, `npm run verify:full` and a commit before the
-summary. **Slices 12, 13 and 14 are built and verified; slice 15 is the next session's work (§7.2).**
+summary. **Slices 12–15 are built and verified; slice 16 is the next session's work (§7.2).**
 Do not start a second slice in the same session. Slice 11's e2e path
 (`tests/e2e/happy-path.spec.ts`) is the Phase 1 regression guard: it must still pass, and it must not be edited to make a
 Phase 2 change fit.
@@ -1419,7 +1419,7 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 | **12** | **Schedules on the crane page** (**built** — finish per §7.3) | The "next due" block on crane detail (type, interval, last done, next due, overdue state, source); create / edit / archive a schedule under `schedule.manage`, audited; a `/office/schedules` list (overdue, then due in 30/60/90) that the dashboard tile links to; **completing a job offers "mark schedule done" for that journey's cranes**, which writes `lastDoneDate` and recomputes `nextDueDate` | `src/server/schedules/` (new), `src/app/(office)/cranes/[id]/page.tsx`, `src/app/(office)/schedules/` (new), `src/app/(office)/dashboard/page.tsx`, `src/server/jobs/status.ts` or the completion action | §8, §12 |
 | **13** | **Certificates & compliance dashboard** (**built** — see §7.4) | Certificate register per crane: type, number, issuer, issue/expiry/next-due, stated SWL, linked job, file upload through the existing storage adapter (`CERTIFICATE`), soft-delete only; `/office/certificates` with **expiring in 90/60/30 and overdue**; the dashboard tile becomes a real count and links to it. Company inspection vs AE statutory certificate kept visually distinct | `src/server/certificates/` (new), `src/app/(office)/certificates/` (new), crane detail section, `src/server/dashboard/dashboard.ts` | §6.6, §7.2 |
 | **14** | **ComplianceRule admin** (**built** — see §7.5) | Admin screen to maintain rules (`craneType × scheduleType`, interval, `requiresAE`, effective dates, **required `sourceReference` and `reviewedAt`**), carrying `Setting.complianceNotice` verbatim; a schedule can adopt a rule (`source = RULE`, interval copied); "re-registration may be required" reminder when a crane's `ownerEntity`/customer UEN changes or it is re-assembled at another site | `src/app/(office)/admin/compliance/` (new), `src/server/compliance/` (new), `src/server/cranes/cranes.ts` (change detection) | §7 |
-| **15** | **Reminder engine in the daily cron** | `/api/cron/daily` evaluates every `CraneSchedule.nextDueDate` at `reminderOffsetsDays` (default 90/60/30) then overdue, notifies the account owner in-app + email via the existing `notify` fan-out, and honours `autoCreateDraftJobs`; at-most-once per (schedule, offset, period) so a re-run sends nothing twice — needs an additive migration for the dispatch key | `src/app/api/cron/daily/route.ts`, `src/server/reminders/` (new), migration | §8 |
+| **15** | **Reminder engine in the daily cron** (**built** — see §7.6) | `/api/cron/daily` evaluates every `CraneSchedule.nextDueDate` at `reminderOffsetsDays` (default 90/60/30) then overdue, notifies the account owner in-app + email via the existing `notify` fan-out, and honours `autoCreateDraftJobs`; at-most-once per (schedule, offset, period) so a re-run sends nothing twice — needs an additive migration for the dispatch key | `src/app/api/cron/daily/route.ts`, `src/server/reminders/` (new), migration | §8 |
 | **16** | **Findings & one-click follow-up jobs** | Finding status flow (open → quoted → scheduled → rectified / declined), open findings on the crane page, **one click creates a follow-up job** pre-filled from the finding (job type, crane, description, priority from severity) linked by `followUpJobId`/`parentJobId`; customer-declined critical repair captured with name, signature and date | `src/server/findings/` (new), report page, crane page, `src/server/jobs/jobs.ts` | §4.2, §6.4 |
 | **17** | **Load test & visual inspection templates built out** | The two templates completed against §6.3 (test load / radii / SWL per radius / instruments / pre- and post-test exam / AE attendance; structure, safety devices, markings, wire rope and hook), with **calibration-expiry validation against `Resource.calibrationDueDate` at the test date — warn, never block** | `src/server/templates/definitions.ts`, `src/lib/templates/schema.ts`, the report form, `prisma/seed.ts` (new versions) | §6.3 |
 | **18** | **Delivery orders** | DO generated from the parts already issued on a job (no second source of truth — read from `StockMovement`), lines with serial/batch, `chargeable \| warranty \| loan` + expected return, partial delivery, receiver name/signature/timestamp, numbered `DO-YYYY-NNNN`, printable PDF via the existing renderer | `src/server/delivery-orders/` (new), `src/app/(office)/jobs/[id]/page.tsx`, `src/server/documents/` | §6.5 |
@@ -1430,7 +1430,7 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 Each slice also carries the Definition of done from `../CLAUDE.md` (server-side permission test, audit entries, empty /
 loading / error states, seed still runnable, README + this file updated in the same commit).
 
-**Where the next session starts: slice 15**, with the three carry-over items at the end of §7.5 and the
+**Where the next session starts: slice 16**, with the three carry-over items at the end of §7.5 and the
 ended-schedules filter noted in §7.3 queued behind it. They are deliberately not slices of their own —
 take the first one whenever the slice in flight edits the same screen or service.
 
@@ -1607,7 +1607,45 @@ enough to ride along with the slice that touches the same file:
    not built — it would rewrite intervals on live obligations. It belongs behind an explicit action
    that lists the schedules first, never a cascade on saving an end date.
 
-### 7.6 Phase 3 and Phase 4 (outline, not sliced yet)
+### 7.6 Slice 15 — the reminder engine in the daily cron (**built**)
+
+**Goal:** `CraneSchedule.nextDueDate` stops being a number the dashboard computes from. The daily cron
+evaluates every live schedule at its own offsets, tells the office, and — when the office asked for it
+— raises the job.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 98–101):
+
+1. **One claim makes the run idempotent.** `ReminderDispatch` is unique on
+   `(scheduleId, offset, period)`. `period` is the due date as a day in the operating timezone, so a
+   schedule that is completed and rolled forward starts a new period. The claim uses
+   `INSERT … ON CONFLICT DO NOTHING` rather than create-and-catch: a failed statement aborts a
+   surrounding Postgres transaction, and the claim and the draft job it permits should commit together.
+2. **"The account owner" is Admin + Dispatcher.** No per-customer owner exists, and inventing one is a
+   product question. The reminder uses the P1 fan-out unchanged, through a new
+   `notifyOfficeOfReminder` export rather than a second send loop.
+3. **A job needs a kind of work the office chose.** `CraneSchedule.draftJobTypeId` is picked on the
+   schedule form and required whenever the box is ticked. Which job completes which obligation is not
+   mapped in code (rule 2, and slice 12's decision 2 stands). The job is raised only on or after the
+   due date, with no actor, the job type's default priority, normal SLA targets, and an audit entry
+   naming the schedule.
+4. **Two limits, stated rather than hidden.** A threshold missed during an outage is not backfilled
+   (the next still-open one fires), and "overdue" fires once per period rather than daily — the
+   dashboard's overdue count is the ongoing signal.
+
+**As built.** `src/server/reminders/reminders.ts` (`runScheduleReminders`, `remindForSchedule`,
+`reminderOffsetFor`, `reminderScheduleSelect`); `notifyOfficeOfReminder` and a shared `fanOut` in
+`src/server/notify/notify.ts`; `createSystemJob` and the extracted `insertJob` in
+`src/server/jobs/jobs.ts`, so a cron job gets the same numbering, SLA snapshot and status history as
+any other; the draft-job-type select on the schedule form and its two server call sites; the cron route
+now runs the scan and reports it; migration `20261028300000_slice15_reminders` (`draftJobTypeId` plus
+the `ReminderDispatch` table). New coverage: `tests/unit/reminders.test.ts` (6) and
+`tests/integration/reminders.test.ts` (6).
+
+**Known limit:** the in-app `Notification` rows the fan-out writes are still invisible — there is no
+inbox screen anywhere in the app yet (`ASSUMPTIONS.md` 96 and 100). Email is the channel that works
+today; an inbox is its own slice, and would serve P1 alerts and reminders together.
+
+### 7.7 Phase 3 and Phase 4 (outline, not sliced yet)
 
 **Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;
 stock movements linked to jobs and DOs; serial/batch traceability; reorder alerts grouped by supplier; purchase orders

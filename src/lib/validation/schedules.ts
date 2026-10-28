@@ -97,6 +97,12 @@ const scheduleFields = {
     .union([z.literal('on'), z.literal('true'), z.literal(''), z.undefined()])
     .transform((value) => value === 'on' || value === 'true'),
   /**
+   * The kind of work the reminder scan raises when this falls due (slice 15). Only meaningful with
+   * `autoCreateDraftJob`; which job type completes which obligation is the office's call, never the
+   * code's (CLAUDE.md rule 2).
+   */
+  draftJobTypeId: optionalText(40),
+  /**
    * The compliance rule this obligation is based on (slice 14). The kind of obligation and the
    * interval then come from the rule, not from the form — a schedule "based on" a rule but running
    * on a different cadence would be a citation that does not describe the work.
@@ -110,9 +116,25 @@ const scheduleFields = {
 
 /** The interval and a typed date are alternatives; one of the two has to be there. */
 function checkDueBasis(
-  input: { intervalMonths: number | null; nextDueDate: Date | null; ruleId: string | null },
+  input: {
+    intervalMonths: number | null
+    nextDueDate: Date | null
+    ruleId: string | null
+    autoCreateDraftJob: boolean
+    draftJobTypeId: string | null
+  },
   ctx: z.RefinementCtx,
 ) {
+  // A draft job with no kind of work cannot be raised, so the pair is required together rather than
+  // discovered by the cron failing once the obligation is already due.
+  if (input.autoCreateDraftJob && !input.draftJobTypeId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['draftJobTypeId'],
+      message: 'Choose the kind of work to raise, or untick the draft job.',
+    })
+  }
+
   // A rule supplies the interval, so "one of the two" is already satisfied by it.
   if (input.ruleId) return
   if (input.intervalMonths && input.nextDueDate) {

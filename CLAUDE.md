@@ -113,6 +113,7 @@ cimmerian-crane/
       schedule/            # crane next-due recomputation
       schedules/           # a crane's recurring obligations, and rolling them forward on completion
       compliance/          # ComplianceRule — the rulebook, its adoption check and the admin screen
+      reminders/           # the daily scan: which schedule is due, who to tell, and the draft job
       certificates/        # the certificate register and the expiring/overdue queue
       documents/           # numbering, PDF render, email-on-close
       tech/                # the field phone's read layer and its one-call sync bundle

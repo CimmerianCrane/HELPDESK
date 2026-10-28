@@ -590,6 +590,70 @@ async function createJobRow(
   options: { ticketId: string | null; reportedAt: Date },
 ): Promise<JobRow> {
   const location = await resolveJobLocation(tx, context, input)
+  return insertJob(tx, input, {
+    ticketId: options.ticketId,
+    reportedAt: options.reportedAt,
+    location,
+    actorId: context.userId,
+  })
+}
+
+export interface DueScheduleJobInput {
+  jobTypeId: string
+  customerId: string
+  siteId: string
+  craneId: string
+  priority: 'P1' | 'P2' | 'P3' | 'P4'
+  description: string
+  reportedAt: Date
+}
+
+/**
+ * A job raised by the daily cron from a due schedule (slice 15).
+ *
+ * There is no signed-in user to attribute it to and nothing to alert: the location is already known
+ * from the schedule's crane, so the scope-based `resolveJobLocation` is bypassed rather than given a
+ * forged identity. SLA targets and numbering are the same as any other job — a cron-raised job is a
+ * real job the moment it exists.
+ */
+export async function createSystemJob(
+  tx: Tx,
+  input: DueScheduleJobInput,
+): Promise<{ id: string; number: string }> {
+  const job = await insertJob(
+    tx,
+    {
+      jobTypeId: input.jobTypeId,
+      customerId: input.customerId,
+      siteId: input.siteId,
+      craneIds: [input.craneId],
+      ticketId: null,
+      priority: input.priority,
+      description: input.description,
+      internalNotes: null,
+    },
+    {
+      ticketId: null,
+      reportedAt: input.reportedAt,
+      location: { siteId: input.siteId, craneIds: [input.craneId] },
+      actorId: null,
+    },
+  )
+  return { id: job.id, number: job.number }
+}
+
+/** The shared tail of job creation: SLA snapshot, document number, status history. */
+async function insertJob(
+  tx: Tx,
+  input: CreateJobInput,
+  options: {
+    ticketId: string | null
+    reportedAt: Date
+    location: { siteId: string; craneIds: string[] }
+    actorId: string | null
+  },
+): Promise<JobRow> {
+  const { location, reportedAt, actorId } = options
 
   const jobType = await tx.jobType.findFirst({
     where: { id: input.jobTypeId, isActive: true },
@@ -603,7 +667,7 @@ async function createJobRow(
     where: {
       customerId: input.customerId,
       deletedAt: null,
-      OR: [{ endDate: null }, { endDate: { gte: options.reportedAt } }],
+      OR: [{ endDate: null }, { endDate: { gte: reportedAt } }],
     },
     orderBy: { startDate: 'desc' },
     select: { id: true },
@@ -623,14 +687,14 @@ async function createJobRow(
       priority: input.priority,
       description: input.description,
       internalNotes: input.internalNotes,
-      reportedAt: options.reportedAt,
+      reportedAt,
       // Snapshotted once, so a later policy edit cannot rewrite this job's history.
-      slaResponseDue: addMinutes(options.reportedAt, targets.responseMinutes),
-      slaResolveDue: addMinutes(options.reportedAt, targets.resolutionMinutes),
-      createdById: context.userId,
+      slaResponseDue: addMinutes(reportedAt, targets.responseMinutes),
+      slaResolveDue: addMinutes(reportedAt, targets.resolutionMinutes),
+      createdById: actorId,
       cranes: { create: location.craneIds.map((craneId) => ({ craneId })) },
       statusHistory: {
-        create: { fromStatus: null, toStatus: 'NEW', changedById: context.userId },
+        create: { fromStatus: null, toStatus: 'NEW', changedById: actorId },
       },
     },
     select: jobSelect,
