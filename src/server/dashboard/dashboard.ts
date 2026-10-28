@@ -2,9 +2,10 @@ import type { JobStatus, OnHoldReason } from '@prisma/client'
 import { db, type Tx } from '@/lib/db'
 import { addDays } from '@/lib/time'
 import { assertCan } from '@/server/auth/permissions'
-import { jobReadWhere, craneReadWhere } from '@/server/auth/scope'
+import { jobReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { jobSla } from '@/server/jobs/jobs'
+import { scheduleCounts } from '@/server/schedules/schedules'
 
 /**
  * The office dashboard (brief §8).
@@ -23,7 +24,10 @@ export interface DashboardCounts {
   overdue: number
   awaitingInvoicing: number
   visitsBooked: number
+  /** Recurring obligations due in the next 30 days, excluding any already overdue. */
   dueWithin30Days: number
+  /** Recurring obligations already past their due date (slice 12). */
+  schedulesOverdue: number
   certificatesExpiring: number
 }
 
@@ -113,11 +117,10 @@ export async function dashboardSummary(
         scheduledStart: { gte: now, lte: horizon },
       },
     }),
-    // Recurring obligations due in the next 30 days. `CraneSchedule` is seeded by later slices; until
-    // it has rows this tile honestly reads zero rather than inventing an estimate from job history.
-    client.craneSchedule.count({
-      where: { nextDueDate: { gte: now, lte: horizon }, crane: craneReadWhere(context) },
-    }),
+    // Recurring obligations, counted through the schedule service rather than by a query of its own
+    // so this tile and the `/schedules` list it links to cannot disagree (slice 12; the slice-10
+    // lesson). The service buckets against the clock itself, which is why it needs no horizon here.
+    scheduleCounts(context, client, now),
   ])
 
   let p1Open = 0
@@ -150,7 +153,8 @@ export async function dashboardSummary(
     overdue,
     awaitingInvoicing,
     visitsBooked,
-    dueWithin30Days: dueSchedules,
+    dueWithin30Days: dueSchedules.dueWithin30Days,
+    schedulesOverdue: dueSchedules.overdue,
     certificatesExpiring: expiringCertificates,
     onHoldByReason: [...holdCounts.entries()]
       .map(([reason, count]) => ({ reason, count }))

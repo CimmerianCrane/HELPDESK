@@ -221,7 +221,7 @@ await withAudit(context, async (tx, log) => { ... }, client)
 ## How the offline phone is wired
 
 The technician PWA is four pieces. New work extends these; it does not add a fifth way of doing the same
-thing (see `KICKOFF.md`, "Slice 9 is done — resume at slice 10").
+thing (see `KICKOFF.md` "Where the build stands" and `docs/PLAN.md` §7 for what is being built next).
 
 1. **Read layer** — `src/server/tech/my-jobs.ts`. Every query spreads `jobReadWhere(context)` and every
    function calls `assertCan` first. A technician's own job list is the only list; another technician's

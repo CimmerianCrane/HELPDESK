@@ -20,13 +20,15 @@ import { requireAuth } from '@/server/auth/context'
 import { NotFoundError } from '@/server/auth/errors'
 import { can } from '@/server/auth/permissions'
 import { JOB_STATUS_DESCRIPTIONS, JOB_STATUS_LABELS, ON_HOLD_REASON_LABELS } from '@/server/jobs/labels'
-import { getJob, listJobs } from '@/server/jobs/jobs'
+import { getJob, listJobs, metadataForJob } from '@/server/jobs/jobs'
 import { REPORT_STATUS_LABELS } from '@/server/reports/labels'
 import { reportsForJob } from '@/server/reports/reports'
 import { isTerminal, nextStatuses } from '@/server/jobs/status'
 import { dispatchPack } from '@/server/schedule/dispatch'
 import { listResources, listTechnicians } from '@/server/schedule/roster'
 import { jobStaffing } from '@/server/schedule/scheduling'
+import { dueLabelFor, schedulesForJobCranes } from '@/server/schedules/schedules'
+import { SCHEDULE_TYPE_LABELS } from '@/lib/validation/schedules'
 import { getSettings } from '@/server/settings/settings'
 import type { SlaResult } from '@/server/sla/sla'
 import { updateJobAction, transitionJobAction } from '../actions'
@@ -50,7 +52,7 @@ export async function generateMetadata({
   const { id } = await params
   const context = await requireAuth()
   try {
-    const job = await getJob(context, id)
+    const [job] = await metadataForJob(context, id)
     return { title: `${job.number} — Cimmerian Crane Services` }
   } catch (error) {
     if (error instanceof NotFoundError) return { title: 'Job — Cimmerian Crane Services' }
@@ -67,45 +69,64 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const { id } = await params
   const context = await requireAuth()
 
-  let job: Awaited<ReturnType<typeof getJob>>
-  try {
-    job = await getJob(context, id)
-  } catch (error) {
-    if (error instanceof NotFoundError) notFound()
-    throw error
-  }
-
-  const settings = await getSettings()
+  // Read from the permission map, not the database, so these cost nothing and can gate the batch below.
   const mayMove = can(context.role, 'job.transition')
   const mayEdit = can(context.role, 'job.create')
   const maySchedule = can(context.role, 'job.schedule')
   const mayAssign = can(context.role, 'job.assign')
   const mayDispatch = can(context.role, 'job.dispatch')
+
+  const [
+    jobResult,
+    settings,
+    staffing,
+    technicians,
+    resources,
+    dispatch,
+    allJobs,
+    reports,
+    trail,
+    completionSchedules,
+  ] = await Promise.all([
+      getJob(context, id).then(
+        (job) => ({ job }),
+        (error: unknown) => {
+          if (error instanceof NotFoundError) notFound()
+          throw error
+        },
+      ),
+      getSettings(),
+      // Everything below keys off the id in the URL, not off the job row, so it runs alongside the
+      // job read rather than waiting a full round trip for it.
+      jobStaffing(context, id),
+      mayAssign ? listTechnicians(context) : Promise.resolve([]),
+      maySchedule && can(context.role, 'resource.read')
+        ? listResources(context)
+        : Promise.resolve([]),
+      mayDispatch
+        ? dispatchPack(context, id).catch((error) => {
+            if (error instanceof NotFoundError) return null
+            throw error
+          })
+        : Promise.resolve(null),
+      can(context.role, 'job.bump') ? listJobs(context, {}) : Promise.resolve([]),
+      reportsForJob(context, id),
+      can(context.role, 'audit.read') ? auditTrail(context, 'Job', id, 20) : Promise.resolve([]),
+      // The schedules this visit could complete (slice 12). Keyed off the id in the URL like the
+      // rest, so it joins the same batch; the job row decides below whether they are offered.
+      mayMove && can(context.role, 'schedule.manage')
+        ? schedulesForJobCranes(context, id)
+        : Promise.resolve([]),
+    ])
+  const job = jobResult.job
+
+  // Only the bump candidates need the job row (to exclude itself), so the filter stays here.
+  const unplaced = allJobs.filter(
+    (row) => row.id !== job.id && (!row.scheduledStart || row.priority === 'P1'),
+  )
+
   const moves = nextStatuses(job.status)
   const finished = isTerminal(job.status)
-
-  const [staffing, technicians, resources, dispatch, unplaced, reports, trail] = await Promise.all([
-    jobStaffing(context, job.id),
-    mayAssign ? listTechnicians(context) : Promise.resolve([]),
-    maySchedule && can(context.role, 'resource.read')
-      ? listResources(context)
-      : Promise.resolve([]),
-    mayDispatch
-      ? dispatchPack(context, job.id).catch((error) => {
-          if (error instanceof NotFoundError) return null
-          throw error
-        })
-      : Promise.resolve(null),
-    can(context.role, 'job.bump')
-      ? listJobs(context, {}).then((rows) =>
-          rows.filter(
-            (row) => row.id !== job.id && (!row.scheduledStart || row.priority === 'P1'),
-          ),
-        )
-      : Promise.resolve([]),
-    reportsForJob(context, job.id),
-    can(context.role, 'audit.read') ? auditTrail(context, 'Job', job.id, 20) : Promise.resolve([]),
-  ])
 
   const rescheduleDefaultStart = staffing.scheduledStart
     ? utcToLocalInput(staffing.scheduledStart, settings.timezone)
@@ -511,6 +532,12 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             action={transitionJobAction.bind(null, job.id)}
             status={job.status}
             nextStatuses={moves}
+            completionSchedules={completionSchedules.map((schedule) => ({
+              id: schedule.id,
+              label: `${schedule.crane.assetTag} — ${SCHEDULE_TYPE_LABELS[schedule.scheduleType]}`,
+              dueLabel: dueLabelFor(schedule, settings.timezone),
+              overdue: schedule.overdue,
+            }))}
           />
         </section>
       ) : null}

@@ -1,4 +1,5 @@
 import type { CustomerStatus, Prisma } from '@prisma/client'
+import { cache } from 'react'
 import { db, type Tx } from '@/lib/db'
 import { parseInput } from '@/lib/validation/parse'
 import {
@@ -200,7 +201,8 @@ export async function listCustomers(
   return rows.map(toSummary)
 }
 
-export async function getCustomer(
+/** Cached per request: `generateMetadata` and the page both read the same customer. */
+export const getCustomer = cache(async function getCustomer(
   context: AuthContext,
   customerId: string,
   client: Tx = db,
@@ -227,7 +229,7 @@ export async function getCustomer(
     billingAddress: toAddress(row.billingAddress),
     contacts: row.contacts.map(toContact),
   }
-}
+})
 
 /**
  * The customer's sites. Used by the contact form's site selector and by the sites panel on the

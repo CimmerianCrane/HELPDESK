@@ -221,16 +221,23 @@ export function TransitionJobForm({
   action,
   status,
   nextStatuses,
+  completionSchedules = [],
 }: {
   action: FormAction
   status: JobStatus
   nextStatuses: readonly JobStatus[]
+  /**
+   * Schedules on this job's cranes, offered only when moving to Completed (slice 12). Completion is
+   * explicit: nothing maps a job type to an obligation — that is the compliance rules' job (slice 14).
+   */
+  completionSchedules?: Array<{ id: string; label: string; dueLabel: string; overdue: boolean }>
 }) {
   const [state, formAction, pending] = useActionState(action, IDLE_FORM)
   // `status` is only the fallback: the caller does not render this form when there is nowhere to go.
   const [target, setTarget] = useState<JobStatus>(nextStatuses[0] ?? status)
 
   const goingOnHold = target === 'ON_HOLD'
+  const completing = target === 'COMPLETED' && completionSchedules.length > 0
 
   return (
     <form action={formAction} className="space-y-4">
@@ -277,6 +284,36 @@ export function TransitionJobForm({
           </select>
           <FieldError state={state} name="onHoldReason" />
         </div>
+      ) : null}
+
+      {completing ? (
+        <fieldset className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+          <legend className="px-1 text-sm font-medium text-slate-700">
+            Schedules this visit completed
+          </legend>
+          {completionSchedules.map((schedule) => (
+            <label key={schedule.id} className="flex items-start gap-3 text-sm text-slate-800">
+              <input
+                type="checkbox"
+                name="scheduleIds"
+                value={schedule.id}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300"
+              />
+              <span>
+                {schedule.label}
+                <span className={schedule.overdue ? ' text-red-800' : ' text-slate-500'}>
+                  {' — '}
+                  {schedule.dueLabel}
+                </span>
+              </span>
+            </label>
+          ))}
+          <p className="text-xs text-slate-500">
+            Recording one marks it done on the day this job completed and moves it on by its interval.
+            Leave it clear if this visit did not do that work.
+          </p>
+          <FieldError state={state} name="scheduleIds" />
+        </fieldset>
       ) : null}
 
       <div>

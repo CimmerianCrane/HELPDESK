@@ -78,6 +78,18 @@ export function craneReadWhere(ctx: AuthContext): Prisma.CraneWhereInput {
 }
 
 /**
+ * Filter for `CraneSchedule` — the recurring obligations (slice 12).
+ *
+ * It follows the crane, never its own capability: a schedule is a fact about a machine, so whoever may
+ * read the crane may read what is due on it, and nobody else may. Keying it on `craneReadWhere` rather
+ * than on `schedule.manage` is what stops a technician browsing the schedule list from seeing work at
+ * sites they are not assigned to.
+ */
+export function craneScheduleReadWhere(ctx: AuthContext): Prisma.CraneScheduleWhereInput {
+  return { deletedAt: null, crane: { ...craneReadWhere(ctx), deletedAt: null } }
+}
+
+/**
  * Filter for `Site`. Follows the same shape as `craneReadWhere`: a role that browses sites sees all
  * of them, a technician sees the sites their jobs are at (they need the address and access notes),
  * and a customer user sees their own.

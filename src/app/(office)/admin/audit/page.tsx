@@ -45,8 +45,8 @@ export default async function AuditPage({
     )
   }
 
-  const params = await searchParams
-  const settings = await getSettings()
+  // The filters and the timezone do not depend on each other.
+  const [params, settings] = await Promise.all([searchParams, getSettings()])
 
   const { rows, truncated } = await searchAuditLog(
     context,
@@ -59,6 +59,7 @@ export default async function AuditPage({
     },
     settings.timezone,
   )
+  // Depends on the rows above: one more round trip, unavoidably.
   const labels = await auditEntityLabels(context, rows)
 
   const filtered = Boolean(params.entity || params.entityId || params.userId || params.from || params.to)

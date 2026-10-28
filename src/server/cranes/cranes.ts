@@ -1,4 +1,5 @@
 import type { CraneStatus, CraneType, Prisma } from '@prisma/client'
+import { cache } from 'react'
 import { db, type Tx } from '@/lib/db'
 import { parseInput } from '@/lib/validation/parse'
 import {
@@ -157,7 +158,11 @@ export async function listCranes(
   return rows.map(toSummary)
 }
 
-export async function getCrane(
+/**
+ * One crane. Cached per request because `generateMetadata` and the page both ask for it, and the
+ * page title is not worth a second round trip to the database's region.
+ */
+export const getCrane = cache(async function getCrane(
   context: AuthContext,
   craneId: string,
   client: Tx = db,
@@ -191,7 +196,7 @@ export async function getCrane(
     notes: row.notes,
     restrictedAt: row.restrictedAt,
   }
-}
+})
 
 /** Resolves a scanned QR token to a crane the caller is allowed to see. Null means "not yours". */
 export async function findCraneByQrValue(

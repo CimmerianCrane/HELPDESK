@@ -531,6 +531,8 @@ model CraneSchedule {
   notes               String?
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
+  /// An obligation that no longer applies is ended, not erased (slice 12).
+  deletedAt           DateTime?
 
   @@index([nextDueDate])
   @@index([craneId, scheduleType])

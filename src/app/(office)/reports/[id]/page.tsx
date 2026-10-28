@@ -53,21 +53,21 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const { id } = await params
   const context = await requireAuth()
 
-  let report
-  try {
-    report = await getReport(context, id)
-  } catch (error) {
-    if (error instanceof NotFoundError) notFound()
-    throw error
-  }
+  // The report, the settings and the signed-PDF link do not depend on each other. One round trip to
+  // the database's region instead of three in series.
+  const [report, settings, downloadUrl] = await Promise.all([
+    getReport(context, id).catch((error: unknown) => {
+      if (error instanceof NotFoundError) notFound()
+      throw error
+    }),
+    getSettings(),
+    issuedPdfUrl(context, id),
+  ])
 
-  const settings = await getSettings()
   const mayDecide = can(context.role, 'report.approve')
   const mayAmend = can(context.role, 'report.amend')
   const parsed = templateSchema.safeParse(report.template.schema)
   const data = (report.data ?? {}) as Record<string, unknown>
-
-  const downloadUrl = await issuedPdfUrl(context, report.id)
 
   const openAmendment = report.amendments.find((entry) => entry.status !== 'AMENDED')
 

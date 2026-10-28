@@ -51,15 +51,19 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
   const { id } = await params
   const context = await requireAuth()
 
-  let ticket: Awaited<ReturnType<typeof getTicket>>
-  try {
-    ticket = await getTicket(context, id)
-  } catch (error) {
-    if (error instanceof NotFoundError) notFound()
-    throw error
-  }
+  // The ticket, the timezone, and the office-only lists beneath it are all independent reads: one
+  // round trip to the database's region, not three in series.
+  const [ticket, settings, related] = await Promise.all([
+    getTicket(context, id).catch((error: unknown) => {
+      if (error instanceof NotFoundError) notFound()
+      throw error
+    }),
+    getSettings(),
+    can(context.role, 'job.create')
+      ? Promise.all([listJobFormOptions(context), listJobs(context, { ticketId: id })])
+      : Promise.resolve(null),
+  ])
 
-  const settings = await getSettings()
   const mayTriage = can(context.role, 'ticket.triage')
   const mayCreateJob = can(context.role, 'job.create')
   const isOpen = ticket.status === 'NEW' || ticket.status === 'TRIAGED'
@@ -67,9 +71,7 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
 
   // The jobs this call became, and the form to make more. Both are office-only: a technician who
   // raised the ticket can see what happened without being able to dispatch work.
-  const [jobOptions, jobs] = mayCreateJob
-    ? await Promise.all([listJobFormOptions(context), listJobs(context, { ticketId: ticket.id })])
-    : [null, []]
+  const [jobOptions, jobs] = related ?? [null, []]
 
   return (
     <div className="space-y-8">

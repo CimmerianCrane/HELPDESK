@@ -358,6 +358,34 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     and approving a new report in the app produces a real PDF exactly as the issued one would. A seed that
     could render would need the PDF dependency to be loadable under tsx first.
 
+84. **Ending a schedule is a soft delete, so `CraneSchedule` gained a `deletedAt`.** Nothing else fit: a
+    hard delete would break CLAUDE.md rule 4 for the reminders and jobs that point at the row, and an
+    `isActive` boolean would sit beside `deletedAt` as a second way of saying the same thing. Live reads
+    spread `craneScheduleReadWhere`, so an ended obligation disappears from the crane page, the list and
+    the counts while its record and audit trail stay. Re-raising the same kind of obligation on the same
+    crane afterwards is allowed — the duplicate check only looks at live rows.
+85. **"Mark schedule done" is a checkbox on the existing completion form, not a separate action.** One
+    write, one transaction, one permission check: `markSchedulesDone` runs inside `transitionJob`'s
+    `withAudit`, so the status change and the rolled-forward due dates commit together or not at all. The
+    date recorded is the job's `completedAt`, never the wall clock, so a report signed on Friday and moved
+    to Completed on Monday still dates the work on Friday. A schedule named against a crane the job did
+    not touch is refused rather than skipped — a silent no-op would hide a form that disagrees with the
+    ledger. **No job type is mapped to a schedule type anywhere in code**: that mapping is a
+    `ComplianceRule` (slice 14), which is the rule-2 requirement.
+86. **Overdue is derived on every read, never stored.** `dueBucket(nextDueDate, now)` is the single
+    definition, shared by the crane block, the list, the counts and the completion checkboxes; the
+    comparison is by calendar day in UTC, so something due today is not overdue at 00:01. The bucket
+    boundaries are inclusive: at most 30 days left is `30`, at most 60 is `60`, at most 90 is `90`, and
+    anything further out is `later`. `addMonths` clamps to the target month's last day (31 Jan + 1 month
+    is 28 or 29 February) — lossy for a chain but self-correcting here, because every recompute counts
+    from a real completion date rather than from the previous computed one.
+87. **The schedule list is scoped on `crane.read`, not `schedule.manage`.** Reading what is due on a crane
+    is part of reading the crane; a technician is assigned the machine and needs to know it is due a
+    service. Editing needs `schedule.manage`, which a technician does not hold. The search text is
+    `AND`-ed onto the crane's scope rather than spread beside it — `craneReadWhere` uses `OR` internally
+    for a technician's cranes, and a second `OR` on the same object would have replaced it, letting a
+    search for another customer's asset tag through. `tests/integration/schedules.test.ts` asserts that.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

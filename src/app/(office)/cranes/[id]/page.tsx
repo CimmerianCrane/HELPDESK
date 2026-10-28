@@ -9,7 +9,12 @@ import {
 } from '@/components/office/crane-forms'
 import { cardClass } from '@/components/office/ui'
 import { AuditTrailLink, AuditTrailPanel } from '@/components/office/audit-trail'
+import { ArchiveScheduleButton, ScheduleForm } from '@/components/office/crane-schedule-forms'
 import { formatDate } from '@/lib/format'
+import { SCHEDULE_TYPE_LABELS } from '@/lib/validation/schedules'
+import { DueBadge } from '@/components/office/job-badges'
+import { daysUntil } from '@/server/schedules/recurrence'
+import { schedulesForCrane } from '@/server/schedules/schedules'
 import { requireAuth } from '@/server/auth/context'
 import { NotFoundError } from '@/server/auth/errors'
 import { can } from '@/server/auth/permissions'
@@ -30,6 +35,11 @@ import {
   unrestrictCraneAction,
   updateCraneAction,
 } from '../actions'
+import {
+  archiveScheduleAction,
+  createScheduleAction,
+  updateScheduleAction,
+} from '../../schedules/actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,17 +70,19 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
     throw error
   }
 
-  const [sites, settings, timeline, trail] = await Promise.all([
+  const [sites, settings, timeline, trail, schedules] = await Promise.all([
     listSites(context, { customerId: crane.site.customerId }),
     getSettings(),
     craneReportTimeline(context, crane.id),
     can(context.role, 'audit.read')
       ? auditTrail(context, 'Crane', crane.id, 20)
       : Promise.resolve([]),
+    schedulesForCrane(context, crane.id),
   ])
 
   const mayWrite = can(context.role, 'crane.write')
   const mayRestrict = can(context.role, 'crane.restrict')
+  const mayManageSchedules = can(context.role, 'schedule.manage')
   const siteOptions = sites.map((row) => ({ id: row.id, name: row.name }))
   const restricted = crane.status === 'RESTRICTED'
 
@@ -193,6 +205,100 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
           </p>
         </section>
       </div>
+
+      <section className={cardClass} aria-labelledby="schedules-heading">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="schedules-heading" className="font-semibold text-slate-900">
+            Schedules
+          </h2>
+          <Link href="/schedules" className="text-sm text-slate-600 underline">
+            All schedules
+          </Link>
+        </div>
+
+        {schedules.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-600">
+            Nothing recurs on this crane yet. A schedule records what is due and when — a monthly
+            service, an annual examination, a load test.
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-slate-100 text-sm">
+            {schedules.map((schedule) => {
+              const days = daysUntil(schedule.nextDueDate)
+              return (
+                <li key={schedule.id} className="flex flex-wrap items-baseline justify-between gap-2 py-3">
+                  <div>
+                    <p className="font-medium text-slate-900">
+                      {SCHEDULE_TYPE_LABELS[schedule.scheduleType]}
+                      <span className="ml-2 text-xs font-normal text-slate-500">
+                        {schedule.intervalMonths ? `every ${schedule.intervalMonths} mo` : 'one-off'}
+                        {schedule.source === 'RULE' ? ' · from a rule' : ''}
+                      </span>
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Last done {formatDate(schedule.lastDoneDate, settings.timezone)}
+                      {' · '}
+                      due {formatDate(schedule.nextDueDate, settings.timezone)}
+                    </p>
+                    {schedule.notes ? (
+                      <p className="mt-1 text-xs text-slate-600">{schedule.notes}</p>
+                    ) : null}
+                  </div>
+                  <div className="text-right">
+                    <DueBadge bucket={schedule.dueBucket} days={days} />
+                    {mayManageSchedules ? (
+                      <div className="mt-2">
+                        <ArchiveScheduleButton
+                          action={archiveScheduleAction.bind(
+                            null,
+                            schedule.id,
+                            crane.id,
+                          )}
+                          label={SCHEDULE_TYPE_LABELS[schedule.scheduleType].toLowerCase()}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                  {mayManageSchedules ? (
+                    <details className="w-full">
+                      <summary className="cursor-pointer text-sm text-slate-700 underline">
+                        Edit this schedule
+                      </summary>
+                      <div className="mt-3">
+                        <ScheduleForm
+                          action={updateScheduleAction.bind(null, schedule.id)}
+                          value={schedule}
+                          submitLabel="Save schedule"
+                          idPrefix={`schedule-${schedule.id}`}
+                        />
+                      </div>
+                    </details>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        {mayManageSchedules ? (
+          <details className="mt-5 border-t border-slate-100 pt-4">
+            <summary className="cursor-pointer text-sm font-medium text-slate-900">
+              Add a schedule
+            </summary>
+            <p className="mt-2 mb-4 text-sm text-slate-600">
+              Intervals are configured here, not assumed by the app. A statutory examination is the
+              Authorised Examiner&rsquo;s; a company inspection of ours is tracked the same way but is never
+              called a certificate.
+            </p>
+            <ScheduleForm
+              action={createScheduleAction}
+              crane={{ id: crane.id, assetTag: crane.assetTag, siteName: crane.site.name }}
+              submitLabel="Add schedule"
+              idPrefix="crane-schedule"
+            />
+          </details>
+        ) : null}
+      </section>
 
       <section className={cardClass}>
         <h2 className="font-semibold text-slate-900">Timeline</h2>

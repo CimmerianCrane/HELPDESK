@@ -17,12 +17,16 @@ export default async function TechJobPage({ params }: { params: Promise<{ id: st
   const { id } = await params
   const context = await requireAuth()
 
-  const settings = await getSettings()
-  const job = await technicianJob(context, id).catch((error: unknown) => {
-    // "Not found" and "not yours" are the same answer, deliberately — see the service.
-    if (isAppError(error) && error.status === 404) notFound()
-    throw error
-  })
+  // The job and the timezone are read together; a phone on a slow link is the worst place to queue
+  // two round trips that have nothing to do with each other.
+  const [settings, job] = await Promise.all([
+    getSettings(),
+    technicianJob(context, id).catch((error: unknown) => {
+      // "Not found" and "not yours" are the same answer, deliberately — see the service.
+      if (isAppError(error) && error.status === 404) notFound()
+      throw error
+    }),
+  ])
 
   return (
     <div className="space-y-5">

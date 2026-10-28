@@ -7,6 +7,9 @@ dist/
 .env
 .env.local
 .env*.local
+# Anything else that looks like an env file — backups, per-region copies — holds credentials.
+.env.*
+!.env.example
 
 # Uploaded files in local dev (STORAGE_DRIVER=disk)
 /storage/

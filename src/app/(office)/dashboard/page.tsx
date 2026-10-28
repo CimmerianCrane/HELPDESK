@@ -22,19 +22,21 @@ export const dynamic = 'force-dynamic'
  */
 export default async function DashboardPage() {
   const context = await requireAuth()
-  const settings = await getSettings()
   const isOffice = can(context.role, 'dashboard.office')
 
-  const dashboard = isOffice ? await dashboardSummary(context) : null
+  // Settings, the board and the health check do not depend on each other. Started together they cost
+  // one round trip to the database's region instead of two more on top of the count queries.
+  const [settings, dashboard, databaseUp] = await Promise.all([
+    getSettings(),
+    isOffice ? dashboardSummary(context) : null,
+    db.$queryRaw`SELECT 1`.then(
+      () => ({ up: true as const, detail: '' }),
+      (error: unknown) => ({ up: false as const, detail: errorMessage(error) }),
+    ),
+  ])
 
-  let database: 'up' | 'down' = 'up'
-  let detail = ''
-  try {
-    await db.$queryRaw`SELECT 1`
-  } catch (error) {
-    database = 'down'
-    detail = errorMessage(error)
-  }
+  const database: 'up' | 'down' = databaseUp.up ? 'up' : 'down'
+  const detail = databaseUp.detail
 
   const firstName = context.name.split(' ')[0]
 
@@ -132,7 +134,25 @@ export default async function DashboardPage() {
                     Services / exams due
                   </dt>
                   <dd className="mt-0.5 text-lg font-semibold text-slate-900">
-                    {dashboard.dueWithin30Days}
+                    <Link href="/schedules?due=30" className="underline decoration-slate-300">
+                      {dashboard.dueWithin30Days}
+                    </Link>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs tracking-wide text-slate-500 uppercase">
+                    Schedules overdue
+                  </dt>
+                  <dd
+                    className={
+                      dashboard.schedulesOverdue > 0
+                        ? 'mt-0.5 text-lg font-semibold text-red-800'
+                        : 'mt-0.5 text-lg font-semibold text-slate-900'
+                    }
+                  >
+                    <Link href="/schedules?due=overdue" className="underline decoration-red-200">
+                      {dashboard.schedulesOverdue}
+                    </Link>
                   </dd>
                 </div>
                 <div className="col-span-2">

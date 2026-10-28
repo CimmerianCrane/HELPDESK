@@ -41,7 +41,6 @@ export default async function JobsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const context = await requireAuth()
   const params = await searchParams
 
   // One string per key; a repeated key keeps its first value rather than becoming an array Zod
@@ -52,7 +51,9 @@ export default async function JobsPage({
   }
 
   const view = single('view') === 'calendar' ? 'calendar' : 'list'
-  const settings = await getSettings()
+  // Identity and settings are independent, so they share a round trip. Everything after this needs
+  // the timezone — the calendar window is two wall dates — so this is the last hop that can be saved.
+  const [context, settings] = await Promise.all([requireAuth(), getSettings()])
 
   const filters = {
     q: single('q'),

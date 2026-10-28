@@ -46,14 +46,16 @@ export const onHoldReasonSchema = z.enum([
   'OTHER',
 ])
 
-/** `undefined` (no boxes ticked), `''` (empty hidden input) or one string all mean "no cranes". */
-const craneIdsSchema = z
+/** `undefined` (no boxes ticked), `''` (empty hidden input) or one string all mean "none chosen". */
+const idListSchema = z
   .union([z.string(), z.array(z.string())])
   .optional()
   .transform((value) => {
     const list = value === undefined ? [] : Array.isArray(value) ? value : [value]
     return [...new Set(list.map((id) => id.trim()).filter(Boolean))]
   })
+
+const craneIdsSchema = idListSchema
 
 export const createJobSchema = z.object({
   customerId: requiredText(40, 'A job belongs to a customer.'),
@@ -96,8 +98,20 @@ export const transitionJobSchema = z
       .union([z.literal(''), onHoldReasonSchema])
       .optional()
       .transform((value) => (value === '' || value === undefined ? null : value)),
+    /**
+     * Schedules this visit completed (slice 12). Only meaningful on COMPLETED — the service records
+     * them in the same transaction as the status change and refuses them against any other target.
+     */
+    scheduleIds: idListSchema,
   })
   .superRefine((input, ctx) => {
+    if (input.status !== 'COMPLETED' && input.scheduleIds.length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scheduleIds'],
+        message: 'Schedules are only recorded when a job is completed.',
+      })
+    }
     if (input.status === 'ON_HOLD' && !input.onHoldReason) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

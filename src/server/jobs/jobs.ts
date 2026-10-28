@@ -1,4 +1,5 @@
 import type { JobStatus, OnHoldReason, Prisma } from '@prisma/client'
+import { cache } from 'react'
 import { db, type Tx } from '@/lib/db'
 import { addDays, wallTimeToUtc } from '@/lib/time'
 import { parseInput } from '@/lib/validation/parse'
@@ -13,6 +14,7 @@ import {
   type JobSort,
 } from '@/lib/validation/jobs'
 import { withAudit } from '@/server/audit/audit'
+import { markSchedulesDone } from '@/server/schedules/schedules'
 import { NotFoundError, RuleError } from '@/server/auth/errors'
 import { assertCan } from '@/server/auth/permissions'
 import {
@@ -332,32 +334,7 @@ export async function getJob(
 ): Promise<JobDetail> {
   assertCan(context, 'job.read.all')
 
-  const row = await client.job.findFirst({
-    where: { id: jobId, ...jobReadWhere(context) },
-    select: jobSelect,
-  })
-  if (!row) throw new NotFoundError('No such job.')
-
-  const history = await client.jobStatusHistory.findMany({
-    where: { jobId },
-    orderBy: [{ changedAt: 'asc' }, { id: 'asc' }],
-    select: {
-      id: true,
-      fromStatus: true,
-      toStatus: true,
-      reason: true,
-      onHoldReason: true,
-      changedById: true,
-      changedAt: true,
-    },
-  })
-
-  // One query for the names on the history rows, rather than a join per row.
-  const userIds = [...new Set(history.map((entry) => entry.changedById).filter((id): id is string => !!id))]
-  const users = userIds.length
-    ? await client.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } })
-    : []
-  const nameFor = new Map(users.map((user) => [user.id, user.name]))
+  const [row, history, users] = await metadataForJob(context, jobId, client)
 
   return {
     ...toSummary(row, now),
@@ -367,11 +344,69 @@ export async function getJob(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     createdById: row.createdById,
-    history: history.map((entry) => ({
-      ...entry,
-      changedByName: entry.changedById ? nameFor.get(entry.changedById) ?? null : null,
-    })),
+    history: withNames(history, users),
   }
+}
+
+/**
+ * The job row and its status history with the names resolved, in one round trip.
+ *
+ * `generateMetadata` and the page both need the job, and Next renders them as two separate calls —
+ * without this the detail page pays for the same queries twice before it draws anything. Deliberately
+ * no `now` argument: a `new Date()` per caller would be a different cache key every time.
+ */
+export const metadataForJob = cache(
+  async (
+    context: AuthContext,
+    jobId: string,
+    client: Tx = db,
+  ): Promise<[JobRow, JobHistoryRow[], Map<string, string>]> => {
+    assertCan(context, 'job.read.all')
+
+    const [row, history] = await Promise.all([
+      client.job.findFirst({
+        where: { id: jobId, ...jobReadWhere(context) },
+        select: jobSelect,
+      }),
+      client.jobStatusHistory.findMany({
+        where: { jobId },
+        orderBy: [{ changedAt: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          fromStatus: true,
+          toStatus: true,
+          reason: true,
+          onHoldReason: true,
+          changedById: true,
+          changedAt: true,
+        },
+      }),
+    ])
+    if (!row) throw new NotFoundError('No such job.')
+
+    // One query for the names on the history rows, rather than a join per row.
+    const userIds = [
+      ...new Set(history.map((entry) => entry.changedById).filter((id): id is string => !!id)),
+    ]
+    const users = userIds.length
+      ? await client.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true },
+        })
+      : []
+    const nameFor = new Map(users.map((user) => [user.id, user.name]))
+
+    return [row, history, nameFor]
+  },
+)
+
+type JobHistoryRow = Omit<JobHistoryEntry, 'changedByName'>
+
+function withNames(history: JobHistoryRow[], nameFor: Map<string, string>): JobHistoryEntry[] {
+  return history.map((entry) => ({
+    ...entry,
+    changedByName: entry.changedById ? nameFor.get(entry.changedById) ?? null : null,
+  }))
 }
 
 /** Counts for the dashboard tile: what is live, what is late, and what is stuck. */
@@ -857,6 +892,13 @@ export async function transitionJob(
           note: input.note,
         },
       })
+
+      // The schedules this visit completed (slice 12). Inside this transaction on purpose: a saved
+      // completion whose schedule did not roll forward leaves the obligation looking overdue and gets
+      // the crane visited twice.
+      if (input.status === 'COMPLETED' && input.scheduleIds.length > 0) {
+        await markSchedulesDone(context, { jobId, scheduleIds: input.scheduleIds }, tx)
+      }
     },
     client,
   )

@@ -38,15 +38,15 @@ export default async function RosterPage({
   const context = await requireAuth()
   const params = await searchParams
 
-  const settings = await getSettings()
   const from = parseIsoDay(params.date, new Date())
   const to = addDays(from, 7)
 
-  const [technicians, leave, roster, resources] = await Promise.all([
+  const [technicians, leave, roster, resources, settings] = await Promise.all([
     listTechnicians(context),
     listUnavailability(context, { from, to }),
     onCallRoster(context, { from, to }),
     can(context.role, 'resource.read') ? listResources(context) : Promise.resolve([]),
+    getSettings(),
   ])
 
   const active = technicians.filter((technician) => technician.isActive)

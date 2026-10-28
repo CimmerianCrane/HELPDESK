@@ -2,6 +2,7 @@ import type { JobStatus, OnHoldReason } from '@prisma/client'
 import { formatDuration } from '@/lib/format'
 import type { SlaResult } from '@/server/sla/sla'
 import { JOB_STATUS_LABELS, ON_HOLD_REASON_LABELS } from '@/server/jobs/labels'
+import { DUE_BUCKET_LABELS, type DueBucket } from '@/server/schedules/recurrence'
 
 /**
  * Job state on screen. Server components, like the ticket badges: colour means one thing everywhere,
@@ -72,6 +73,36 @@ export function JobSlaBadge({ label, sla }: { label: string; sla: SlaResult }) {
       title={sla.dueAt ? `Due ${sla.dueAt.toISOString()}` : undefined}
     >
       <span className="text-[10px] tracking-wide uppercase opacity-70">{label}</span> {detail}
+    </span>
+  )
+}
+
+/**
+ * How soon a crane's recurring obligation is due (slice 12). Colour means the same thing here as in
+ * the schedule list: red once it has passed, amber inside 60 days, plain after that.
+ */
+export function DueBadge({ bucket, days }: { bucket: DueBucket; days: number | null }) {
+  const styles: Record<DueBucket, string> = {
+    overdue: 'border-red-300 bg-red-50 font-medium text-red-800',
+    '30': 'border-amber-300 bg-amber-50 text-amber-900',
+    '60': 'border-amber-200 bg-amber-50 text-amber-900',
+    '90': 'border-slate-200 bg-white text-slate-700',
+    later: 'border-slate-200 bg-white text-slate-600',
+    none: 'border-slate-200 bg-slate-100 text-slate-600',
+  }
+
+  const detail =
+    days === null
+      ? 'no date set'
+      : days < 0
+        ? `${Math.abs(days)} ${Math.abs(days) === 1 ? 'day' : 'days'} overdue`
+        : days === 0
+          ? 'due today'
+          : `in ${days} ${days === 1 ? 'day' : 'days'}`
+
+  return (
+    <span className={`inline-block rounded border px-2 py-0.5 text-xs ${styles[bucket]}`}>
+      {DUE_BUCKET_LABELS[bucket]} — {detail}
     </span>
   )
 }

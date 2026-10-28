@@ -9,8 +9,8 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Architecture, data model, screens and the phase plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
-**Status:** Phase 1 complete (slice 11: the end-to-end happy path and the demo dataset). See "What
-works today" below.
+**Status:** Phase 1 complete (slice 11: the end-to-end happy path and the demo dataset); Phase 2 under
+way (slice 12: schedules on the crane page). See "What works today" below.
 
 ---
 
@@ -50,7 +50,9 @@ cp .env.example .env
 
 ```dotenv
 # Transaction pooler. ?pgbouncer=true is required: it does not support prepared statements.
-DATABASE_URL="postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+# connection_limit=5, not 1: at 1, the Promise.all blocks every page already uses run one-after-another.
+# See README "Round trips, and why they still matter".
+DATABASE_URL="postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=5"
 
 # Session pooler, used only by migrations.
 DIRECT_URL="postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres"
@@ -145,7 +147,51 @@ separate worker process. The full command list is in [`CLAUDE.md`](CLAUDE.md).
 
 ---
 
+## Round trips, and why they still matter
+
+The hosted database is Supabase in **`ap-southeast-1` (Singapore)**, the same region as the office,
+so a query is a few tens of milliseconds rather than the ~400–500 ms it used to be when the project
+sat in Seoul. Round-trip *count* still matters — nothing is cached, because every page is
+`force-dynamic` on purpose — just less than it did. Three things keep navigation quick, in order of
+effect:
+
+1. **`connection_limit=5` on `DATABASE_URL`** (not `1`). The pages fetch their independent data with
+   `Promise.all`; at a limit of 1 those queries queue up and run one after another, so a page that
+   issues six queries pays for six in series. Measured against the old Seoul project: six parallel
+   queries took 2517 ms at `connection_limit=1` and 1319 ms at `4`+.
+2. **Loading skeletons** — `src/app/(office)/loading.tsx` and `src/app/(tech)/loading.tsx`. Without a
+   `loading.tsx`, Next keeps the old screen up until the server answers, so a click looks like it did
+   nothing. With one, the skeleton appears immediately and the wait is visible rather than confusing.
+3. **Fetch in one wave.** A page must `Promise.all` everything it needs after `requireAuth()`.
+   `getAuthContext` is already memoised per request via React `cache`, so a layout and the page share
+   one lookup — but two *sequential* `await`s still cost two round trips.
+
+If it is still too slow for day-to-day work, the real fix is a local Postgres (`npm run db:up`) for
+development and keeping Supabase for deployment; the app does not care which one it talks to.
+
+---
+
 ## What works today
+
+### Slice 12 — schedules on the crane page
+
+- **A crane's obligations, on its own page.** Kind, interval, last done, next due, days remaining or
+  overdue, and whether it was configured by hand or by a compliance rule. Under `schedule.manage` the
+  section also adds a schedule and ends one per row — ending is a soft delete, so the record and its
+  audit trail survive a past reminder or job that referred to it.
+- **`/schedules`, the list the dashboard links to.** Everything visible soonest-due-first with search
+  (asset tag, site, customer), a due bucket (overdue, 30, 60, 90, no date) and a kind filter, plus a
+  count line at the top. Visible in the nav for anyone who may read cranes; a technician sees only the
+  obligations on cranes they are assigned work at.
+- **The dashboard tells the truth about it.** "Services / exams due" and "Schedules overdue" both read
+  the schedule service rather than a query of their own, so a tile cannot disagree with the list it
+  links to. Overdue is computed from the clock on every read — nothing stores it and no cron flips it.
+- **Completing a job can complete the obligation.** The job's completion form offers the schedules on
+  that job's cranes as checkboxes; ticking one records the work against the job's completion date (not
+  "now") and moves the obligation on by its interval, in the same transaction as the status change.
+- **Try it:** open a crane from `/cranes`, add a monthly service with a last-done date in the past, then
+  look at `/schedules` — it appears under *overdue*. Complete a job at that crane and tick it, and the
+  due date moves a month on.
 
 ### Slice 11 — the whole job, end to end
 

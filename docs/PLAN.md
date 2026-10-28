@@ -4,7 +4,8 @@ Architecture, data model, screens and build plan. Conventions and non-negotiable
 Assumptions where the brief was silent live in `ASSUMPTIONS.md`.
 
 **Status: Phase 1 complete — slices 0–11 built against the live database, on Vercel hosting, with the
-Phase 1 acceptance path (slice 11's path (a)) passing end to end. Phases 2–4 have not been started.**
+Phase 1 acceptance path (slice 11's path (a)) passing end to end. Phase 2 is sliced in §7 and **starts at
+slice 12**. Phases 3–4 are outline only.**
 
 ---
 
@@ -338,6 +339,7 @@ model CraneSchedule {                          // one recurring obligation for a
   notes          String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt      DateTime?                     // slice 12: ended obligations are soft-deleted
   @@index([nextDueDate])
   @@index([craneId, scheduleType])
 }
@@ -1155,10 +1157,9 @@ job, crane, report or customer reads.
 Each slice runs **database → service → API/action → UI → tests**, ends with `npm run verify`, a commit, and a
 3–5 line summary. Each is independently demoable.
 
-**Progress:** Slices 0–10 are **done**. Slice 10 (job list, dashboard and audit views) is the current head of the
-build and is summarised below; slices 9 and earlier are summarised in their own commits. **The next slice is 11 —
-the end-to-end happy path.** The rest of this section is the plan as written, so the slice paragraphs are a record
-rather than instructions.
+**Progress:** Slices 0–11 are **done**; Phase 1 is complete. Slice 11 (the end-to-end happy path and the §13 demo
+estate) is summarised in `KICKOFF.md`. **The next work is Phase 2 — see §7.** The rest of this section is the plan
+as written, so the slice paragraphs are a record rather than instructions.
 
 *Slice 7* — installable phone shell with a real offline story, split in three so that each part can be
 tested on its own: a **read layer** (`src/server/tech/my-jobs.ts`) that scopes every query through
@@ -1382,21 +1383,117 @@ historical jobs, 2 open P1 tickets, 40 parts with some below reorder level, demo
 
 ---
 
-## 7. Phases 2–4 (outline)
+## 7. Phase 2 — vertical slices; Phase 3–4 (outline)
 
-**Phase 2 — Compliance & recurring work.** CraneSchedule + reminder engine (daily Vercel Cron evaluation at configured
-offsets, then overdue); Certificates + Compliance dashboard (90/60/30 + overdue); ComplianceRule admin with the MOM
-notice and source/reference; load test and visual inspection templates fully built out including calibration-expiry
-validation against `Resource.calibrationDueDate`; Findings and one-click follow-up job generation; re-registration
-reminders on owner/UEN change or re-assembly; delivery orders; quotes/variations; invoicing with GST; accounting CSV
-export.
+**Phase 2 is Compliance & recurring work, then the paperwork.** It is sliced below the same way Phase 1 was: one
+vertical slice per session, database → service → API/action → UI → tests, `npm run verify:full` and a commit before the
+summary. **Slice 12 is built and verified; slice 13 is the next session's work (§7.2).**
+Do not start a second slice in the same session. Slice 11's e2e path
+(`tests/e2e/happy-path.spec.ts`) is the Phase 1 regression guard: it must still pass, and it must not be edited to make a
+Phase 2 change fit.
 
-**Phase 3 — Inventory.** Parts catalogue; locations; stock movements linked to jobs and DOs; serial/batch traceability;
-reorder alerts grouped by supplier; purchase orders + back-orders linked to jobs on hold awaiting parts; stock take
-workflow with blind counts, variance, recounts, reason codes and approved adjustments; repeat-discrepancy flagging.
+### 7.1 What Phase 1 actually left behind
 
-**Phase 4 — Optimisation.** Customer portal; contracts and SLA management; profitability and technician-utilisation
-reporting; equipment calibration tracking; route optimisation; WhatsApp/SMS adapters; Xero/QuickBooks integration.
+Verified in the code, not inferred from the brief. This is the gap list Phase 2 closes. **It is the state as Phase 1
+left it, kept as the record of why Phase 2 is sliced the way it is — slice 12 has since closed the first two rows and the
+dashboard row of the fourth.** For the live state of the tree, read `KICKOFF.md` "Where the build stands".
+
+| Item | State today | What is missing |
+|---|---|---|
+| `CraneSchedule` | Rows exist only because `seedDemoBook()` writes two per demo crane ([prisma/seed.ts:1009](prisma/seed.ts)) | No write path, no screen. Its **only** reader is the dashboard count ([dashboard.ts:118](src/server/dashboard/dashboard.ts)) |
+| Next-due recompute | Nothing writes `lastDoneDate`/`nextDueDate` after a job fires | Completing a PM or a load test does not roll the schedule on. The crane page has no next-due block |
+| `/api/cron/daily` | Prunes `RateLimitBucket`, retries failed report emails | No reminder evaluation, no due-date scan |
+| `Certificate` | Model only | No service, no upload (`FileKind.CERTIFICATE` unused), no screen. `certificatesExpiring` counts a table nothing writes, so the tile is honestly 0 |
+| `ComplianceRule` | Model + `compliancerule.manage` capability granted | No screen; rule 2 (compliance is data, with the MOM notice) is currently unprovable in the UI |
+| `Finding` | Written on report submit, rendered on the report page | No status flow, no follow-up job, no list on the crane page. `finding.followUpJob` is granted and unused |
+| Calibration | `Resource.calibrationDueDate` never read | Load-test reports cannot validate an instrument at test date |
+| `Quote` `Invoice` `Payment` `DeliveryOrder` | Models only | No service, no screen, no numbering (`DocumentSequence` keys unused) |
+| Admin | `/admin/users` and `/admin/audit` only | No job types, templates, SLA policy, compliance rules or settings screens |
+| Permissions | `certificate.read/write`, `schedule.manage`, `compliancerule.manage`, `finding.followUpJob` already declared and granted per role | Nothing enforces them yet — each slice must consume them, not add new ones |
+
+### 7.2 The Phase 2 slice table
+
+| # | Slice | Delivers | Where the work lands | Brief § |
+|---|---|---|---|---|
+| **12** | **Schedules on the crane page** (**built** — finish per §7.3) | The "next due" block on crane detail (type, interval, last done, next due, overdue state, source); create / edit / archive a schedule under `schedule.manage`, audited; a `/office/schedules` list (overdue, then due in 30/60/90) that the dashboard tile links to; **completing a job offers "mark schedule done" for that journey's cranes**, which writes `lastDoneDate` and recomputes `nextDueDate` | `src/server/schedules/` (new), `src/app/(office)/cranes/[id]/page.tsx`, `src/app/(office)/schedules/` (new), `src/app/(office)/dashboard/page.tsx`, `src/server/jobs/status.ts` or the completion action | §8, §12 |
+| **13** | **Certificates & compliance dashboard** | Certificate register per crane: type, number, issuer, issue/expiry/next-due, stated SWL, linked job, file upload through the existing storage adapter (`CERTIFICATE`), soft-delete only; `/office/certificates` with **expiring in 90/60/30 and overdue**; the dashboard tile becomes a real count and links to it. Company inspection vs AE statutory certificate kept visually distinct | `src/server/certificates/` (new), `src/app/(office)/certificates/` (new), crane detail section, `src/server/dashboard/dashboard.ts` | §6.6, §7.2 |
+| **14** | **ComplianceRule admin** | Admin screen to maintain rules (`craneType × scheduleType`, interval, `requiresAE`, effective dates, **required `sourceReference` and `reviewedAt`**), carrying `Setting.complianceNotice` verbatim; a schedule can adopt a rule (`source = RULE`, interval copied); "re-registration may be required" reminder when a crane's `ownerEntity`/customer UEN changes or it is re-assembled at another site | `src/app/(office)/admin/compliance/` (new), `src/server/compliance/` (new), `src/server/cranes/cranes.ts` (change detection) | §7 |
+| **15** | **Reminder engine in the daily cron** | `/api/cron/daily` evaluates every `CraneSchedule.nextDueDate` at `reminderOffsetsDays` (default 90/60/30) then overdue, notifies the account owner in-app + email via the existing `notify` fan-out, and honours `autoCreateDraftJobs`; at-most-once per (schedule, offset, period) so a re-run sends nothing twice — needs an additive migration for the dispatch key | `src/app/api/cron/daily/route.ts`, `src/server/reminders/` (new), migration | §8 |
+| **16** | **Findings & one-click follow-up jobs** | Finding status flow (open → quoted → scheduled → rectified / declined), open findings on the crane page, **one click creates a follow-up job** pre-filled from the finding (job type, crane, description, priority from severity) linked by `followUpJobId`/`parentJobId`; customer-declined critical repair captured with name, signature and date | `src/server/findings/` (new), report page, crane page, `src/server/jobs/jobs.ts` | §4.2, §6.4 |
+| **17** | **Load test & visual inspection templates built out** | The two templates completed against §6.3 (test load / radii / SWL per radius / instruments / pre- and post-test exam / AE attendance; structure, safety devices, markings, wire rope and hook), with **calibration-expiry validation against `Resource.calibrationDueDate` at the test date — warn, never block** | `src/server/templates/definitions.ts`, `src/lib/templates/schema.ts`, the report form, `prisma/seed.ts` (new versions) | §6.3 |
+| **18** | **Delivery orders** | DO generated from the parts already issued on a job (no second source of truth — read from `StockMovement`), lines with serial/batch, `chargeable \| warranty \| loan` + expected return, partial delivery, receiver name/signature/timestamp, numbered `DO-YYYY-NNNN`, printable PDF via the existing renderer | `src/server/delivery-orders/` (new), `src/app/(office)/jobs/[id]/page.tsx`, `src/server/documents/` | §6.5 |
+| **19** | **Quotes & variations** | Quote from a job or a set of findings, lines with qty/unit price, `variation` flag, GST computed, send/accept/decline/expire, numbered `QTE-YYYY-NNNN`, PDF; accepting a quote moves the job into `QUOTED → APPROVED` through the existing status machine | `src/server/quotes/` (new), `src/app/(office)/quotes/` (new), `src/server/jobs/status.ts` | §4.2, §12 |
+| **20** | **Invoicing, GST and payments** | Invoice from a reviewed job (job costing from `StockMovement` + labour lines), `gstRate` snapshot at issue, `INV-YYYY-NNNN`, PDF, payments recorded, `amountPaid` derived, statuses `DRAFT/ISSUED/PART_PAID/PAID/VOID`, dashboard "awaiting invoicing" gains a screen | `src/server/invoices/` (new), `src/app/(office)/invoices/` (new) | §12, §5 |
+| **21** | **Accounting CSV export + Phase 2 acceptance** | An export adapter (CSV first, Xero/QuickBooks later per §12/§14) for invoices and payments, and one Playwright path proving Phase 2 end to end: a PM job completed → schedule rolls forward → certificate uploaded → compliance screen shows it → reminder email queued → finding becomes a follow-up job → quote → invoice | `src/server/accounting/` (new), `tests/e2e/` | §12, §14 |
+
+Each slice also carries the Definition of done from `../CLAUDE.md` (server-side permission test, audit entries, empty /
+loading / error states, seed still runnable, README + this file updated in the same commit).
+
+### 7.3 Slice 12 — schedules on the crane page (**built**)
+
+**Goal:** the schedules that already exist in the database become visible, editable and self-maintaining.
+
+Fixed decisions for this slice (record any new ones in `ASSUMPTIONS.md` as items 84+):
+
+1. **The schedule list and the crane page read through one service.** `listSchedules(context, filters)` spreads
+   `craneReadWhere(context)`, so a technician sees only schedules on cranes they can read; the dashboard count at
+   `dashboard.ts:118` is replaced by a call to the same service so the tile and the list cannot disagree (the slice-10
+   lesson).
+2. **"Mark schedule done" is explicit, not inferred.** Completing a job shows the schedules on that job's cranes with a
+   checkbox; accepting one writes `lastDoneDate = job.completedAt` and `nextDueDate = lastDoneDate + intervalMonths` in
+   the same transaction as the status change, audit-logged. A JobType → ScheduleType mapping is **not** invented in code
+   — that mapping arrives with `ComplianceRule` in slice 14, which is the rule-2 requirement.
+3. **Overdue is computed, never stored.** `nextDueDate < now` is the state; no `overdue` column, no cron to flip it.
+   `nextDueDate` recomputation is a pure function (unit-tested) so the cron, the admin screen and the job completion all
+   share it.
+4. **No new dependency, no new capability.** `schedule.manage` already exists and is granted to Admin and Dispatcher;
+   the form uses the existing `inputClass` / action-result pattern, not a new form library path.
+
+Build order: `scheduleReadWhere` in `src/server/auth/scope.ts` → `src/server/schedules/schedules.ts` (list, create,
+update, archive, `recomputeNextDue`, `markDone`) with unit tests for the pure recompute and integration tests for the
+schedule, audit and technician-scope cases → actions in `src/app/(office)/schedules/actions.ts` → the crane page block
+→ `/office/schedules` list + dashboard link → the completion checkbox on the job → seed unchanged (it already writes
+schedules) → `npm run verify:full`.
+
+**As built.** `craneScheduleReadWhere` (`scope.ts`); `src/server/schedules/recurrence.ts` (pure `addMonths`,
+`recomputeNextDue`, `isOverdue`, `daysUntil`, `dueBucket`, 15 unit tests) and `src/server/schedules/schedules.ts`
+(`listSchedules`, `schedulesForCrane`, `scheduleCounts`, `schedulesForJobCranes`, `createSchedule`, `updateSchedule`,
+`archiveSchedule`, `markSchedulesDone`, `dueLabelFor`); `CraneSchedule.deletedAt` + migration `20261028100000`; the
+crane page's Schedules section with per-row End and an add form; `/schedules` with the q / due / kind filters and the
+counts line; the dashboard's two schedule tiles reading through `scheduleCounts`; and the completion checkboxes carried
+by `transitionJob`'s own form. `markSchedulesDone` is called inside `transitionJob`'s transaction, so a completion and
+the due dates it rolls forward commit together.
+
+Two deviations from the text above, both deliberate: the checkbox lives in the **existing transition form** rather than
+a separate "mark done" action (one write, one transaction — a second action would need its own permission check and its
+own way to be called twice), and `markSchedulesDone` requires `schedule.manage` even though the caller is the same
+dispatcher who is transitioning the job.
+
+**Verified.** Migration `20261028100000_slice12_crane_schedules` is applied to the hosted database.
+`npm run verify` (248 unit tests), `npm run test:integration` (205 tests), `npm run test:e2e` (35
+passed, 2 skipped) and `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes unmodified.
+It shipped in the same commit as the pre-existing performance pass noted in `KICKOFF.md`, which the
+commit message names so a later `git log` does not read it as schedules work. Slice 12 has one known
+gap, recorded in `ASSUMPTIONS.md` 84: an archived schedule is invisible outside the audit log, because
+`/schedules` has no "ended" view yet.
+
+**Two build traps found here, both worth knowing.** `npm run build` and `npm run dev` share `.next`:
+running the build against a live dev server corrupts both (the build dies on
+`Invariant: no direct app page entry found for /login`, then every dev route 500s) — stop the dev
+server first, and note that a running dev server also holds the old Prisma engine after a schema
+change.
+
+### 7.4 Phase 3 and Phase 4 (outline, not sliced yet)
+
+**Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;
+stock movements linked to jobs and DOs; serial/batch traceability; reorder alerts grouped by supplier; purchase orders
+and back-orders linked to jobs on hold awaiting parts; stock take workflow with blind counts, variance, recounts, reason
+codes and approved adjustments; repeat-discrepancy flagging. Slice it the same way when Phase 2 closes.
+
+**Phase 4 — Optimisation.** Customer portal (`CUSTOMER` role is modelled and unsliced); contracts and SLA management
+(`Contract.slaOverrides` exists and is honoured by slice 5's SLA computation, no screen); profitability and
+technician-utilisation reporting (`report.financial` capability exists and is unused); equipment calibration tracking;
+route optimisation; WhatsApp/SMS adapters; Xero/QuickBooks integration (slice 21 leaves the adapter seam for this).
 
 ---
 

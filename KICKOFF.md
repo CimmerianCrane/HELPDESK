@@ -15,9 +15,18 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1 is complete.** Slices 0–11 are built, verified against the live Supabase database and
-committed, and the Phase 1 acceptance path passes end to end. Phase 2 has not been started. **One
-slice per session: stop after the slice you were asked for; do not begin the next one unless asked.**
+**Phase 1 is complete, and Phase 2 has started.** Slices 0–12 are built and verified against the live
+Supabase database; Phase 1's acceptance path still passes untouched. **Phase 2 is sliced in
+`docs/PLAN.md` §7, which is the canonical copy** — §7.1 is what Phase 1 left behind, §7.2 the slice
+table (13 certificates, 14 compliance rules, 15 reminders, 16 findings and follow-up jobs, 17 the
+two remaining templates, 18 delivery orders, 19 quotes, 20 invoicing, 21 accounting export), and
+**slice 13 is the next session's work**. **One slice per session: stop after the slice you were
+asked for; do not begin the next one unless asked.**
+
+> **Slice 12 is done and verified.** Migration `20261028100000_slice12_crane_schedules` is applied to
+> the hosted database. `npm run verify` (248 unit tests), `npm run test:integration` (205 tests),
+> `npm run test:e2e` and `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes
+> **unmodified**. Slice 13 is next — see the section near the bottom of this file.
 
 | Slice | State |
 |---|---|
@@ -33,6 +42,8 @@ slice per session: stop after the slice you were asked for; do not begin the nex
 | 9 Approval, lock, PDF | done |
 | 10 Job list, dashboard, audit viewer | done |
 | 11 E2E happy paths + §13 demo dataset | done |
+| 12 Schedules on the crane page | done |
+| 13–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 13 is next |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -61,15 +72,26 @@ audit log as a screen — a cross-entity search, and a "who changed what" panel 
 and, proving the whole of it, the acceptance path as a Playwright test — a P1 ticket through triage,
 a job, the board and dispatch, an offline phone report with a photo and both signatures, the sync,
 the office moving it on, approval and the numbered customer PDF — plus the demo estate that path runs
-against. **Not yet built:** everything in Phases 2–4.
+against.
+
+**Phase 2, slice 12 — schedules.** The `CraneSchedule` rows the seed has always written are now a
+working screen: the crane page carries its obligations (kind, interval, last done, next due, overdue
+state, whether it came from a rule) with add, edit and "End" behind `schedule.manage`, all audited;
+`/schedules` lists every obligation soonest-due-first with search, bucket and kind filters; the
+dashboard's "Services / exams due" and a new "Schedules overdue" tile both read that same service and
+link into the filtered list; and completing a job offers the schedules on that job's cranes as
+checkboxes — ticking one records the work as done **on the job's completion date** and moves the
+obligation on by its interval, in the same transaction as the status change. Overdue is computed from
+the clock, never stored. **Not yet built:** slices 13–21 (certificates, compliance rules, the reminder
+cron, findings, delivery orders, quotes, invoicing, the accounting export) and all of Phases 3–4.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
 - **Hosting is Vercel**, which replaced three of the brief's defaults: there is no pg-boss worker
   (Vercel Cron calls `/api/cron/daily` with `CRON_SECRET`), PDFs will use `@react-pdf/renderer`
   rather than Playwright/Chromium, and uploads go to Supabase Storage rather than local disk or S3.
-- **The database is hosted Supabase** (region `ap-northeast-2`). `docker-compose.yml` is still in the
-  repository but unused.
+- **The database is hosted Supabase** (region `ap-southeast-1`, project `vbyisdfntzfgbjubtily`).
+  `docker-compose.yml` is still in the repository but unused.
 - The brief's open questions (§15) are answered or assumed in `docs/ASSUMPTIONS.md`.
 
 **The gate for every slice** — all four must pass before a commit:
@@ -83,10 +105,32 @@ npm run build              # production build
 
 **Local notes.** Node is installed but not on `PATH` in this shell, so prefix commands with
 `export PATH="/c/Program Files/nodejs:$PATH" &&`. Git identity is set for this repository only. Each
-database round trip is ~700–900 ms (Seoul), so round-trip count in hot paths matters, and
+database round trip is a few tens of milliseconds (Singapore, same region as the office), so
+round-trip count in hot paths matters less than it did against the old Seoul project, and
 `test:e2e` runs a single worker for that reason. The service worker is off under `npm run dev` on
 purpose, so offline behaviour — including the offline half of the technician e2e test — is checked
 against `npm run build && npm start`.
+
+**Traps that have already bitten, and will again.**
+
+- **Never run `npm run build` while `npm run dev` is up.** Both write `.next`, and the survivor is a
+  tree neither of them can serve: the build dies with `Invariant: no direct app page entry found for
+  /login` and every dev route starts returning 500. Stop the dev server, then build.
+- A running `npm run dev` also locks `node_modules/.prisma/client/query_engine-windows.dll.node`, so
+  `npx prisma generate` fails with `EPERM`. Same fix: stop the server first.
+- `npx prisma migrate deploy` against the hosted database is refused by the auto-mode permission
+  classifier as "Modify Shared Resources". Ask the user to approve it; it is a single additive
+  `ALTER TABLE` and is safe to apply.
+- A running dev server keeps serving the Prisma engine it started with, so after a schema change it
+  must be restarted even if the client on disk was regenerated.
+
+**Slice 12's two deliberate deviations** from `docs/PLAN.md` §7.3, both written up there: the "mark
+done" checkboxes live in the existing job-transition form rather than a separate action, and
+`markSchedulesDone` asks for `schedule.manage` even though the caller is already transitioning the
+job. **One known gap**, recorded so it is not forgotten: there is no "show ended schedules" view —
+archiving is a soft delete by design (`docs/ASSUMPTIONS.md` 84) but the only place an ended
+obligation is visible today is the audit log. Adding it to `/schedules` is a filter, not new
+architecture, if the office asks.
 
 ### The Phase 1 slices
 
@@ -109,6 +153,15 @@ Copied from `docs/PLAN.md` §6, which is the canonical copy — if the two ever 
 
 Phase 1 acceptance is slice 11's path (a): a P1 breakdown ticket → assign the nearest qualified
 technician → offline report with photos and both signatures → sync → approve → customer PDF.
+
+**Note on the working tree — a performance pass rides along with slice 12.** The tree already
+carried, uncommitted and verified green before slice 12 started: `connection_limit=5` on the pooled
+URL in `.env.example`, `.env.*` added to `.gitignore`, React `cache()` around `getCrane` and
+`metadataForJob` so `generateMetadata` and the page share one read, `Promise.all` batching on the job,
+report and ticket pages, and `loading.tsx` for the office and technician route groups. It is not part
+of slice 12 and it is not separable any more without splitting a commit by hand — it was reviewed and
+passed the same gates. Say so in the commit message so a later `git log` does not read it as
+schedules work.
 
 ---
 
@@ -137,9 +190,9 @@ number but no stored PDF, because the seed runs under `tsx`, which cannot load
 
 - The e2e suite runs against `npm run dev`, so editing a source file while a run is in flight
   hot-reloads the server under a test that is mid-page-load. Freeze the tree while it runs.
-- A route a spec visits for the first time in a run pays Next's on-demand compile plus a round trip
-  to another region: measured first visits ran 15–43s, so the suite-wide `expect` is 30s and the
-  heaviest routes carry their own 60s. If a spec fails on a *page that rendered*, read the dev
+- A route a spec visits for the first time in a run pays Next's on-demand compile plus a database
+  round trip: measured first visits ran 15–43s while the database was in Seoul, so the suite-wide
+  `expect` is 30s and the heaviest routes carry their own 60s. If a spec fails on a *page that rendered*, read the dev
   server's log before widening anything — an earlier run hid a real dropped-flush bug behind what
   looked like a timeout.
 - `tests/e2e/report.spec.ts` deletes and recreates the report on one seeded breakdown job (Ahmad's).
@@ -149,6 +202,36 @@ number but no stored PDF, because the seed runs under `tsx`, which cannot load
   now signs in more often than that inside one window, so `tests/e2e/fixtures.ts` clears the throttle
   table before each test; every spec imports `test`/`expect` from there. A spec that imports
   `@playwright/test` directly will be the next one to fail on the throttle.
+
+---
+
+## Slice 12 is done — slice 13 is next
+
+**Read `docs/PLAN.md` §7 first; it is the canonical copy and is not repeated here.** §7.1 is what
+Phase 1 left behind, §7.2 the Phase 2 slice table, §7.3 slice 12 as specified *and* as built (with the
+two documented deviations).
+
+**What slice 12 delivered.** The `CraneSchedule` rows the seed had always written are a working
+screen: `src/server/schedules/` (recurrence maths, pure and unit-tested; one read service behind every
+screen), `craneScheduleReadWhere` in `scope.ts`, a Schedules section on the crane page with add, edit
+and soft-delete End behind `schedule.manage`, `/schedules` with search and due/kind filters, two
+dashboard tiles reading the same counts, and completion checkboxes on the job that roll an obligation
+forward from the job's own completion date inside the transition's transaction.
+
+**The gate it passed:** `npm run verify` (248 unit tests, 15 new), `npm run test:integration` (205
+tests, 13 new), `npm run test:e2e` (35 passed, 2 skipped) and `npm run build`. `happy-path.spec.ts`
+passes unmodified.
+
+**Slice 13 — certificates and the compliance dashboard.** `docs/PLAN.md` §7.2 row 13: a
+certificate register per crane (type, number, issuer, issue/expiry/next-due, stated SWL, linked job,
+file upload through the existing storage adapter with `FileKind.CERTIFICATE`), soft-delete only,
+`/certificates` with expiring-in-90/60/30 and overdue, the dashboard's "Certificates expiring" tile
+turned from an honest zero into a real count that links to it, and company inspection kept visually
+distinct from an AE's statutory certificate (CLAUDE.md rule 3). `certificate.read` / `certificate.write`
+already exist and are granted; slice 13 consumes them, it does not add capabilities.
+
+The gate is unchanged for every slice: `npm run verify` and `npm run verify:full`, then
+`tests/e2e/happy-path.spec.ts` must still pass **untouched**.
 
 ---
 

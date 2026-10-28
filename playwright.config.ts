@@ -18,9 +18,10 @@ export default defineConfig({
   // leaves the compile plus the round trip room without letting a genuinely stuck test hang.
   expect: { timeout: 30_000 },
   // A whole test here is several sign-in round trips and a page render. Signing in alone takes ~6s
-  // against the Seoul database; four of those in parallel against one dev server queued into a
-  // 15s+ wait and failed on the clock rather than on anything being wrong. The default 30s per test
-  // is not enough once a test signs in twice (see the sign-out test).
+  // against the hosted database (a long round trip while it was in Seoul); four of those in parallel
+  // against one dev server queued into a 15s+ wait and failed on the clock rather than on anything
+  // being wrong. The default 30s per test is not enough once a test signs in twice (see the
+  // sign-out test).
   timeout: 90_000,
   // One worker, not four. The dev server is a single process talking to a database in another
   // region, so parallel tests contend for it and the slowest loses. The suite is a couple of minutes

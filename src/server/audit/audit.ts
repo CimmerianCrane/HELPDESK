@@ -189,6 +189,7 @@ export const AUDIT_ENTITIES = [
   'Contact',
   'Site',
   'Crane',
+  'CraneSchedule',
   'Ticket',
   'Job',
   'Report',
@@ -211,6 +212,8 @@ export interface AuditEntityLabel {
 
 /** Where an audited record lives, for the viewer's link. Only entities with an office screen. */
 const ENTITY_HREFS: Record<string, (id: string) => string> = {
+  // Schedules have no page of their own; the crane is where they live and where they are read.
+  CraneSchedule: () => '/schedules',
   Job: (id) => `/jobs/${id}`,
   Crane: (id) => `/cranes/${id}`,
   Customer: (id) => `/customers/${id}`,
