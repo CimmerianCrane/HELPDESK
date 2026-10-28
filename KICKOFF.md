@@ -314,7 +314,8 @@ offline-only) and `npm run build`. `happy-path.spec.ts` passes unmodified.
 
 1. **A Playwright path for `/admin/compliance`** — add a rule → adopt it on a crane → change the
    owner → see the prompt → mark it checked. The screen is proven by services and integration tests
-   but no browser test walks it; do it **before slice 17**, which edits the same rule screens. Build
+   but no browser test walks it. Slice 17 edits the report form and template definitions, not a rule
+   screen, so take this with whichever slice next touches `/admin/compliance`. Build
    its own customer and crane, as every post-slice-11 spec does.
 2. **A state filter on the rules table** (in force / ended), so a rulebook with superseded rules does
    not read as dead rows — the same gap the ended-schedules filter has (§7.3).

@@ -1599,8 +1599,9 @@ enough to ride along with the slice that touches the same file:
 
 1. **A Playwright path for `/admin/compliance`.** The screen is proven by its services and by the
    integration suite, but no browser test walks it — add rule → adopt it on a crane → change the
-   owner → see the prompt → mark it checked. Worth doing **before slice 17**, which edits the same
-   rule and template screens. Put it in `tests/e2e/` as its own spec; it must not touch the seeded
+   owner → see the prompt → mark it checked. Slice 17 edits the report form and template
+   definitions, not a rule screen, so take this with whichever slice next touches
+   `/admin/compliance`. Put it in `tests/e2e/` as its own spec; it must not touch the seeded
    estate destructively (build its own customer/crane, as every post-slice-11 spec does).
 2. **A way to see ended rules.** `listComplianceRules` returns everything, but the admin table shows
    no state filter, so a rulebook that has superseded three rules reads as three dead rows. Same gap
