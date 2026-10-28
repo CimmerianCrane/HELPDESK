@@ -16,6 +16,11 @@ import {
   CertificateForm,
 } from '@/components/office/certificate-forms'
 import { formatDate } from '@/lib/format'
+import {
+  FINDING_SEVERITY_LABELS,
+  FINDING_STATUS_LABELS,
+} from '@/lib/validation/findings'
+import { findingsForCrane } from '@/server/findings/findings'
 import { SCHEDULE_TYPE_LABELS } from '@/lib/validation/schedules'
 import { CERTIFICATE_TYPE_LABELS } from '@/lib/validation/certificates'
 import { DueBadge } from '@/components/office/job-badges'
@@ -87,7 +92,7 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
 
   const mayManageSchedules = can(context.role, 'schedule.manage')
 
-  const [sites, settings, timeline, trail, schedules, certificates, rules, jobTypes] = await Promise.all([
+  const [sites, settings, timeline, trail, schedules, certificates, rules, jobTypes, openFindings] = await Promise.all([
     listSites(context, { customerId: crane.site.customerId }),
     getSettings(),
     craneReportTimeline(context, crane.id),
@@ -104,6 +109,11 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
     // The kind of work a due schedule can raise (slice 15). Only the role with a form to put it in
     // needs the list.
     mayManageSchedules ? listJobTypes(context) : Promise.resolve([]),
+    // Findings the report raised and nobody has answered (slice 16). `crane.read` is the capability
+    // every office role and every technician holds; the scope filter decides which cranes.
+    can(context.role, 'crane.read')
+      ? findingsForCrane(context, crane.id, { openOnly: true })
+      : Promise.resolve([]),
   ])
 
   const mayWrite = can(context.role, 'crane.write')
@@ -478,6 +488,48 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
             />
           </details>
         ) : null}
+      </section>
+
+      <section className={cardClass} aria-labelledby="findings-heading">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="findings-heading" className="font-semibold text-slate-900">
+            Open findings
+          </h2>
+        </div>
+        <p className="mt-2 text-sm text-slate-600">
+          Defects our technicians recorded that nobody has answered yet — until the work is done or
+          the customer declines it in writing. Closing one happens on the report that raised it.
+        </p>
+        {openFindings.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-600">Nothing outstanding on this crane.</p>
+        ) : (
+          <ul className="mt-4 space-y-3 text-sm">
+            {openFindings.map((finding) => (
+              <li key={finding.id} className="border-l-2 border-slate-200 pl-3">
+                <p className="font-medium text-slate-900">
+                  {finding.component} · {FINDING_SEVERITY_LABELS[finding.severity]}
+                  <span className="ml-2 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-normal text-slate-700">
+                    {FINDING_STATUS_LABELS[finding.status]}
+                  </span>
+                </p>
+                <p className="text-slate-700">{finding.description}</p>
+                {finding.recommendation ? (
+                  <p className="text-slate-500">Recommendation: {finding.recommendation}</p>
+                ) : null}
+                <p className="mt-1 text-xs text-slate-500">
+                  <Link href={`/reports/${finding.report.id}`} className="underline">
+                    {finding.report.docNumber ?? finding.report.jobNumber}
+                  </Link>
+                  {' · raised '}
+                  {formatDate(finding.createdAt, settings.timezone)}
+                  {finding.followUpJob
+                    ? ' · follow-up job ' + finding.followUpJob.number
+                    : ''}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className={cardClass}>

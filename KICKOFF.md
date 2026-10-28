@@ -15,20 +15,18 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1 is complete, and Phase 2 is under way.** Slices 0–15 are built; Phase 1's acceptance path
+**Phase 1 is complete, and Phase 2 is under way.** Slices 0–16 are built; Phase 1's acceptance path
 still passes untouched. **Phase 2 is sliced in `docs/PLAN.md` §7, which is the canonical copy** —
 §7.1 is what Phase 1 left behind, §7.2 the slice table (13 certificates, 14 compliance rules,
 15 reminders, 16 findings and follow-up jobs, 17 the two remaining templates, 18 delivery orders,
-19 quotes, 20 invoicing, 21 accounting export), and **slice 16 is the next session's work**.
+19 quotes, 20 invoicing, 21 accounting export), and **slice 17 is the next session's work**.
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
 
-> **Slice 15 is done and verified.** Migration `20261028300000_slice15_reminders` (one nullable
-> `CraneSchedule` column and the `ReminderDispatch` table) is applied to hosted Supabase.
-> `npm run verify` (267 unit tests), `npm run test:integration` (227 tests), `npm run test:e2e`
-> (35 passed, 2 skipped — the offline-only phone checks that need `npm start`) and `npm run build` all
-> pass, and `tests/e2e/happy-path.spec.ts` passes **unmodified**. Slice 16 is next — see the section
-> near the bottom of this file.
+> **Slice 16 is done and verified.** No migration was needed — the Finding columns, both relations and
+> `File.findingId` already existed. `npm run verify` (279 unit tests), `npm run test:integration`,
+> `npm run test:e2e` and `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes
+> **unmodified**. Slice 17 is next — see the section near the bottom of this file.
 
 | Slice | State |
 |---|---|
@@ -48,7 +46,8 @@ asked.**
 | 13 Certificates & compliance dashboard | done |
 | 14 Compliance rule admin, adoption, re-registration prompts | done |
 | 15 Reminder engine in the daily cron | done |
-| 16–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 16 is next |
+| 16 Findings & one-click follow-up jobs | done |
+| 17–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 17 is next |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -247,11 +246,34 @@ number but no stored PDF, because the seed runs under `tsx`, which cannot load
 
 ---
 
-## Slice 15 is done — slice 16 is next
+## Slice 16 is done — slice 17 is next
 
 **Read `docs/PLAN.md` §7 first; it is the canonical copy and is not repeated here.** §7.2 is the
 Phase 2 slice table, §7.4 is slice 13 as built, §7.5 is slice 14 as built (its six fixed decisions and
-one known limit), §7.6 is slice 15 as built, and §7.7 is the Phase 3–4 outline.
+one known limit), §7.6 is slice 15 as built, §7.7 is slice 16 as built, and §7.8 is the Phase 3–4
+outline.
+
+**What slice 16 delivered.** `src/server/findings/findings.ts` is the one read/write path: reads
+scoped by `findingReadWhere` (the finding follows its report), `updateFindingStatus` for the three
+office moves, `acknowledgeDecline` for a signed refusal, and `createFollowUpJob`, which calls
+`createJob` **inside its own transaction** so the job, the finding's `followUpJobId`, its move to
+`SCHEDULED` and `Job.parentJobId` commit together. `src/lib/validation/findings.ts` holds the flow as
+pure data — the transition table, `canMoveFinding`, `isFindingOpen`, `priorityForSeverity` and the
+three Zod schemas — and the status form deliberately cannot post a decline, which only the signed
+acknowledgement produces. The report page has the Findings section with the three forms gated by the
+capability each action checks (`finding.write` for status and decline, `finding.followUpJob` for the
+job), the crane page has "Open findings", the job page has "Follow-ups", and the audit viewer labels a
+finding with its component and links to its report. `FINDING_SIGNATURE` uploads go through the
+existing signed-URL path. No migration.
+
+**The gate it passed:** `npm run verify` (279 unit tests, 12 new), `npm run test:integration`
+(10 new in `tests/integration/findings.test.ts`), `npm run test:e2e` and `npm run build`.
+`happy-path.spec.ts` passes unmodified.
+
+**Known limits carried forward.** A follow-up job completing does not move its finding to rectified —
+someone still marks it, and wiring the two belongs with slice 19's quotes (PLAN §7.7). The decline note
+lives in the audit trail rather than a column (`ASSUMPTIONS.md` 104). The three `/admin/compliance`
+carry-overs from §7.5 are still queued and slice 17 does not touch that screen.
 
 **What slice 15 delivered.** `src/server/reminders/reminders.ts` is the scan: `runScheduleReminders`
 for the cron, `remindForSchedule` for one row (which is what the integration suite drives),
@@ -317,11 +339,13 @@ certificates (rule 3). No migration — the model, `deletedAt` and the file kind
 new in `certificates.test.ts`), `npm run test:e2e` and `npm run build`. `happy-path.spec.ts` passes
 unmodified.
 
-**Slice 16 — findings and one-click follow-up jobs — is the next session's work.** `docs/PLAN.md`
-§7.2 row 16: the Finding status flow (open → quoted → scheduled → rectified / declined), open findings
-on the crane page, one click to raise a follow-up job pre-filled from a finding and linked by
-`followUpJobId`/`parentJobId`, and a customer-declined critical repair captured with name, signature
-and date. `finding.followUpJob` is already granted and unused. Start by confirming
+**Slice 17 — the load test and visual inspection templates — is the next session's work.**
+`docs/PLAN.md` §7.2 row 17: the two templates completed against brief §6.3 (test load, radii, SWL per
+radius, instruments, pre- and post-test examination, AE attendance; structure, safety devices,
+markings, wire rope and hook), with **calibration-expiry validation against
+`Resource.calibrationDueDate` at the test date — warn, never block**. The work lands in
+`src/server/templates/definitions.ts`, `src/lib/templates/schema.ts`, the report form and
+`prisma/seed.ts` as new template versions. No migration is expected; start by confirming
 `npx prisma migrate status` reports nothing pending.
 
 The gate is unchanged for every slice: `npm run verify` and `npm run verify:full`, then

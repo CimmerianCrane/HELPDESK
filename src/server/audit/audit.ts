@@ -243,7 +243,7 @@ export async function auditEntityLabels(
   ]
   const present = (entity: string) => rows.some((row) => row.entity === entity)
 
-  const [jobs, cranes, customers, sites, tickets, reports, users, rules] = await Promise.all([
+  const [jobs, cranes, customers, sites, tickets, reports, users, rules, findings] = await Promise.all([
     present('Job')
       ? client.job.findMany({ where: { id: { in: idsFor('Job') } }, select: { id: true, number: true } })
       : [],
@@ -286,6 +286,13 @@ export async function auditEntityLabels(
           select: { id: true, sourceReference: true },
         })
       : [],
+    // A finding has no page of its own; it is read on the report that raised it.
+    present('Finding')
+      ? client.finding.findMany({
+          where: { id: { in: idsFor('Finding') } },
+          select: { id: true, component: true, reportId: true },
+        })
+      : [],
   ])
 
   const labels = new Map<string, AuditEntityLabel>()
@@ -306,6 +313,14 @@ export async function auditEntityLabels(
   for (const row of reports) put('Report', row.id, row.documentNumber ?? 'Draft report')
   for (const row of users) put('User', row.id, row.name)
   for (const row of rules) put('ComplianceRule', row.id, row.sourceReference)
+  for (const row of findings) {
+    labels.set(`Finding:${row.id}`, {
+      entity: 'Finding',
+      entityId: row.id,
+      label: row.component,
+      href: `/reports/${row.reportId}`,
+    })
+  }
 
   return labels
 }

@@ -10,9 +10,10 @@ import {
   fileUploadSchema,
   type FileUploadInput,
 } from '@/lib/validation/reports'
+import { findingSignatureUploadSchema } from '@/lib/validation/findings'
 import { ForbiddenError, NotFoundError, ValidationError } from '@/server/auth/errors'
 import { assertCan } from '@/server/auth/permissions'
-import { craneReadWhere, jobReadWhere } from '@/server/auth/scope'
+import { craneReadWhere, findingReadWhere, jobReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { storage } from './storage'
 
@@ -42,12 +43,12 @@ export async function requestUpload(
   context: AuthContext,
   raw: unknown,
 ): Promise<UploadTicket> {
-  // One route, two flavours: a phone report's photograph or signature, and an office certificate
-  // scan. They differ in permission, owner and allowed types, so each gets its own schema rather
-  // than one schema with every field optional.
-  if ((raw as { kind?: unknown } | null)?.kind === 'CERTIFICATE') {
-    return requestCertificateUpload(context, raw)
-  }
+  // One route, three flavours: a phone report's photograph or signature, an office certificate
+  // scan, and the customer's signature on a declined repair. They differ in permission, owner and
+  // allowed types, so each gets its own schema rather than one schema with every field optional.
+  const kind = (raw as { kind?: unknown } | null)?.kind
+  if (kind === 'CERTIFICATE') return requestCertificateUpload(context, raw)
+  if (kind === 'FINDING_SIGNATURE') return requestFindingSignatureUpload(context, raw)
 
   assertCan(context, 'report.submit')
   const input = parseInput(fileUploadSchema, raw)
@@ -144,6 +145,52 @@ async function requestCertificateUpload(
         sizeBytes: input.sizeBytes,
         storageKey,
         uploadedById: context.userId,
+      },
+    })
+  }
+
+  const ticket = await storage().signedUploadUrl(storageKey, input.mimeType)
+  return { fileId: input.id, uploadUrl: ticket.url, method: ticket.method }
+}
+
+/**
+ * The customer's signature on a declined repair (slice 16). Drawn in the browser on the finding,
+ * stored as a `SIGNATURE` File owned by that finding, and referred to by id when the acknowledgement
+ * is recorded. PNG only, for the same reason a report signature is.
+ */
+async function requestFindingSignatureUpload(
+  context: AuthContext,
+  raw: unknown,
+): Promise<UploadTicket> {
+  assertCan(context, 'finding.write')
+  const input = parseInput(findingSignatureUploadSchema, raw)
+
+  const finding = await db.finding.findFirst({
+    where: { id: input.findingId, ...findingReadWhere(context) },
+    select: { id: true },
+  })
+  if (!finding) throw new NotFoundError('No such finding.')
+
+  const storageKey = `findings/${finding.id}/signatures/${input.id}.png`
+
+  const existing = await db.file.findUnique({ where: { id: input.id } })
+  if (existing) {
+    if (existing.uploadedById !== context.userId || existing.entityId !== finding.id) {
+      throw new ForbiddenError('That upload belongs to somebody else.')
+    }
+  } else {
+    await db.file.create({
+      data: {
+        id: input.id,
+        entity: 'Finding',
+        entityId: finding.id,
+        kind: 'SIGNATURE',
+        filename: input.filename,
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes,
+        storageKey,
+        uploadedById: context.userId,
+        findingId: finding.id,
       },
     })
   }

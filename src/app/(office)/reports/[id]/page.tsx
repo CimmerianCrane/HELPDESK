@@ -7,20 +7,32 @@ import {
   ReturnReportForm,
   SubmitAmendmentForm,
 } from '@/components/office/report-forms'
+import {
+  DeclineFindingForm,
+  FindingStatusForm,
+  FollowUpJobForm,
+} from '@/components/office/finding-forms'
 import { cardClass } from '@/components/office/ui'
-import { formatDateTime } from '@/lib/format'
+import { formatDate, formatDateTime } from '@/lib/format'
+import { dayKey } from '@/lib/time'
+import { FINDING_SEVERITY_LABELS, FINDING_STATUS_LABELS } from '@/lib/validation/findings'
 import { templateSchema } from '@/lib/templates/schema'
 import { requireAuth } from '@/server/auth/context'
 import { NotFoundError } from '@/server/auth/errors'
 import { can } from '@/server/auth/permissions'
+import { describeFinding, findingsForReport } from '@/server/findings/findings'
+import { listJobTypes } from '@/server/jobs/jobs'
 import { getReport, issuedPdfUrl } from '@/server/reports/approval'
 import { REPORT_STATUS_LABELS, SAFE_TO_OPERATE_LABELS } from '@/server/reports/labels'
 import { getSettings } from '@/server/settings/settings'
 import {
+  acknowledgeDeclineAction,
   amendReportAction,
   approveReportAction,
+  createFollowUpJobAction,
   returnReportAction,
   submitAmendmentAction,
+  updateFindingStatusAction,
 } from '../actions'
 
 export const dynamic = 'force-dynamic'
@@ -66,6 +78,16 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
   const mayDecide = can(context.role, 'report.approve')
   const mayAmend = can(context.role, 'report.amend')
+  // Reading a finding's state and raising a follow-up job are dispatch's; moving it along the flow
+  // and recording a decline are the technician/admin half of the same screen.
+  const mayHandleFindings = can(context.role, 'finding.followUpJob')
+  const mayWriteFindings = can(context.role, 'finding.write')
+  const [findings, jobTypes] = await Promise.all([
+    mayHandleFindings || mayWriteFindings
+      ? findingsForReport(context, report.id)
+      : Promise.resolve([]),
+    mayHandleFindings ? listJobTypes(context) : Promise.resolve([]),
+  ])
   const parsed = templateSchema.safeParse(report.template.schema)
   const data = (report.data ?? {}) as Record<string, unknown>
 
@@ -271,18 +293,97 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       {report.findings.length > 0 ? (
         <section className={cardClass}>
           <h2 className="font-semibold text-slate-900">Findings</h2>
-          <ul className="mt-3 space-y-2 text-sm">
-            {report.findings.map((finding) => (
-              <li key={finding.id} className="border-l-2 border-slate-200 pl-3">
-                <p className="font-medium text-slate-900">
-                  {finding.component} · {finding.severity}
-                </p>
-                <p className="text-slate-700">{finding.description}</p>
-                {finding.recommendation ? (
-                  <p className="text-slate-500">Recommendation: {finding.recommendation}</p>
-                ) : null}
-              </li>
-            ))}
+          <p className="mt-1 text-sm text-slate-600">
+            A defect raised on this report. It stays open until the work is recorded as done or the
+            customer declines it in writing — a declined repair keeps their signature with it.
+          </p>
+          <ul className="mt-4 space-y-4 text-sm">
+            {report.findings.map((finding) => {
+              const summary = findings.find((row) => row.id === finding.id)
+              return (
+                <li key={finding.id} className="border-l-2 border-slate-200 pl-3">
+                  <p className="font-medium text-slate-900">
+                    {finding.component} · {FINDING_SEVERITY_LABELS[finding.severity]}
+                    <span className="ml-2 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-normal text-slate-700">
+                      {FINDING_STATUS_LABELS[finding.status]}
+                    </span>
+                  </p>
+                  <p className="text-slate-700">{finding.description}</p>
+                  {finding.recommendation ? (
+                    <p className="text-slate-500">Recommendation: {finding.recommendation}</p>
+                  ) : null}
+
+                  {summary?.followUpJob ? (
+                    <p className="mt-1 text-slate-600">
+                      Follow-up job:{' '}
+                      <Link
+                        href={`/jobs/${summary.followUpJob.id}`}
+                        className="underline hover:text-slate-900"
+                      >
+                        {summary.followUpJob.number}
+                      </Link>
+                    </p>
+                  ) : null}
+
+                  {summary?.declined ? (
+                    <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                      Declined by {summary.declined.name ?? 'the customer'}
+                      {summary.declined.at
+                        ? ` on ${formatDate(summary.declined.at, settings.timezone)}`
+                        : ''}
+                      {summary.declined.note ? ` — ${summary.declined.note}` : ''}
+                      {summary.declined.signatureUrl ? (
+                        <>
+                          {' · '}
+                          <a href={summary.declined.signatureUrl} className="underline">
+                            Their signature
+                          </a>
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {(mayHandleFindings || mayWriteFindings) && summary ? (
+                    <div className="mt-2 space-y-2">
+                      {mayWriteFindings && summary.open ? (
+                        <FindingStatusForm
+                          action={updateFindingStatusAction.bind(null, finding.id, report.id)}
+                          current={finding.status}
+                        />
+                      ) : null}
+
+                      {mayHandleFindings && summary.open && !summary.followUpJob ? (
+                        <details>
+                          <summary className="cursor-pointer text-sm font-medium text-slate-900 underline">
+                            Raise a follow-up job
+                          </summary>
+                          <FollowUpJobForm
+                            action={createFollowUpJobAction.bind(null, finding.id, report.id)}
+                            jobTypes={jobTypes}
+                            suggestedPriority={summary.suggestedPriority}
+                            suggestedDescription={describeFinding(summary)}
+                            severity={finding.severity}
+                          />
+                        </details>
+                      ) : null}
+
+                      {mayWriteFindings && summary.open && finding.recommendation ? (
+                        <details>
+                          <summary className="cursor-pointer text-sm font-medium text-slate-900 underline">
+                            Customer declined this repair
+                          </summary>
+                          <DeclineFindingForm
+                            action={acknowledgeDeclineAction.bind(null, finding.id, report.id)}
+                            findingId={finding.id}
+                            today={dayKey(new Date(), settings.timezone)}
+                          />
+                        </details>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </li>
+              )
+            })}
           </ul>
         </section>
       ) : null}

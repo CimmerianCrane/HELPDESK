@@ -1420,7 +1420,7 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 | **13** | **Certificates & compliance dashboard** (**built** — see §7.4) | Certificate register per crane: type, number, issuer, issue/expiry/next-due, stated SWL, linked job, file upload through the existing storage adapter (`CERTIFICATE`), soft-delete only; `/office/certificates` with **expiring in 90/60/30 and overdue**; the dashboard tile becomes a real count and links to it. Company inspection vs AE statutory certificate kept visually distinct | `src/server/certificates/` (new), `src/app/(office)/certificates/` (new), crane detail section, `src/server/dashboard/dashboard.ts` | §6.6, §7.2 |
 | **14** | **ComplianceRule admin** (**built** — see §7.5) | Admin screen to maintain rules (`craneType × scheduleType`, interval, `requiresAE`, effective dates, **required `sourceReference` and `reviewedAt`**), carrying `Setting.complianceNotice` verbatim; a schedule can adopt a rule (`source = RULE`, interval copied); "re-registration may be required" reminder when a crane's `ownerEntity`/customer UEN changes or it is re-assembled at another site | `src/app/(office)/admin/compliance/` (new), `src/server/compliance/` (new), `src/server/cranes/cranes.ts` (change detection) | §7 |
 | **15** | **Reminder engine in the daily cron** (**built** — see §7.6) | `/api/cron/daily` evaluates every `CraneSchedule.nextDueDate` at `reminderOffsetsDays` (default 90/60/30) then overdue, notifies the account owner in-app + email via the existing `notify` fan-out, and honours `autoCreateDraftJobs`; at-most-once per (schedule, offset, period) so a re-run sends nothing twice — needs an additive migration for the dispatch key | `src/app/api/cron/daily/route.ts`, `src/server/reminders/` (new), migration | §8 |
-| **16** | **Findings & one-click follow-up jobs** | Finding status flow (open → quoted → scheduled → rectified / declined), open findings on the crane page, **one click creates a follow-up job** pre-filled from the finding (job type, crane, description, priority from severity) linked by `followUpJobId`/`parentJobId`; customer-declined critical repair captured with name, signature and date | `src/server/findings/` (new), report page, crane page, `src/server/jobs/jobs.ts` | §4.2, §6.4 |
+| **16** | **Findings & one-click follow-up jobs** (**built** — see §7.7) | Finding status flow (open → quoted → scheduled → rectified / declined), open findings on the crane page, **one click creates a follow-up job** pre-filled from the finding (job type, crane, description, priority from severity) linked by `followUpJobId`/`parentJobId`; customer-declined critical repair captured with name, signature and date | `src/server/findings/` (new), report page, crane page, `src/server/jobs/jobs.ts` | §4.2, §6.4 |
 | **17** | **Load test & visual inspection templates built out** | The two templates completed against §6.3 (test load / radii / SWL per radius / instruments / pre- and post-test exam / AE attendance; structure, safety devices, markings, wire rope and hook), with **calibration-expiry validation against `Resource.calibrationDueDate` at the test date — warn, never block** | `src/server/templates/definitions.ts`, `src/lib/templates/schema.ts`, the report form, `prisma/seed.ts` (new versions) | §6.3 |
 | **18** | **Delivery orders** | DO generated from the parts already issued on a job (no second source of truth — read from `StockMovement`), lines with serial/batch, `chargeable \| warranty \| loan` + expected return, partial delivery, receiver name/signature/timestamp, numbered `DO-YYYY-NNNN`, printable PDF via the existing renderer | `src/server/delivery-orders/` (new), `src/app/(office)/jobs/[id]/page.tsx`, `src/server/documents/` | §6.5 |
 | **19** | **Quotes & variations** | Quote from a job or a set of findings, lines with qty/unit price, `variation` flag, GST computed, send/accept/decline/expire, numbered `QTE-YYYY-NNNN`, PDF; accepting a quote moves the job into `QUOTED → APPROVED` through the existing status machine | `src/server/quotes/` (new), `src/app/(office)/quotes/` (new), `src/server/jobs/status.ts` | §4.2, §12 |
@@ -1430,9 +1430,11 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 Each slice also carries the Definition of done from `../CLAUDE.md` (server-side permission test, audit entries, empty /
 loading / error states, seed still runnable, README + this file updated in the same commit).
 
-**Where the next session starts: slice 16**, with the three carry-over items at the end of §7.5 and the
+**Where the next session starts: slice 17**, with the three carry-over items at the end of §7.5 and the
 ended-schedules filter noted in §7.3 queued behind it. They are deliberately not slices of their own —
-take the first one whenever the slice in flight edits the same screen or service.
+take the first one whenever the slice in flight edits the same screen or service. Slice 17 edits the report
+form and the template definitions, so the `/admin/compliance` Playwright path (carry-over 1) does not
+naturally land with it; take it with whichever slice next touches a rule screen.
 
 ### 7.3 Slice 12 — schedules on the crane page (**built**)
 
@@ -1645,7 +1647,45 @@ the `ReminderDispatch` table). New coverage: `tests/unit/reminders.test.ts` (6) 
 inbox screen anywhere in the app yet (`ASSUMPTIONS.md` 96 and 100). Email is the channel that works
 today; an inbox is its own slice, and would serve P1 alerts and reminders together.
 
-### 7.7 Phase 3 and Phase 4 (outline, not sliced yet)
+### 7.7 Slice 16 — findings and one-click follow-up jobs (**built**)
+
+**Goal:** a defect a report raised stops being a line in a PDF. It has a state, it is visible on the
+crane it is against, and the office can turn it into the job that fixes it in one click.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 102–105):
+
+1. **Declining goes through its own action, not the status form.** `updateFindingStatusSchema` does not
+   accept `DECLINED_BY_CUSTOMER`; that state is reachable only via `acknowledgeDecline`, which demands a
+   name, a date and an uploaded signature `File`. The status machine itself (`ALLOWED_FINDING_TRANSITIONS`
+   in `src/lib/validation/findings.ts`) is pure data and unit-tested; a declined or rectified finding is
+   terminal — nothing reopens it.
+2. **A follow-up job is created inside the finding's transaction.** `createFollowUpJob` calls
+   `createJob(..., tx, { parentJobId })` with the open transaction, so the job, the finding's
+   `followUpJobId` and its move to `SCHEDULED`, and `Job.parentJobId` all commit together. A second click
+   refuses: the finding already names a job.
+3. **The priority comes from severity and is capped at P2.** CRITICAL and MAJOR both map to P2; a P1
+   would page dispatch for a crane the inspecting visit already returned to service. The form pre-fills
+   the derived priority and leaves it editable.
+4. **The decline note is written to the audit trail, not a column.** `Finding` has no note field; the
+   service reads the newest `UPDATE` entry's `after.note` back for display.
+
+**As built.** `src/lib/validation/findings.ts` (statuses, labels, transitions, `canMoveFinding`,
+`isFindingOpen`, `priorityForSeverity`, the three Zod schemas and the signature upload schema, 12 unit
+tests); `findingReadWhere` in `scope.ts` (the finding follows its report); `src/server/findings/findings.ts`
+(`findingsForCrane`, `findingsForReport`, `getFinding`, `updateFindingStatus`, `acknowledgeDecline`,
+`createFollowUpJob`, `describeFinding`); the parent/follow-up linkage and `followUpSelect` in
+`src/server/jobs/jobs.ts`; the `FINDING_SIGNATURE` branch in `src/server/storage/files.ts`; the three
+forms in `src/components/office/finding-forms.tsx`; the actions in `src/app/(office)/reports/actions.ts`;
+the Findings section on the report page, "Open findings" on the crane page, and "Follow-ups" on the job
+page; `Finding` in the audit viewer's label lookup. New coverage:
+`tests/unit/findings.test.ts` (12) and `tests/integration/findings.test.ts` (10). **No migration** — every
+column, both relations and `File.findingId` already existed.
+
+**Known limit:** a finding's status is not yet driven by the job that fixes it — a follow-up job moving to
+COMPLETED leaves the finding at SCHEDULED until someone marks it rectified. Wiring completion to the
+finding belongs with slice 19's quotes, where "the customer accepted the variation" also arrives.
+
+### 7.8 Phase 3 and Phase 4 (outline, not sliced yet)
 
 **Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;
 stock movements linked to jobs and DOs; serial/batch traceability; reorder alerts grouped by supplier; purchase orders

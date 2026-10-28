@@ -10,8 +10,8 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
 **Status:** Phase 1 complete (slice 11: the end-to-end happy path and the demo dataset); Phase 2 under
-way (slices 12–15: schedules on the crane page, the certificate register, compliance rules, and the
-daily reminder scan). See "What works today" below.
+way (slices 12–16: schedules on the crane page, the certificate register, compliance rules, the
+daily reminder scan, and findings with one-click follow-up jobs). See "What works today" below.
 
 ---
 
@@ -173,6 +173,29 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 16 — findings become follow-up jobs
+
+- **A finding has a life after the report.** Each defect a report raises moves through *open →
+  quoted → scheduled → rectified*, or ends *declined by the customer*. The state is shown on the
+  report that raised it and in an **Open findings** section on the crane page, so "what is still wrong
+  with this machine" is one screen.
+- **One click raises the job.** *Raise a follow-up job* on a finding pre-fills the kind of work, the
+  crane, a description drafted from the defect, and a priority from the severity (critical and major
+  both start at P2 — a follow-up never pages dispatch for a crane the inspection already returned to
+  service). The job carries `parentJobId`, the finding carries `followUpJobId`, and both the job and
+  the link are written in one transaction, so a finding cannot point at a job that was never raised.
+  The job page lists its follow-ups and the finding links to the job.
+- **A refusal is a signed record.** *Customer declined this repair* takes their name, the date and a
+  signature drawn on the screen, uploads it through the same signed-URL path the phone uses, and keeps
+  it with the finding — visible on the report as "Declined by …, their signature". The status form
+  cannot produce a decline; only that acknowledgement can.
+- **Try it:** open a submitted report with a finding, move it to *Quoted*, then *Raise a follow-up
+  job* and follow the link to the new job.
+- **Tests** — 12 unit tests on the flow as data (transitions, terminal states, the priority cap, the
+  status schema refusing a decline) and 10 integration tests (the audit row, an illegal move refused,
+  technician scoping, a decline needing a signature and a recommendation, one follow-up job only,
+  and the capability required to raise one).
 
 ### Slice 15 — the daily reminder scan
 

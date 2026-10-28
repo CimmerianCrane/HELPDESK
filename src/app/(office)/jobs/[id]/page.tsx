@@ -423,6 +423,37 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         </section>
       ) : null}
 
+      {job.parentJob || job.followUps.length > 0 ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-slate-900">Follow-ups</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            A job raised from a finding is linked to the job that reported it, so the crane&rsquo;s
+            history reads as one chain rather than two unrelated visits.
+          </p>
+          {job.parentJob ? (
+            <p className="mt-3 text-sm text-slate-700">
+              Raised from a finding on{' '}
+              <Link href={`/jobs/${job.parentJob.id}`} className="underline hover:text-slate-900">
+                {job.parentJob.number}
+              </Link>
+              .
+            </p>
+          ) : null}
+          {job.followUps.length > 0 ? (
+            <ul className="mt-3 space-y-1 text-sm">
+              {job.followUps.map((entry) => (
+                <li key={entry.id} className="text-slate-700">
+                  <Link href={`/jobs/${entry.id}`} className="underline hover:text-slate-900">
+                    {entry.number}
+                  </Link>{' '}
+                  <JobStatusBadge status={entry.status} />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className={cardClass}>
         <h2 className="font-semibold text-slate-900">Reports</h2>
         {reports.length === 0 ? (

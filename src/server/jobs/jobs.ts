@@ -101,6 +101,10 @@ export interface JobDetail extends JobSummary {
   updatedAt: Date
   createdById: string | null
   history: JobHistoryEntry[]
+  /** The job whose finding raised this one (slice 16). */
+  parentJob: { id: string; number: string } | null
+  /** Jobs raised from findings on this one. */
+  followUps: Array<{ id: string; number: string; status: JobStatus }>
 }
 
 const jobSelect = {
@@ -132,6 +136,12 @@ const jobSelect = {
     orderBy: { crane: { assetTag: 'asc' } },
   },
   ticket: { select: { id: true, number: true } },
+} satisfies Prisma.JobSelect
+
+/** The two follow-up links, read only where the job's own page needs them — never in a list. */
+const followUpSelect = {
+  parentJob: { select: { id: true, number: true } },
+  followUps: { select: { id: true, number: true, status: true }, orderBy: { number: 'asc' } },
 } satisfies Prisma.JobSelect
 
 type JobRow = Prisma.JobGetPayload<{ select: typeof jobSelect }>
@@ -334,7 +344,14 @@ export async function getJob(
 ): Promise<JobDetail> {
   assertCan(context, 'job.read.all')
 
-  const [row, history, users] = await metadataForJob(context, jobId, client)
+  const [[row, history, users], links] = await Promise.all([
+    metadataForJob(context, jobId, client),
+    // Read only on this page: the two follow-up links would be two joins per row in every list.
+    client.job.findFirst({
+      where: { id: jobId, ...jobReadWhere(context) },
+      select: followUpSelect,
+    }),
+  ])
 
   return {
     ...toSummary(row, now),
@@ -345,6 +362,8 @@ export async function getJob(
     updatedAt: row.updatedAt,
     createdById: row.createdById,
     history: withNames(history, users),
+    parentJob: links?.parentJob ?? null,
+    followUps: links?.followUps ?? [],
   }
 }
 
@@ -588,6 +607,7 @@ async function createJobRow(
   context: AuthContext,
   input: CreateJobInput,
   options: { ticketId: string | null; reportedAt: Date },
+  parentJobId: string | null = null,
 ): Promise<JobRow> {
   const location = await resolveJobLocation(tx, context, input)
   return insertJob(tx, input, {
@@ -595,6 +615,7 @@ async function createJobRow(
     reportedAt: options.reportedAt,
     location,
     actorId: context.userId,
+    parentJobId,
   })
 }
 
@@ -651,6 +672,8 @@ async function insertJob(
     reportedAt: Date
     location: { siteId: string; craneIds: string[] }
     actorId: string | null
+    /** Set when this job was raised from a finding on an earlier job (slice 16). */
+    parentJobId?: string | null
   },
 ): Promise<JobRow> {
   const { location, reportedAt, actorId } = options
@@ -679,6 +702,7 @@ async function insertJob(
     data: {
       number,
       ticketId: options.ticketId,
+      parentJobId: options.parentJobId ?? null,
       jobTypeId: input.jobTypeId,
       customerId: input.customerId,
       siteId: location.siteId,
@@ -708,6 +732,7 @@ export async function createJob(
   context: AuthContext,
   raw: unknown,
   client: Tx = db,
+  options: { parentJobId?: string | null } = {},
 ): Promise<JobSummary> {
   assertCan(context, 'job.create')
   const input = parseInput(createJobSchema, raw)
@@ -718,10 +743,13 @@ export async function createJob(
   const created = await withAudit(
     context,
     async (tx, log) => {
-      const job = await createJobRow(tx, context, input, {
-        ticketId: null,
-        reportedAt: new Date(),
-      })
+      const job = await createJobRow(
+        tx,
+        context,
+        input,
+        { ticketId: null, reportedAt: new Date() },
+        options.parentJobId ?? null,
+      )
 
       await log({
         entity: 'Job',
@@ -735,6 +763,7 @@ export async function createJob(
           craneIds: job.cranes.map(({ crane }) => crane.id),
           priority: job.priority,
           status: job.status,
+          ...(options.parentJobId ? { parentJobId: options.parentJobId } : {}),
         },
       })
 

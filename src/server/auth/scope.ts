@@ -104,6 +104,17 @@ export function certificateReadWhere(ctx: AuthContext): Prisma.CertificateWhereI
 }
 
 /**
+ * Filter for `Finding` — a defect recorded on a report (slice 16).
+ *
+ * It follows the report, never its own capability. A finding is quoted from a document somebody
+ * signed, so whoever may read that report may read what it raised, and nobody else may. A technician
+ * therefore sees the findings on their own jobs; the office sees them all.
+ */
+export function findingReadWhere(ctx: AuthContext): Prisma.FindingWhereInput {
+  return { report: reportReadWhere(ctx) }
+}
+
+/**
  * Filter for `Site`. Follows the same shape as `craneReadWhere`: a role that browses sites sees all
  * of them, a technician sees the sites their jobs are at (they need the address and access notes),
  * and a customer user sees their own.

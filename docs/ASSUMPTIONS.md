@@ -481,6 +481,26 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     from. An inactive or deleted job type logs a warning and raises nothing rather than falling back to
     a guess.
 
+102. **Declining is not a status the status form may set.** The flow has five states but the form offers
+    three moves (quoted, scheduled, rectified). `DECLINED_BY_CUSTOMER` is reachable only through
+    `acknowledgeDecline`, which requires the customer's name, a date and an uploaded signature `File`.
+    A decline is a liability record — "you told me the repair was needed and I said no" — so nothing
+    can produce one without the three things that make it a record.
+103. **A follow-up job is never P1.** The priority is derived from the finding's severity, and both
+    CRITICAL and MAJOR map to P2. The inspection that recorded the finding already returned the crane to
+    service; a P1 that follows it would page dispatch for a crane that is working. If a crane really is
+    down, the office raises the priority by hand on the job. The form shows the derived priority and
+    lets it be changed.
+104. **The decline note lives in the audit trail, not a column.** `Finding` has no note field for the
+    acknowledgement, and adding one for a free-text aside was not worth a migration. The note is written
+    into the `UPDATE` audit entry's `after.note` and read back by the finding service, which is the same
+    place every other status change is recorded.
+105. **Reading a finding and moving one along are different capabilities.** Dispatcher holds
+    `finding.followUpJob` (they raise the work); Technician and Admin hold `finding.write` (they move the
+    finding and record a decline). The report page therefore gates the status and decline forms on
+    `finding.write` and the follow-up form on `finding.followUpJob`, so nobody is shown an action that
+    would answer 403.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in
