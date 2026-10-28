@@ -1430,6 +1430,10 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 Each slice also carries the Definition of done from `../CLAUDE.md` (server-side permission test, audit entries, empty /
 loading / error states, seed still runnable, README + this file updated in the same commit).
 
+**Where the next session starts: slice 15**, with the three carry-over items at the end of §7.5 and the
+ended-schedules filter noted in §7.3 queued behind it. They are deliberately not slices of their own —
+take the first one whenever the slice in flight edits the same screen or service.
+
 ### 7.3 Slice 12 — schedules on the crane page (**built**)
 
 **Goal:** the schedules that already exist in the database become visible, editable and self-maintaining.
@@ -1587,6 +1591,21 @@ viewer's entity list, links and labels. New coverage: `tests/unit/compliance.tes
 copied interval and its `ruleId`, which is the honest record of what it was based on; the rule simply
 stops being offered for new adoptions. Re-pointing existing schedules is a deliberate edit, not a
 cascade.
+
+**Carry-over — queue these, do not lose them.** Each was noticed while building slice 14 and is small
+enough to ride along with the slice that touches the same file:
+
+1. **A Playwright path for `/admin/compliance`.** The screen is proven by its services and by the
+   integration suite, but no browser test walks it — add rule → adopt it on a crane → change the
+   owner → see the prompt → mark it checked. Worth doing **before slice 17**, which edits the same
+   rule and template screens. Put it in `tests/e2e/` as its own spec; it must not touch the seeded
+   estate destructively (build its own customer/crane, as every post-slice-11 spec does).
+2. **A way to see ended rules.** `listComplianceRules` returns everything, but the admin table shows
+   no state filter, so a rulebook that has superseded three rules reads as three dead rows. Same gap
+   as slice 12's ended schedules (§7.3): a filter, not new architecture.
+3. **Re-pointing the schedules that cite a superseded rule**, if the office asks for it. Deliberately
+   not built — it would rewrite intervals on live obligations. It belongs behind an explicit action
+   that lists the schedules first, never a cascade on saving an end date.
 
 ### 7.6 Phase 3 and Phase 4 (outline, not sliced yet)
 

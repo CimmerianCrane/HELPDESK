@@ -237,7 +237,7 @@ number but no stored PDF, because the seed runs under `tsx`, which cannot load
 
 ---
 
-## Slice 14 is built — slice 15 is next
+## Slice 14 is done — slice 15 is next
 
 **Read `docs/PLAN.md` §7 first; it is the canonical copy and is not repeated here.** §7.2 is the
 Phase 2 slice table, §7.4 is slice 13 as built, §7.5 is slice 14 as built (its six fixed decisions and
@@ -259,6 +259,19 @@ shown as an amber banner with "Mark as checked", and audited.
 tests, 9 new in `tests/integration/compliance.test.ts`), `npm run test:e2e` (35 passed, 2 skipped as
 offline-only) and `npm run build`. `happy-path.spec.ts` passes unmodified.
 
+**Queued while building it — take the first one when the slice in flight touches the same screen**
+(carried in `docs/PLAN.md` §7.5 so both files agree):
+
+1. **A Playwright path for `/admin/compliance`** — add a rule → adopt it on a crane → change the
+   owner → see the prompt → mark it checked. The screen is proven by services and integration tests
+   but no browser test walks it; do it **before slice 17**, which edits the same rule screens. Build
+   its own customer and crane, as every post-slice-11 spec does.
+2. **A state filter on the rules table** (in force / ended), so a rulebook with superseded rules does
+   not read as dead rows — the same gap the ended-schedules filter has (§7.3).
+3. **Re-pointing schedules that cite a superseded rule**, only if the office asks: an explicit action
+   that lists the schedules first. Ending a rule deliberately does not rewrite them (§7.5 known
+   limit).
+
 **What slice 13 delivered.** `src/server/certificates/certificates.ts` is the one read/write path for
 the register (list, per-crane, counts, create, update, archive, `certificateDueDate`,
 `certificateDueLabel`); `certificateReadWhere` in `scope.ts` follows the crane so a technician sees
@@ -276,10 +289,12 @@ certificates (rule 3). No migration — the model, `deletedAt` and the file kind
 new in `certificates.test.ts`), `npm run test:e2e` and `npm run build`. `happy-path.spec.ts` passes
 unmodified.
 
-**Slice 15 — reminder engine in the daily cron.** `docs/PLAN.md` §7.2 row 15:
-`/api/cron/daily` evaluates every `CraneSchedule.nextDueDate` at `reminderOffsetsDays`, then overdue,
-notifies the account owner through the existing `notify` fan-out, and honours `autoCreateDraftJobs`;
-at-most-once per (schedule, offset, period) needs an additive migration for the dispatch key.
+**Slice 15 — reminder engine in the daily cron — is the next session's work.** `docs/PLAN.md` §7.2
+row 15: `/api/cron/daily` evaluates every `CraneSchedule.nextDueDate` at `reminderOffsetsDays`, then
+overdue, notifies the account owner through the existing `notify` fan-out, and honours
+`autoCreateDraftJobs`; at-most-once per (schedule, offset, period) needs an additive migration for the
+dispatch key. Start by confirming `npx prisma migrate status` reports nothing pending — slice 14's
+migration is applied, so the database matches the schema.
 
 The gate is unchanged for every slice: `npm run verify` and `npm run verify:full`, then
 `tests/e2e/happy-path.spec.ts` must still pass **untouched**.
