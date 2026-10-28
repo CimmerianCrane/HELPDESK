@@ -10,9 +10,10 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
 **Status:** Phase 1 complete (slice 11: the end-to-end happy path and the demo dataset); Phase 2 under
-way (slices 12–17: schedules on the crane page, the certificate register, compliance rules, the
-daily reminder scan, findings with one-click follow-up jobs, and the completed load test and visual
-inspection templates with calibration checks). See "What works today" below.
+way (slices 12–18: schedules on the crane page, the certificate register, compliance rules, the
+daily reminder scan, findings with one-click follow-up jobs, the completed load test and visual
+inspection templates with calibration checks, and delivery orders built from issued parts). See
+"What works today" below.
 
 ---
 
@@ -174,6 +175,31 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 18 — delivery orders
+
+- **The delivery order is built from what the store already issued.** On a job page, *Raise a delivery
+  order* lists the parts recorded as issued on that job and not already on a DO. You tick the ones going
+  out and set the terms — chargeable, warranty, or loan with an expected return date — and condition.
+  There is no quantity box: the quantity is the movement's, so the paper and the stock ledger cannot
+  disagree (CLAUDE.md rule 10).
+- **One part, one document.** Raising the DO claims those stock movements in the same transaction, so a
+  part cannot be put on a second DO. Trying is refused by part number.
+- **Partial delivery works.** Record who took the parts, how many of each, and their signature. A van that
+  brings three of five leaves the DO *Partly delivered*; a second handover fills in the rest and it becomes
+  *Delivered*. The status is computed from the quantities, never typed.
+- **Loan kit is chased and closed.** A loan line shows how many are still out. Recording the return moves
+  the DO to *Returned* once everything is back. A chargeable or warranty line cannot be "returned" — it is
+  the customer's.
+- **Every DO is numbered `DO-YYYY-NNNN` from when it is raised and downloads as a PDF** with the parts,
+  serials, terms, condition notes and the receiver's signature. It is rendered on demand: unlike an
+  approved report it changes as it is receipted, and an unchanged one re-downloads byte for byte.
+- **Try it:** a seeded technician issues a part on a job (the offline report's parts list does this), then
+  open the job in the office and raise a delivery order from it.
+- **Tests** — 20 unit tests (the derived status and outstanding-loan rules, the schemas, and the PDF
+  renderer's byte-stability) plus a 13-case integration suite covering the foreign/re-used/non-issued
+  refusals, partial then complete receipt, loan return, the capability checks, technician scoping, and the
+  audit rows.
 
 ### Slice 17 — the load test and visual inspection reports, complete
 

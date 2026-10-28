@@ -1422,7 +1422,7 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 | **15** | **Reminder engine in the daily cron** (**built** — see §7.6) | `/api/cron/daily` evaluates every `CraneSchedule.nextDueDate` at `reminderOffsetsDays` (default 90/60/30) then overdue, notifies the account owner in-app + email via the existing `notify` fan-out, and honours `autoCreateDraftJobs`; at-most-once per (schedule, offset, period) so a re-run sends nothing twice — needs an additive migration for the dispatch key | `src/app/api/cron/daily/route.ts`, `src/server/reminders/` (new), migration | §8 |
 | **16** | **Findings & one-click follow-up jobs** (**built** — see §7.7) | Finding status flow (open → quoted → scheduled → rectified / declined), open findings on the crane page, **one click creates a follow-up job** pre-filled from the finding (job type, crane, description, priority from severity) linked by `followUpJobId`/`parentJobId`; customer-declined critical repair captured with name, signature and date | `src/server/findings/` (new), report page, crane page, `src/server/jobs/jobs.ts` | §4.2, §6.4 |
 | **17** | **Load test & visual inspection templates built out** (**built** — see §7.8) | The two templates completed against §6.3 (test load / radii / SWL per radius / instruments / pre- and post-test exam / AE attendance; structure, safety devices, markings, wire rope and hook), with **calibration-expiry validation against `Resource.calibrationDueDate` at the test date — warn, never block** | `src/server/templates/definitions.ts`, `src/lib/templates/schema.ts`, the report form, `prisma/seed.ts` (new versions) | §6.3 |
-| **18** | **Delivery orders** | DO generated from the parts already issued on a job (no second source of truth — read from `StockMovement`), lines with serial/batch, `chargeable \| warranty \| loan` + expected return, partial delivery, receiver name/signature/timestamp, numbered `DO-YYYY-NNNN`, printable PDF via the existing renderer | `src/server/delivery-orders/` (new), `src/app/(office)/jobs/[id]/page.tsx`, `src/server/documents/` | §6.5 |
+| **18** | **Delivery orders** (**built** — see §7.9) | DO generated from the parts already issued on a job (no second source of truth — read from `StockMovement`), lines with serial/batch, `chargeable \| warranty \| loan` + expected return, partial delivery, receiver name/signature/timestamp, numbered `DO-YYYY-NNNN`, printable PDF via the existing renderer | `src/server/delivery-orders/` (new), `src/app/(office)/jobs/[id]/page.tsx`, `src/server/documents/` | §6.5 |
 | **19** | **Quotes & variations** | Quote from a job or a set of findings, lines with qty/unit price, `variation` flag, GST computed, send/accept/decline/expire, numbered `QTE-YYYY-NNNN`, PDF; accepting a quote moves the job into `QUOTED → APPROVED` through the existing status machine | `src/server/quotes/` (new), `src/app/(office)/quotes/` (new), `src/server/jobs/status.ts` | §4.2, §12 |
 | **20** | **Invoicing, GST and payments** | Invoice from a reviewed job (job costing from `StockMovement` + labour lines), `gstRate` snapshot at issue, `INV-YYYY-NNNN`, PDF, payments recorded, `amountPaid` derived, statuses `DRAFT/ISSUED/PART_PAID/PAID/VOID`, dashboard "awaiting invoicing" gains a screen | `src/server/invoices/` (new), `src/app/(office)/invoices/` (new) | §12, §5 |
 | **21** | **Accounting CSV export + Phase 2 acceptance** | An export adapter (CSV first, Xero/QuickBooks later per §12/§14) for invoices and payments, and one Playwright path proving Phase 2 end to end: a PM job completed → schedule rolls forward → certificate uploaded → compliance screen shows it → reminder email queued → finding becomes a follow-up job → quote → invoice | `src/server/accounting/` (new), `tests/e2e/` | §12, §14 |
@@ -1430,11 +1430,11 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 Each slice also carries the Definition of done from `../CLAUDE.md` (server-side permission test, audit entries, empty /
 loading / error states, seed still runnable, README + this file updated in the same commit).
 
-**Where the next session starts: slice 18 (delivery orders)**, with the three carry-over items at the end
-of §7.5 and the ended-schedules filter noted in §7.3 queued behind it. They are deliberately not slices of
-their own — take the first one whenever the slice in flight edits the same screen or service. Slice 18
-touches the job page and the document renderer, not a rule screen, so the `/admin/compliance` Playwright
-path (carry-over 1) still waits for whichever slice next touches `/admin/compliance`.
+**Where the next session starts: slice 19 (quotes and variations)**, with the three carry-over items at
+the end of §7.5 and the ended-schedules filter noted in §7.3 queued behind it. They are deliberately not
+slices of their own — take the first one whenever the slice in flight edits the same screen or service.
+Slice 18 touched the job page and the document renderer, not a rule screen, so the `/admin/compliance`
+Playwright path (carry-over 1) still waits for whichever slice next touches `/admin/compliance`.
 
 ### 7.3 Slice 12 — schedules on the crane page (**built**)
 
@@ -1723,7 +1723,45 @@ Dexie cache are both already there.
 **Known limit:** the register reaches the phone only for instruments booked on that technician's jobs.
 An unbooked instrument falls back to the date typed on the form, which is the honest source anyway.
 
-### 7.9 Phase 3 and Phase 4 (outline, not sliced yet)
+### 7.9 Slice 18 — delivery orders (**built**)
+
+**Goal:** the paper that travels with the parts comes from the same rows that took them out of the store, so
+the delivery and the stock ledger cannot describe different amounts (brief §6.5, CLAUDE.md rule 10).
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 109–114):
+
+1. **A line names its `StockMovement`.** `DeliveryOrderLine.movementId` is a unique, nullable FK to the `ISSUE`
+   movement, and raising the DO writes `StockMovement.deliveryOrderId` in the same transaction. The form never
+   takes a quantity: it ticks rows the server read from the ledger.
+2. **Partial delivery is one additive column.** `DeliveryOrderLine.receivedQuantity` is a running total; the
+   status is derived from it (`deliveryStatusFor`), never posted.
+3. **Receiving writes no movement.** The issue already happened. A second movement would double-count the part
+   against the job.
+4. **Numbered at raise, rendered on demand.** The signer at the gate signs a numbered document, so
+   `DO-YYYY-NNNN` is allocated when it is raised. A DO mutates as it is receipted, so it has no immutable
+   version to store; the renderer pins its dates so an unchanged DO is byte-stable.
+5. **Only loan kit comes back, and `RETURNED` is terminal.**
+
+**As built.** `src/server/delivery-orders/delivery-orders.ts` is the one read/write path —
+`deliveryOrdersForJob` and `getDeliveryOrder` (scoped through the new `deliveryOrderReadWhere`, which follows
+the job), `issuedPartsForJob` (unclaimed `ISSUE` movements on the job), `createDeliveryOrder` (re-reads every
+movement under the job, refuses a foreign, non-issue or already-claimed one by part number, allocates the
+number, snapshots the lines, claims the movements, audits), `receiveDeliveryOrder`, `returnDeliveryOrder` and
+`renderDeliveryOrder`. `src/lib/validation/delivery-orders.ts` holds the schemas and the two pure rules.
+`src/server/documents/delivery-order.ts` is the fixed-layout renderer; `GET /api/delivery-orders/[id]/pdf`
+downloads it. The receiver signature reuses the signed-URL upload route under a new `DELIVERY_SIGNATURE` kind.
+The job page gains a Delivery orders section: each DO with its lines, ordered/received/terms and PDF link,
+then the raise form (unticked list of issued parts), the receipt form (SignaturePad, per-line running total)
+and the loan-return form, all gated on the new `deliveryorder.write` capability (dispatcher and storekeeper).
+
+**Migration:** `20261028400000_slice18_delivery_orders` — adds `DeliveryOrderLine.movementId` (unique index, FK)
+and `receivedQuantity` (default 0). Additive only.
+
+**Known limit:** a DO raised from a job with no stock movements has nothing to offer, so the form explains that
+the parts appear once a report records them. There is no screen for a customer-level DO without a job — the
+schema allows it (`jobId` is nullable) but the brief's flow always starts from a job.
+
+### 7.10 Phase 3 and Phase 4 (outline, not sliced yet)
 
 **Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;
 stock movements linked to jobs and DOs; serial/batch traceability; reorder alerts grouped by supplier; purchase orders

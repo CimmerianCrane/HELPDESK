@@ -158,6 +158,9 @@ test('an administrator sees the audit trail of a record, and a dispatcher never 
   // before the page renders — and the nav link is not offered either.
   await expect(page.getByRole('link', { name: 'Audit' })).toBeVisible()
   await page.getByRole('button', { name: 'Sign out' }).click()
+  // Wait for the sign-out request to land. Navigating straight to /login cancels it, and the page
+  // then sees the session that was never cleared and redirects to the dashboard.
+  await page.waitForURL(/\/login/)
   await signIn(page, DISPATCHER)
   await expect(page.getByRole('link', { name: 'Audit' })).toHaveCount(0)
   await page.goto('/admin/audit')

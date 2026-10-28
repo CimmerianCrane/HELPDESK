@@ -13,6 +13,16 @@ import {
 } from '@/components/office/schedule-forms'
 import { PriorityBadge } from '@/components/office/ticket-badges'
 import { cardClass } from '@/components/office/ui'
+import {
+  CreateDeliveryOrderForm,
+  ReceiveDeliveryOrderForm,
+  ReturnDeliveryOrderForm,
+} from '@/components/office/delivery-order-forms'
+import {
+  deliveryOrdersForJob,
+  issuedPartsForJob,
+} from '@/server/delivery-orders/delivery-orders'
+import { DELIVERY_STATUS_LABELS } from '@/lib/validation/delivery-orders'
 import { formatDateTime, formatDuration } from '@/lib/format'
 import { utcToLocalInput } from '@/lib/time'
 import { auditTrail } from '@/server/audit/audit'
@@ -32,6 +42,11 @@ import { SCHEDULE_TYPE_LABELS } from '@/lib/validation/schedules'
 import { getSettings } from '@/server/settings/settings'
 import type { SlaResult } from '@/server/sla/sla'
 import { updateJobAction, transitionJobAction } from '../actions'
+import {
+  createDeliveryOrderAction,
+  receiveDeliveryOrderAction,
+  returnDeliveryOrderAction,
+} from './delivery-orders/actions'
 import {
   assignTechnicianAction,
   bookResourceAction,
@@ -75,6 +90,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const maySchedule = can(context.role, 'job.schedule')
   const mayAssign = can(context.role, 'job.assign')
   const mayDispatch = can(context.role, 'job.dispatch')
+  const mayDeliver = can(context.role, 'deliveryorder.write')
 
   const [
     jobResult,
@@ -87,6 +103,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     reports,
     trail,
     completionSchedules,
+    deliveries,
+    deliverableParts,
   ] = await Promise.all([
       getJob(context, id).then(
         (job) => ({ job }),
@@ -116,6 +134,12 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       // rest, so it joins the same batch; the job row decides below whether they are offered.
       mayMove && can(context.role, 'schedule.manage')
         ? schedulesForJobCranes(context, id)
+        : Promise.resolve([]),
+      // Delivery orders (slice 18). Reading them follows the job, so anybody who can read it sees
+      // the paperwork; only `deliveryorder.write` raises or receipts one.
+      can(context.role, 'part.read') ? deliveryOrdersForJob(context, id) : Promise.resolve([]),
+      mayDeliver && can(context.role, 'part.read')
+        ? issuedPartsForJob(context, id)
         : Promise.resolve([]),
     ])
   const job = jobResult.job
@@ -484,6 +508,140 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           </ul>
         )}
       </section>
+
+      {can(context.role, 'part.read') ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-slate-900">Delivery orders</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Paperwork for the parts issued on this job. Lines come from the stock movements the
+            technician recorded, so the delivery and the store ledger are the same rows. Loan kit is
+            booked back here.
+          </p>
+
+          {deliveries.length > 0 ? (
+            <ul className="mt-4 space-y-4">
+              {deliveries.map((order) => (
+                <li key={order.id} className="rounded-md border border-slate-200 p-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-medium text-slate-900">{order.number}</span>
+                    <span className="text-xs text-slate-600">
+                      {DELIVERY_STATUS_LABELS[order.status]}
+                      {order.issuedAt
+                        ? ` · issued ${formatDateTime(order.issuedAt, settings.timezone)}`
+                        : ''}
+                      {order.receiverName ? ` · signed by ${order.receiverName}` : ''}
+                    </span>
+                  </div>
+
+                  {order.deliveryAddress.length > 0 ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Deliver to {order.deliveryAddress.join(', ')}
+                    </p>
+                  ) : null}
+
+                  <table className="mt-2 w-full text-left text-sm">
+                    <thead>
+                      <tr className="text-xs text-slate-500">
+                        <th className="py-1 font-medium">Part</th>
+                        <th className="py-1 font-medium">Ordered</th>
+                        <th className="py-1 font-medium">Received</th>
+                        <th className="py-1 font-medium">Terms</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {order.lines.map((line) => (
+                        <tr key={line.id} className="border-t border-slate-100">
+                          <td className="py-1 text-slate-800">
+                            {line.description}
+                            {line.serialOrBatch ? (
+                              <span className="text-slate-500"> · {line.serialOrBatch}</span>
+                            ) : null}
+                          </td>
+                          <td className="py-1 text-slate-800">{line.quantity}</td>
+                          <td
+                            className={
+                              line.receivedQuantity >= line.quantity
+                                ? 'py-1 text-slate-800'
+                                : 'py-1 text-amber-800'
+                            }
+                          >
+                            {line.receivedQuantity}
+                          </td>
+                          <td className="py-1 text-slate-800">
+                            {line.chargeType === 'LOAN'
+                              ? line.outstanding
+                                ? `Loan · ${line.returnedQuantity} of ${line.quantity} back`
+                                : 'Loan · returned'
+                              : line.chargeType === 'WARRANTY'
+                                ? 'Warranty'
+                                : 'Chargeable'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <a
+                    href={`/api/delivery-orders/${order.id}/pdf`}
+                    className="mt-2 inline-block text-sm text-slate-600 underline hover:text-slate-900"
+                  >
+                    Download the delivery order PDF
+                  </a>
+
+                  {mayDeliver && order.status !== 'RETURNED' ? (
+                    <div className="mt-3 space-y-3">
+                      <details>
+                        <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                          Record who took the parts
+                        </summary>
+                        <ReceiveDeliveryOrderForm
+                          action={receiveDeliveryOrderAction.bind(null, order.id, job.id)}
+                          deliveryOrderId={order.id}
+                          lines={order.lines}
+                        />
+                      </details>
+                      {order.lines.some((line) => line.chargeType === 'LOAN') ? (
+                        <details>
+                          <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                            Book loan kit back
+                          </summary>
+                          <ReturnDeliveryOrderForm
+                            action={returnDeliveryOrderAction.bind(null, order.id, job.id)}
+                            deliveryOrderId={order.id}
+                            lines={order.lines}
+                          />
+                        </details>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-slate-600">
+              None yet. A delivery order is raised from the parts a technician issues.
+            </p>
+          )}
+
+          {mayDeliver ? (
+            <div className="mt-4 border-t border-slate-200 pt-4">
+              <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                Raise one from the parts issued
+              </h3>
+              <div className="mt-2">
+                <CreateDeliveryOrderForm
+                  action={createDeliveryOrderAction.bind(null, job.id)}
+                  parts={deliverableParts.map((part) => ({
+                    ...part,
+                    issuedAt: part.issuedAt.toISOString(),
+                  }))}
+                  timezone={settings.timezone}
+                />
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className={`${cardClass} lg:col-span-2`}>

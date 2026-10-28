@@ -11,9 +11,15 @@ import {
   type FileUploadInput,
 } from '@/lib/validation/reports'
 import { findingSignatureUploadSchema } from '@/lib/validation/findings'
+import { deliverySignatureUploadSchema } from '@/lib/validation/delivery-orders'
 import { ForbiddenError, NotFoundError, ValidationError } from '@/server/auth/errors'
 import { assertCan } from '@/server/auth/permissions'
-import { craneReadWhere, findingReadWhere, jobReadWhere } from '@/server/auth/scope'
+import {
+  craneReadWhere,
+  deliveryOrderReadWhere,
+  findingReadWhere,
+  jobReadWhere,
+} from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { storage } from './storage'
 
@@ -49,6 +55,7 @@ export async function requestUpload(
   const kind = (raw as { kind?: unknown } | null)?.kind
   if (kind === 'CERTIFICATE') return requestCertificateUpload(context, raw)
   if (kind === 'FINDING_SIGNATURE') return requestFindingSignatureUpload(context, raw)
+  if (kind === 'DELIVERY_SIGNATURE') return requestDeliverySignatureUpload(context, raw)
 
   assertCan(context, 'report.submit')
   const input = parseInput(fileUploadSchema, raw)
@@ -191,6 +198,53 @@ async function requestFindingSignatureUpload(
         storageKey,
         uploadedById: context.userId,
         findingId: finding.id,
+      },
+    })
+  }
+
+  const ticket = await storage().signedUploadUrl(storageKey, input.mimeType)
+  return { fileId: input.id, uploadUrl: ticket.url, method: ticket.method }
+}
+
+/**
+ * The receiver's signature on a delivery order (slice 18). Drawn in the browser when the parts are
+ * handed over, stored as a `SIGNATURE` File owned by that delivery order, and referred to by id when
+ * the receipt is recorded. PNG only, for the same reason every other signature is.
+ */
+async function requestDeliverySignatureUpload(
+  context: AuthContext,
+  raw: unknown,
+): Promise<UploadTicket> {
+  assertCan(context, 'deliveryorder.write')
+  const input = parseInput(deliverySignatureUploadSchema, raw)
+
+  const order = await db.deliveryOrder.findFirst({
+    where: { id: input.deliveryOrderId, ...deliveryOrderReadWhere(context) },
+    select: { id: true, jobId: true },
+  })
+  if (!order) throw new NotFoundError('No such delivery order.')
+
+  const storageKey = `delivery-orders/${order.id}/signatures/${input.id}.png`
+
+  const existing = await db.file.findUnique({ where: { id: input.id } })
+  if (existing) {
+    if (existing.uploadedById !== context.userId || existing.entityId !== order.id) {
+      throw new ForbiddenError('That upload belongs to somebody else.')
+    }
+  } else {
+    await db.file.create({
+      data: {
+        id: input.id,
+        entity: 'DeliveryOrder',
+        entityId: order.id,
+        kind: 'SIGNATURE',
+        filename: input.filename,
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes,
+        storageKey,
+        uploadedById: context.userId,
+        // The job link is what the audit viewer already understands; the typed owner is the DO.
+        jobId: order.jobId,
       },
     })
   }

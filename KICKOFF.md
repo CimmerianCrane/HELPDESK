@@ -15,19 +15,20 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1 is complete, and Phase 2 is under way.** Slices 0–17 are built; Phase 1's acceptance path
+**Phase 1 is complete, and Phase 2 is under way.** Slices 0–18 are built; Phase 1's acceptance path
 still passes untouched. **Phase 2 is sliced in `docs/PLAN.md` §7, which is the canonical copy** —
 §7.1 is what Phase 1 left behind, §7.2 the slice table (13 certificates, 14 compliance rules,
 15 reminders, 16 findings and follow-up jobs, 17 the two remaining templates, 18 delivery orders,
-19 quotes, 20 invoicing, 21 accounting export), and **slice 18 is the next session's work**.
+19 quotes, 20 invoicing, 21 accounting export), and **slice 19 is the next session's work**.
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
 
-> **Slice 17 is done and verified.** No migration was needed — `Resource.calibrationDueDate` and the
-> Dexie cache were already there; the load test and visual inspection are published as **version 2**
-> templates. `npm run verify` (288 unit tests), `npm run test:integration`, `npm run test:e2e` and
-> `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes **unmodified**. Slice 18
-> (delivery orders) is next — see the section near the bottom of this file.
+> **Slice 18 is done and verified.** Migration `20261028400000_slice18_delivery_orders` adds
+> `DeliveryOrderLine.movementId` (unique) and `receivedQuantity` and **is applied** to the hosted
+> database. `npm run verify` (308 unit tests), `npm run test:integration` (251, 13 of them new),
+> `npm run test:e2e` and `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes
+> **unmodified**. Slice 19 (quotes and variations) is next — see the section near the bottom of this
+> file.
 
 | Slice | State |
 |---|---|
@@ -49,7 +50,8 @@ asked.**
 | 15 Reminder engine in the daily cron | done |
 | 16 Findings & one-click follow-up jobs | done |
 | 17 Load test & visual inspection templates | done |
-| 18–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 18 is next |
+| 18 Delivery orders | done |
+| 19–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 19 is next |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -259,17 +261,51 @@ number but no stored PDF, because the seed runs under `tsx`, which cannot load
   now signs in more often than that inside one window, so `tests/e2e/fixtures.ts` clears the throttle
   table before each test; every spec imports `test`/`expect` from there. A spec that imports
   `@playwright/test` directly will be the next one to fail on the throttle.
+- A spec that signs out then signs in again must `await page.waitForURL(/\/login/)` after the click.
+  Navigating to `/login` straight away cancels the sign-out request, and the page then finds the
+  session that was never cleared and redirects to the dashboard — where there is no `Email` label, so
+  the test times out on a page that is working correctly.
 
 ---
 
-## Slice 17 is done — slice 18 is next
+## Slice 18 is done — slice 19 is next
 
 **Read `docs/PLAN.md` §7 first; it is the canonical copy and is not repeated here.** §7.2 is the
-Phase 2 slice table, §7.4 is slice 13 as built, §7.5 is slice 14 as built (its six fixed decisions and
-one known limit), §7.6 is slice 15 as built, §7.7 is slice 16 as built, §7.8 is slice 17 as built, and
-§7.9 is the Phase 3–4 outline.
+Phase 2 slice table, §7.4 is slice 13 as built, §7.5 is slice 14 as built, §7.6 is slice 15 as built,
+§7.7 is slice 16 as built, §7.8 is slice 17 as built, §7.9 is slice 18 as built, and §7.10 is the
+Phase 3–4 outline.
 
-**What slice 17 delivered.** `LOAD_TEST` and `VISUAL_INSPECTION` are published at **version 2** in
+**What slice 18 delivered.** `src/server/delivery-orders/delivery-orders.ts` is the one read/write path.
+The parts on a DO are the `ISSUE` movements already recorded against the job: `issuedPartsForJob` lists the
+ones no DO has claimed, and `createDeliveryOrder` re-reads every named movement under the job before it
+writes anything, refusing a foreign, non-issue or already-claimed one **by part number**. Raising it
+allocates `DO-YYYY-NNNN`, snapshots the line descriptions and serials, writes
+`StockMovement.deliveryOrderId` for each movement and audits — all in one transaction, so the ledger and
+the paperwork are the same rows. `receiveDeliveryOrder` records the person, their signature (uploaded
+through the existing signed-URL route under a new `DELIVERY_SIGNATURE` kind) and the running received
+quantity per line; the status is derived (`deliveryStatusFor`) so `PARTIAL` cannot disagree with the
+numbers. `returnDeliveryOrder` books loan kit back and moves the DO to `RETURNED` once every loan line is
+whole. `src/server/documents/delivery-order.ts` is a fixed-layout PDF rendered **on demand** by
+`GET /api/delivery-orders/[id]/pdf`, with the document dates pinned so an unchanged DO downloads to the
+same bytes. The job page has the Delivery orders section — each DO with its lines, terms and PDF link,
+then the raise, receipt and return forms — gated on the new `deliveryorder.write` capability (dispatcher
+and storekeeper; the technician issues the parts but signs for nothing).
+
+**Migration:** `20261028400000_slice18_delivery_orders` adds `DeliveryOrderLine.movementId` (unique index +
+FK) and `receivedQuantity` (default 0). Additive only, and applied.
+
+**The gate it passed:** `npm run verify` (308 unit tests, 20 new in
+`tests/unit/delivery-orders.test.ts`, `tests/unit/delivery-order-render.test.ts` and
+`tests/unit/permissions.test.ts`), `npm run test:integration` (251, 13 new in
+`tests/integration/delivery-orders.test.ts`), `npm run test:e2e` and `npm run build`.
+`tests/e2e/happy-path.spec.ts` passes unmodified; no e2e walks the delivery screen, so the integration
+suite is what proves it.
+
+**Known limits.** A DO raised on a job with no stock movements has nothing to offer and says so. There
+is no screen for a customer-level DO without a job. Receiving writes no stock movement — the issue already
+happened, and a second one would double-count the part (ASSUMPTIONS 111).
+
+**What slice 17 delivered.** (Previous session's slice, kept for the record.) `LOAD_TEST` and `VISUAL_INSPECTION` are published at **version 2** in
 `src/server/templates/definitions.ts`; the seed creates `LOAD_TEST-v2` / `VISUAL_INSPECTION-v2` rows and
 repoints the job type at them, but only when the job type still points at an *older version of the same
 template* — a job type the office pointed elsewhere is left alone. `TemplateSection.calibration` in
@@ -378,14 +414,21 @@ certificates (rule 3). No migration — the model, `deletedAt` and the file kind
 new in `certificates.test.ts`), `npm run test:e2e` and `npm run build`. `happy-path.spec.ts` passes
 unmodified.
 
-**Slice 18 — delivery orders — is the next session's work.** `docs/PLAN.md` §7.2 row 18: a DO generated
-from the parts already issued on a job (read from `StockMovement`, never a second source of truth),
-lines with serial/batch and `chargeable | warranty | loan` plus an expected return date, partial
-delivery, receiver name / signature / timestamp, numbered `DO-YYYY-NNNN`, and a printable PDF through
-the existing renderer. The work lands in `src/server/delivery-orders/` (new),
-`src/app/(office)/jobs/[id]/page.tsx` and `src/server/documents/`. The `DeliveryOrder` and
-`DeliveryOrderLine` models and the `DO` sequence key already exist, so no migration is expected; start
-by confirming `npx prisma migrate status` reports nothing pending.
+**Slice 18 — delivery orders — is done.** `docs/PLAN.md` §7.9 records it as built and §7.2 row 18 is
+marked off. One migration was needed after all: the brief's "no second source of truth" is only true if
+a line names the `StockMovement` it is paperwork for, so `DeliveryOrderLine` gains `movementId` (unique)
+and `receivedQuantity` — `20261028400000_slice18_delivery_orders`, additive only.
+
+**Before continuing:** the migration is already applied. On a fresh clone, `npm run setup` applies it
+with the rest.
+
+**Slice 19 — quotes and variations — is the next session's work.** `docs/PLAN.md` §7.2 row 19: a quote
+from a job or a set of findings, lines with quantity and unit price, a `variation` flag, GST computed,
+send/accept/decline/expire, numbered `QTE-YYYY-NNNN`, PDF via the existing renderer; accepting moves the
+job into `QUOTED → APPROVED` through the status machine. The `Quote`/`QuoteLine` models and the `QTE`
+sequence key already exist in the schema, so start by confirming `npx prisma migrate status` reports
+nothing pending. `docs/PLAN.md` §7.7 notes one thing to pick up here: a follow-up job completing does not
+yet move its finding to rectified.
 
 The gate is unchanged for every slice: `npm run verify` and `npm run verify:full`, then
 `tests/e2e/happy-path.spec.ts` must still pass **untouched**.

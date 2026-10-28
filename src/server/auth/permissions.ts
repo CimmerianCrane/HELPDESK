@@ -79,6 +79,8 @@ export const CAPABILITIES = [
   'stock.move',
   'stocktake.approve',
   'supplier.write',
+  /** Raising and receiving a delivery order — paperwork for parts issued on a job (slice 18). */
+  'deliveryorder.write',
 
   // Commercial
   'quote.write',
@@ -130,6 +132,7 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
     'certificate.write',
     'schedule.manage',
     'part.read',
+    'deliveryorder.write',
     'quote.write',
     'dashboard.office',
   ],
@@ -165,6 +168,8 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
     'resource.read',
     'report.read.all',
     'certificate.read',
+    /** The storekeeper is who hands the parts over, so the receipt is theirs to record too. */
+    'deliveryorder.write',
   ],
 
   FINANCE: [

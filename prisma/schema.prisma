@@ -1233,6 +1233,8 @@ model StockMovement {
   report          Report?      @relation(fields: [reportId], references: [id])
   deliveryOrderId String?
   deliveryOrder   DeliveryOrder? @relation(fields: [deliveryOrderId], references: [id])
+  /// Set when a delivery order line is raised for this issue (slice 18).
+  deliveryOrderLine DeliveryOrderLine? @relation("DeliveryOrderLineMovement")
   purchaseOrderId String?
   purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
   stockTakeId     String?
@@ -1273,9 +1275,14 @@ model DeliveryOrderLine {
   id                 String        @id @default(uuid(7))
   deliveryOrderId    String
   deliveryOrder      DeliveryOrder @relation(fields: [deliveryOrderId], references: [id])
+  /// The ISSUE movement this line is paperwork for, so a part cannot be put on two DOs (slice 18).
+  movementId         String?       @unique
+  movement           StockMovement? @relation("DeliveryOrderLineMovement", fields: [movementId], references: [id])
   partId             String?
   description        String
   quantity           Decimal       @db.Decimal(12, 3)
+  /// Running total handed over so far. A partial delivery fills in the remainder later.
+  receivedQuantity   Decimal       @default(0) @db.Decimal(12, 3)
   serialOrBatch      String?
   condition          String?
   chargeType         ChargeType    @default(CHARGEABLE)

@@ -120,6 +120,19 @@ describe('the permission map', () => {
     expect(can('STOREKEEPER', 'report.approve')).toBe(false)
   })
 
+  /**
+   * A delivery order is paperwork for parts the store already issued, so the people who hand parts
+   * over (storekeeper) and who run the job (dispatcher) raise one. The technician issues the parts
+   * from a phone but does not sign for them.
+   */
+  it('lets the storekeeper and dispatcher raise a delivery order, but not the technician', () => {
+    expect(can('STOREKEEPER', 'deliveryorder.write')).toBe(true)
+    expect(can('DISPATCHER', 'deliveryorder.write')).toBe(true)
+    expect(can('TECHNICIAN', 'deliveryorder.write')).toBe(false)
+    expect(can('FINANCE', 'deliveryorder.write')).toBe(false)
+    expect(can('CUSTOMER', 'deliveryorder.write')).toBe(false)
+  })
+
   it('keeps finance read-mostly', () => {
     expect(can('FINANCE', 'invoice.write')).toBe(true)
     expect(can('FINANCE', 'pricing.approve')).toBe(true)

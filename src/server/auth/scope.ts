@@ -115,6 +115,17 @@ export function findingReadWhere(ctx: AuthContext): Prisma.FindingWhereInput {
 }
 
 /**
+ * Filter for `DeliveryOrder` (slice 18).
+ *
+ * It follows the job, not its own capability: a DO is paperwork for parts issued on a visit, so
+ * whoever may read that job may read what left the van for it. A role without `job.read.all` sees
+ * only the DOs on jobs whose filter it enters, and a technician therefore sees their own.
+ */
+export function deliveryOrderReadWhere(ctx: AuthContext): Prisma.DeliveryOrderWhereInput {
+  return { job: jobReadWhere(ctx) }
+}
+
+/**
  * Filter for `Site`. Follows the same shape as `craneReadWhere`: a role that browses sites sees all
  * of them, a technician sees the sites their jobs are at (they need the address and access notes),
  * and a customer user sees their own.

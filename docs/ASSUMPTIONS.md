@@ -521,6 +521,37 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     question. A serial the register has never seen produces nothing: hired test weights are normal and
     the register cannot speak for them.
 
+109. **A delivery order line points at the stock movement it is paperwork for.** `DeliveryOrderLine.movementId`
+    is a unique, nullable link to the `StockMovement` of type `ISSUE` that took the part out, and raising the
+    DO sets `StockMovement.deliveryOrderId` in the same transaction. The brief asks for a DO "generated from
+    the parts already issued on a job … so stock and paperwork can't drift"; a line that merely *copied* the
+    quantity would drift the moment either side changed, and two DOs could claim one part. Unique because one
+    issued part belongs to one document; nullable only because the column was added to a table that may hold
+    rows in an existing deployment.
+110. **Partial delivery is one additive column, `DeliveryOrderLine.receivedQuantity`.** A running total,
+    defaulting to 0, rather than a deliveries sub-table: the brief asks for partial delivery, not for a
+    delivery history, and a receipt re-posted with a smaller number never un-delivers anything (the service
+    takes the maximum). The DO's status is **derived** from those totals — `PARTIAL` while anything is short,
+    `DELIVERED` once all are whole — so the form cannot post a status that disagrees with the quantities.
+111. **Receiving a DO writes no stock movement.** The part left the store when it was issued; the DO records
+    who took it, when and with what signature. `MovementType` has no delivery value, and a second `ISSUE` at
+    receipt time would double-count the same part against the job. The ledger answers "how much left the
+    store", the DO answers "who has it" — one row, two questions.
+112. **The number is issued when the DO is raised, and the PDF is rendered on demand.** The person at the gate
+    signs a numbered document, so `DO-YYYY-NNNN` comes from `nextDocumentNumber` at raise time, in the
+    operating timezone like every other number. There is no stored copy: unlike an approved report, a DO gains
+    received quantities and a signature *after* it is issued, so a frozen render would go stale. The renderer
+    still pins `creationDate`/`modificationDate` to the issue time, so an unchanged DO re-downloads to the same
+    bytes.
+113. **Only `LOAN` lines can be returned, and the DO closes when they are all back.** A chargeable part has been
+    sold to the customer and a warranty replacement is not ours to collect, so a return posted against either
+    is refused by name. `RETURNED` is terminal: `receiveDeliveryOrder` refuses a closed DO, which is what stops
+    a signature being added to a document that is finished.
+114. **The receiver's signature is a `File` on the DO, not on the job.** It is evidence of that handover, so it
+    uploads through the existing signed-URL route (`kind: 'DELIVERY_SIGNATURE'`) with
+    `entity: 'DeliveryOrder'`/`entityId`, and `receiveDeliveryOrder` refuses a File that belongs to a different
+    DO. The same `SignaturePad` the phone uses draws it; nothing about the upload path is new.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in
