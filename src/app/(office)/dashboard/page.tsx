@@ -90,7 +90,7 @@ export default async function DashboardPage() {
                 label="Awaiting invoicing"
                 value={dashboard.awaitingInvoicing}
                 href="/jobs?status=REVIEWED"
-                hint="Report signed off; the invoice has not gone out."
+                hint="Report signed off; the invoice has not gone out. Raise it from the job."
               />
             </dl>
           </section>

@@ -140,6 +140,19 @@ export function quoteReadWhere(ctx: AuthContext): Prisma.QuoteWhereInput {
 }
 
 /**
+ * Filter for `Invoice` (slice 20).
+ *
+ * Same shape as `quoteReadWhere`: it is commercial paperwork for a customer, so whoever holds
+ * `invoice.read` — finance and admin today — sees every live invoice, and a customer user (Phase 4)
+ * sees only their own. A void invoice stays visible: it is a cancelled bill, not a deleted one.
+ */
+export function invoiceReadWhere(ctx: AuthContext): Prisma.InvoiceWhereInput {
+  if (can(ctx.role, 'invoice.read')) return { ...LIVE }
+  if (ctx.customerId) return { ...LIVE, customerId: ctx.customerId }
+  return DENY
+}
+
+/**
  * Filter for `Site`. Follows the same shape as `craneReadWhere`: a role that browses sites sees all
  * of them, a technician sees the sites their jobs are at (they need the address and access notes),
  * and a customer user sees their own.

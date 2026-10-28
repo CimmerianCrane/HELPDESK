@@ -10,10 +10,12 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
 **Status:** Phase 1 complete (slice 11: the end-to-end happy path and the demo dataset); Phase 2 under
-way (slices 12–19: schedules on the crane page, the certificate register, compliance rules, the
+way (slices 12–20: schedules on the crane page, the certificate register, compliance rules, the
 daily reminder scan, findings with one-click follow-up jobs, the completed load test and visual
-inspection templates with calibration checks, delivery orders built from issued parts, and quotes with
-variations, GST and an accept path that moves the job on). See "What works today" below.
+inspection templates with calibration checks, delivery orders built from issued parts, quotes with
+variations, GST and an accept path that moves the job on, and tax invoices with payments recorded
+against them). Slice 21 — the accounting export and the Phase 2 acceptance path — is next. See "What
+works today" below.
 
 ---
 
@@ -175,6 +177,35 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 20 — invoicing, GST and payments
+
+- **An invoice is raised from a job that has been reviewed.** On a job page, *Raise an invoice* starts from the
+  parts actually issued on that job — read from the stock ledger, so the bill and the delivery order describe
+  the same parts — each at its sell price. You add labour lines by hand and edit anything before it goes out.
+  A job that has not been signed off cannot be invoiced, and the screen is not offered for one.
+- **GST is computed, never typed, and fixed the moment the invoice is issued.** Lines are rounded to the cent,
+  summed, and GST applied once at the settings rate. Issuing re-reads the rate in force *and the amount it
+  produces*, so a bill can never say 10% beside a charge worked out at 9%.
+- **Issue, and the job moves on.** Issuing stamps the issue date, works out the due date from the customer's
+  payment terms, moves the job `Reviewed → Invoiced` with its history row, and numbers the document
+  `INV-YYYY-NNNN`. Voiding keeps the invoice and needs a reason.
+- **Payments drive the status.** Record what came in, by what method, with a reference; the invoice becomes
+  *Partly paid* or *Paid* because the money says so, not because someone chose a status. An overpayment is
+  refused and says what is still owed — that is a credit note, which this slice does not do.
+- **The invoice book.** `/invoices` lists every invoice with per-status counts, what is still outstanding, and
+  *Overdue* on an unpaid issued invoice past its due date (worked out from the date, like a quote's expiry).
+  The invoice itself shows the charges, the payments so far and what to do next, and downloads as a PDF headed
+  *Tax invoice*.
+- **Finance owns invoicing.** Only finance and admin can read or raise an invoice — dispatch, store and the
+  field cannot — and the server refuses before it queries.
+- **Try it:** take a seeded job through to *Reviewed*, raise an invoice from its parts, add a labour line, issue
+  it, then record a part payment on the invoice page. The list is under **Invoices** in the sidebar.
+- **Tests** — 18 unit tests (the status flow, the derived paid status, overdue at the timezone day boundary, the
+  money arithmetic shared with quotes, the schemas, permissions, and the PDF's byte-stability) plus a 17-case
+  integration suite covering numbering, the reviewed-job rule, the GST snapshot at issue, the job move and its
+  history, draft-only editing, void rules, partial and full payment, the overpayment refusal, costing from stock
+  movements, and the capability checks.
 
 ### Slice 19 — quotes and variations
 

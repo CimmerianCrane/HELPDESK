@@ -574,6 +574,47 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     the offer; sending it is the act of putting it in front of the customer, so a lapsed one is refused with the
     date named rather than mailed as already-expired. The same rule stops an expired quote being accepted: the
     office raises a fresh one.
+121. **Only a reviewed job can be invoiced.** `createInvoice` refuses any job that is not `REVIEWED`, naming its
+    status. Billing is the step after the paperwork is signed off: a job still in progress has not necessarily
+    used the parts or hours the office is about to charge for, and a job reworked after review would be billed
+    twice. The job's costing is a prefill the office edits, so this gates *when* a bill is raised, not what it
+    says.
+122. **The job moves `REVIEWED → INVOICED` when the invoice is issued, not when the draft is raised.** A draft can
+    sit for days and be deleted; the transition is the moment the bill exists. If the job has moved on by then
+    (completed without an invoice, cancelled), it is left where it is — `canTransition` decides, so the history
+    says the invoice went out but the job's own record is not rewritten to pretend it was still reviewed.
+123. **Issuing re-snapshots the GST rate *and* the amounts it produces together.** A draft stores the rate it was
+    priced at, but the issue date is when the customer is charged GST. Re-snapshotting `gstRate` alone would
+    print "GST (10%)" beside an amount computed at 9%; the service recomputes `gstAmount` and `total` from the
+    stored subtotal at the issue rate, in the same update.
+124. **`amountPaid` is derived from the payment rows, never posted.** Recording a payment sums the existing
+    payments, writes the sum back, and derives the status (`paidStatusFor`): nothing gives the status a way to
+    disagree with the money. `PART_PAID` and `PAID` are consequently not moves a person makes, which is why
+    `ALLOWED_INVOICE_TRANSITIONS` gives them no exits — an invoice with money on it is voided by a credit note,
+    not this slice.
+125. **An overpayment is refused, not netted.** A payment that would take the total above the invoice's own amount
+    is refused with the amount still owed named. A credit note is out of scope, and a negative balance (money owed
+    *to* the customer) is a different document that this slice would misrepresent as a bill.
+126. **Job costing reads `StockMovement` at sell price, and writes nothing.** The `ISSUE` movements on the job are
+    the same rows a delivery order prints and stock is reconciled from (CLAUDE.md rule 10), so the invoice and
+    the paperwork cannot describe different parts. The lines it produces are a prefill — the office edits them,
+    adds labour lines by hand — and the stored invoice keeps the lines as written, so a later price change cannot
+    rewrite a bill that has gone out.
+127. **The job link lives on the invoice lines, because `Invoice` has no `jobId`.** The schema was designed with
+    `InvoiceLine.jobId` optional and no column on the invoice, so `invoicesForJob` filters `lines: { some: {
+    jobId } }`, the job header shows the first line's job, and editing a draft carries the job each replacement
+    line forward. An invoice raised from two jobs would show both under each job's list, which is the honest
+    answer rather than a chosen "owner" job.
+128. **Finance issues and reads invoices; no other office role does.** An invoice is money owed and a statement to
+    a customer, so `invoice.read`/`invoice.write` sit with finance and admin alone — dispatch raises quotes and
+    cannot raise the bill that follows one. `invoiceReadWhere` gives finance its exact audience; the caller's
+    capability is checked before the scope filter is even built, so a technician gets `ForbiddenError` rather
+    than an empty list.
+129. The **job move on issue is written by the invoice service, not `transitionJob`.** `transitionJob` requires
+    `job.transition`, which finance does not hold; the invoice service writes the status, its `invoicedAt` stamp
+    and its `JobStatusHistory` row itself, inside the invoice's transaction, after checking the same
+    `canTransition` map. The alternative — granting finance `job.transition` — would let it move any job to any
+    state, which is a much larger grant than invoicing needs.
 
 ## Not assumed — deliberately left to you
 

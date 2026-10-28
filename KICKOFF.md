@@ -15,19 +15,19 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1 is complete, and Phase 2 is under way.** Slices 0–19 are built; Phase 1's acceptance path
+**Phase 1 is complete, and Phase 2 is under way.** Slices 0–20 are built; Phase 1's acceptance path
 still passes untouched. **Phase 2 is sliced in `docs/PLAN.md` §7, which is the canonical copy** —
 §7.1 is what Phase 1 left behind, §7.2 the slice table (13 certificates, 14 compliance rules,
 15 reminders, 16 findings and follow-up jobs, 17 the two remaining templates, 18 delivery orders,
-19 quotes, 20 invoicing, 21 accounting export), and **slice 20 is the next session's work**.
+19 quotes, 20 invoicing, 21 accounting export), and **slice 21 is the next session's work**.
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
 
-> **Slice 19 is done and verified.** Migration `20261028500000_slice19_quotes` adds
-> `Quote.gstRate DECIMAL(5,4)` and **is applied** to the hosted database. `npm run verify` (325 unit
-> tests), `npm run test:integration` (262, 11 of them new), `npm run test:e2e` and `npm run build` all
-> pass, and `tests/e2e/happy-path.spec.ts` passes **unmodified**. Slice 20 (invoicing, GST and
-> payments) is next — see the section near the bottom of this file.
+> **Slice 20 is done and verified.** No migration was needed — `Invoice`, `InvoiceLine`, `Payment` and
+> the `INV` sequence key already existed. `npm run verify` (342 unit tests), `npm run test:integration`
+> (279, 17 of them new), `npm run test:e2e` and `npm run build` all pass, and
+> `tests/e2e/happy-path.spec.ts` passes **unmodified**. Slice 21 (accounting CSV export and the Phase 2
+> acceptance path) is next — see the section near the bottom of this file.
 
 | Slice | State |
 |---|---|
@@ -51,7 +51,8 @@ asked.**
 | 17 Load test & visual inspection templates | done |
 | 18 Delivery orders | done |
 | 19 Quotes & variations | done |
-| 20–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 20 is next |
+| 20 Invoicing, GST & payments | done |
+| 21 Accounting export & Phase 2 acceptance | planned in `docs/PLAN.md` §7.2; slice 21 is next |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -141,9 +142,14 @@ kit is chased back, and it downloads as a PDF. **Phase 2, slice 19 — quotes.**
 `QTE-YYYY-NNNN` quote with quantity/unit price lines, a variation flag and GST computed from them; sending,
 accepting and declining are recorded, expiry is derived from the date, accepting moves the job
 `QUOTED → APPROVED` through the status machine, and the quote downloads as a PDF. Completing a follow-up job
-now marks its finding rectified.
+now marks its finding rectified. **Phase 2, slice 20 — invoicing and payments.** A reviewed job raises a
+numbered `INV-YYYY-NNNN` tax invoice whose lines are prefilled from the parts issued on it (read from the
+stock ledger, so the bill and the delivery order describe the same parts) plus labour the office types; GST is
+computed from the lines at the rate in force when the invoice is issued, and payments recorded against it drive
+`PART_PAID` and `PAID` from the money rather than from a form. Issuing moves the job to `INVOICED`; the invoice
+downloads as a PDF, and `/invoices` is the book of what is owed and overdue.
 
-**Not yet built:** slices 20–21 (invoicing and the accounting export) and all of Phases 3–4.
+**Not yet built:** slice 21 (the accounting export and the Phase 2 acceptance path) and all of Phases 3–4.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
@@ -274,12 +280,48 @@ number but no stored PDF, because the seed runs under `tsx`, which cannot load
 
 ---
 
-## Slice 19 is done — slice 20 is next
+## Slice 20 is done — slice 21 is next
 
 **Read `docs/PLAN.md` §7 first; it is the canonical copy and is not repeated here.** §7.2 is the
 Phase 2 slice table, §7.4 is slice 13 as built, §7.5 is slice 14 as built, §7.6 is slice 15 as built,
 §7.7 is slice 16 as built, §7.8 is slice 17 as built, §7.9 is slice 18 as built, §7.10 is slice 19 as
-built, and §7.11 is the Phase 3–4 outline.
+built, §7.11 is slice 20 as built, and §7.12 is the Phase 3–4 outline. Slice 19's account below is kept for the
+record.
+
+**What slice 20 delivered.** `src/server/invoices/invoices.ts` is the one read/write path, scoped through the
+new `invoiceReadWhere` and gated on `invoice.read`/`invoice.write` — finance and admin only, so a dispatcher who
+raised the quote cannot raise the bill that follows it. `createInvoice` re-reads the job under `jobReadWhere`,
+refuses anything not `REVIEWED` by naming its status, allocates `INV-YYYY-NNNN` with
+`nextDocumentNumber(tx, 'INVOICE')`, computes the totals from the lines and the current rate, and audits — one
+transaction. `jobCosting` reads the job's `ISSUE` movements at sell price as the raise form's prefill: the same
+ledger rows the delivery order prints, so the bill and the paperwork describe the same parts. `transitionInvoice`
+issues a draft — stamping the issue date, the due date from the customer's payment terms, and **re-snapshotting
+the GST rate with the amounts it produces**, because a bill stating 10% beside an amount computed at 9% is worse
+than either rate being wrong — and moves the job `REVIEWED → INVOICED` with its history row and stamp in the same
+transaction; it writes that move itself rather than calling `transitionJob`, which needs a `job.transition`
+finance does not hold. `recordPayment` works in integer cents, refuses an overpayment by naming what is still
+owed, and derives `PART_PAID`/`PAID` from the sum of the payments rather than from a form field. The money
+arithmetic was **moved** to `src/lib/validation/money.ts` and the quote re-pointed at it, so an invoice and the
+quote before it cannot price the same lines differently. `src/server/documents/invoice.ts` is the fixed-layout
+"Tax invoice" PDF, with Paid and Balance-due rows once money is in, downloaded through `GET /api/invoices/[id]/pdf`.
+The office gains `/invoices` (counts, q/status filters, outstanding total, overdue badges) and `/invoices/[id]`
+(charges, totals, payments, what happens next, the payment form), the job page gains an Invoices section with a
+raise form prefilled from the job's parts, the nav gains **Invoices**, and the audit viewer labels and links one.
+The dashboard's "awaiting invoicing" hint now says where the work is done.
+
+**Migration:** none needed. `Invoice`, `InvoiceLine`, `Payment`, both enums and the `INV` sequence key were
+designed in Phase 1 and already applied — `npx prisma migrate status` reports nothing pending.
+
+**The gate it passed:** `npm run verify` (342 unit tests, 18 new in `tests/unit/invoices.test.ts`,
+`tests/unit/invoice-render.test.ts` and `tests/unit/permissions.test.ts`), `npm run test:integration` (279, 17 new
+in `tests/integration/invoices.test.ts`), `npm run test:e2e` (35 passed, 2 skipped as offline-only) and
+`npm run build`. `tests/e2e/happy-path.spec.ts` passes unmodified; no e2e walks the invoices screen, so the
+integration suite is what proves it.
+
+**Known limits.** There is no credit note: an invoice with money against it cannot be voided and an overpayment
+cannot be taken — both are refused with the reason said out loud. The customer page has no Invoices tab; the job
+page and `/invoices` are the two screens. A payment records its method and reference but has no proof-of-payment
+upload.
 
 **What slice 19 delivered.** `src/server/quotes/quotes.ts` is the one read/write path, scoped through the new
 `quoteReadWhere` and gated on a new `quote.read` capability (dispatch and finance read; dispatch and admin
@@ -451,21 +493,22 @@ certificates (rule 3). No migration — the model, `deletedAt` and the file kind
 new in `certificates.test.ts`), `npm run test:e2e` and `npm run build`. `happy-path.spec.ts` passes
 unmodified.
 
-**Slice 19 — quotes and variations — is done.** `docs/PLAN.md` §7.10 records it as built and §7.2 row 19 is
-marked off. One additive migration: `20261028500000_slice19_quotes` adds `Quote.gstRate` so the rate a quote
-was priced at is part of the quote, not something inferred from its rounded amounts. The slice-16 carry-over
-is closed too — completing a follow-up job now rectifies its finding.
+**Slice 20 — invoicing, GST and payments — is done.** `docs/PLAN.md` §7.11 records it as built and §7.2 row 20
+is marked off. No migration: the models and the `INV` sequence key were already applied. One decision changed
+while building it: the job move on issue is written by the invoice service rather than through `transitionJob`,
+because finance — the only role holding `invoice.write` — does not hold `job.transition` and granting it would let
+finance move any job to any state (`ASSUMPTIONS.md` 129). An integration test caught a second: issuing must
+recompute the amounts as well as the rate, or the PDF can state 10% beside a 9% charge (assumption 123).
 
-**Before continuing:** the migration is already applied. On a fresh clone, `npm run setup` applies it
-with the rest.
+**Before continuing:** `npx prisma migrate status` should report nothing pending — this slice added none.
 
-**Slice 20 — invoicing, GST and payments — is the next session's work.** `docs/PLAN.md` §7.2 row 20: an
-invoice raised from a reviewed job, with job costing from `StockMovement` plus labour lines, `gstRate`
-snapshotted at issue, numbered `INV-YYYY-NNNN`, a PDF via the existing renderer, payments recorded so
-`amountPaid` is derived, and the statuses `DRAFT/ISSUED/PART_PAID/PAID/VOID`; the dashboard's "awaiting
-invoicing" count gains a screen. The `Invoice`/`InvoiceLine`/`Payment` models and the `INV` sequence key
-already exist, so start by confirming `npx prisma migrate status` reports nothing pending, and read §7.10 for
-the rate-snapshot and numbering patterns slice 19 settled on — invoice numbering should match it.
+**Slice 21 — accounting CSV export and the Phase 2 acceptance path — is the next session's work.**
+`docs/PLAN.md` §7.2 row 21: an export adapter (CSV first, Xero/QuickBooks behind the same seam) for invoices and
+payments, and one Playwright path proving Phase 2 end to end — a PM job completed → schedule rolls forward →
+certificate uploaded → compliance screen shows it → reminder queued → finding becomes a follow-up job → quote →
+invoice. The first carry-over from §7.5 (a Playwright path for `/admin/compliance`) belongs in that same spec.
+Read §7.10 and §7.11 for the numbering and snapshot patterns, and `src/lib/validation/money.ts` for the
+arithmetic an export should reuse rather than recompute.
 
 The gate is unchanged for every slice: `npm run verify` and `npm run verify:full`, then
 `tests/e2e/happy-path.spec.ts` must still pass **untouched**.

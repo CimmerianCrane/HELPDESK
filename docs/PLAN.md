@@ -1424,17 +1424,18 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 | **17** | **Load test & visual inspection templates built out** (**built** — see §7.8) | The two templates completed against §6.3 (test load / radii / SWL per radius / instruments / pre- and post-test exam / AE attendance; structure, safety devices, markings, wire rope and hook), with **calibration-expiry validation against `Resource.calibrationDueDate` at the test date — warn, never block** | `src/server/templates/definitions.ts`, `src/lib/templates/schema.ts`, the report form, `prisma/seed.ts` (new versions) | §6.3 |
 | **18** | **Delivery orders** (**built** — see §7.9) | DO generated from the parts already issued on a job (no second source of truth — read from `StockMovement`), lines with serial/batch, `chargeable \| warranty \| loan` + expected return, partial delivery, receiver name/signature/timestamp, numbered `DO-YYYY-NNNN`, printable PDF via the existing renderer | `src/server/delivery-orders/` (new), `src/app/(office)/jobs/[id]/page.tsx`, `src/server/documents/` | §6.5 |
 | **19** | **Quotes & variations** (**built** — see §7.10) | Quote from a job or a set of findings, lines with qty/unit price, `variation` flag, GST computed, send/accept/decline/expire, numbered `QTE-YYYY-NNNN`, PDF; accepting a quote moves the job into `QUOTED → APPROVED` through the existing status machine | `src/server/quotes/` (new), `src/app/(office)/quotes/` (new), `src/server/jobs/status.ts` | §4.2, §12 |
-| **20** | **Invoicing, GST and payments** | Invoice from a reviewed job (job costing from `StockMovement` + labour lines), `gstRate` snapshot at issue, `INV-YYYY-NNNN`, PDF, payments recorded, `amountPaid` derived, statuses `DRAFT/ISSUED/PART_PAID/PAID/VOID`, dashboard "awaiting invoicing" gains a screen | `src/server/invoices/` (new), `src/app/(office)/invoices/` (new) | §12, §5 |
+| **20** | **Invoicing, GST and payments** (**built** — see §7.11) | Invoice from a reviewed job (job costing from `StockMovement` + labour lines), `gstRate` snapshot at issue, `INV-YYYY-NNNN`, PDF, payments recorded, `amountPaid` derived, statuses `DRAFT/ISSUED/PART_PAID/PAID/VOID`, dashboard "awaiting invoicing" gains a screen | `src/server/invoices/` (new), `src/app/(office)/invoices/` (new) | §12, §5 |
 | **21** | **Accounting CSV export + Phase 2 acceptance** | An export adapter (CSV first, Xero/QuickBooks later per §12/§14) for invoices and payments, and one Playwright path proving Phase 2 end to end: a PM job completed → schedule rolls forward → certificate uploaded → compliance screen shows it → reminder email queued → finding becomes a follow-up job → quote → invoice | `src/server/accounting/` (new), `tests/e2e/` | §12, §14 |
 
 Each slice also carries the Definition of done from `../CLAUDE.md` (server-side permission test, audit entries, empty /
 loading / error states, seed still runnable, README + this file updated in the same commit).
 
-**Where the next session starts: slice 20 (invoicing, GST and payments)**, with the three carry-over items at
-the end of §7.5 and the ended-schedules filter noted in §7.3 queued behind it. They are deliberately not
-slices of their own — take the first one whenever the slice in flight edits the same screen or service.
-Slice 19 touched the job page and the document renderer, not a rule screen, so the `/admin/compliance`
-Playwright path (carry-over 1) still waits for whichever slice next touches `/admin/compliance`.
+**Where the next session starts: slice 21 (accounting CSV export and the Phase 2 acceptance path)**, with the
+three carry-over items at the end of §7.5 and the ended-schedules filter noted in §7.3 queued behind it. They
+are deliberately not slices of their own — take the first one whenever the slice in flight edits the same
+screen or service. Slice 20 touched the job page, `/invoices` and the document renderer, not a rule screen, so
+the `/admin/compliance` Playwright path (carry-over 1) still waits for whichever slice next touches
+`/admin/compliance`. Slice 21 builds the Phase 2 acceptance spec, which is the natural place to take it.
 
 ### 7.3 Slice 12 — schedules on the crane page (**built**)
 
@@ -1808,7 +1809,56 @@ finding's status, because that belongs to the report flow and to `finding.write`
 Declining a quote leaves the job at `QUOTED` — what happens to a declined job is the office's call, and no
 requirement names a state for it. Expiry is derived, so nothing emails the customer when a quote lapses.
 
-### 7.11 Phase 3 and Phase 4 (outline, not sliced yet)
+### 7.11 Slice 20 — invoicing, GST and payments (**built**)
+
+**Goal:** the work that was signed off becomes a bill the customer can pay, and the office can see what is owed
+and overdue (brief §5, §12).
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 121–129):
+
+1. **Only a reviewed job can be invoiced.** Billing follows the paperwork's sign-off; a job still in progress
+   has not necessarily used what it would be charged for.
+2. **Job costing is a prefill read from `StockMovement`.** The `ISSUE` movements on the job — the same rows the
+   delivery order prints — become lines at sell price; labour is typed. The stored invoice keeps the lines as
+   written, so a later price change cannot rewrite a bill that has gone out.
+3. **The GST rate *and the amounts it produces* are snapshotted at issue.** Re-snapshotting the rate alone would
+   print a percentage that disagrees with the amount beside it.
+4. **`amountPaid` is the sum of the payment rows**, and `PART_PAID`/`PAID` follow from it (`paidStatusFor`), so a
+   status cannot disagree with the money. An overpayment is refused by name — a credit note, not a negative
+   balance.
+5. **Issuing moves the job `REVIEWED → INVOICED`** in the same transaction, checked against `canTransition`. It is
+   written by the invoice service rather than through `transitionJob`, because finance does not hold
+   `job.transition` — granting that would let it move any job to any state.
+6. **Finance issues and reads invoices; no other office role does.** `invoice.read`/`invoice.write` are checked
+   before `invoiceReadWhere` is built, so a technician gets a refusal rather than an empty list.
+
+**As built.** `src/lib/validation/invoices.ts` holds the pure rules — `ALLOWED_INVOICE_TRANSITIONS`/`canMoveInvoice`,
+`paidStatusFor`, `balanceCents`, the derived `isInvoiceOverdue` (day keys in the operating timezone, like a
+quote's expiry), `isInvoiceEditable`/`isInvoicePayable`, `INVOICE_STATUS_LABELS`, and the Zod schemas for lines,
+create, update, void and payment. The money arithmetic moved to `src/lib/validation/money.ts`
+(`documentTotals`, `centsToDecimalString`, `pricedLines`) and `quotes.ts` now re-exports it, so an invoice and
+the quote that preceded it cannot price the same lines differently. `src/server/invoices/invoices.ts` is the one
+read/write path: `invoicesForJob`, `listInvoices` (per-status counts and total outstanding), `getInvoice` and
+`jobCosting` scoped through the new `invoiceReadWhere`; `createInvoice` (refuses a non-`REVIEWED` job by name,
+allocates `INV-YYYY-NNNN` with `nextDocumentNumber(tx, 'INVOICE')`, writes lines and totals, audits),
+`updateInvoice` (draft only, carrying the job forward from the replaced lines), `transitionInvoice`
+(issue/void only, void needs a reason and is refused once paid) and `recordPayment` (integer cents, sums into
+`amountPaid`, derives the status). `src/server/documents/invoice.ts` is the fixed-layout PDF, headed "Tax
+invoice" and still carrying the company-document caveat, downloaded through `GET /api/invoices/[id]/pdf`. The
+office gains `/invoices` (counts, q/status filters, outstanding total) and `/invoices/[id]` (charges, totals,
+payments, what happens next, the payment form), the job page gains an Invoices section with a "Raise an invoice"
+form prefilled from the job's issued parts, the nav gains **Invoices**, and the audit viewer labels and links
+an invoice. The dashboard's "awaiting invoicing" tile now points at the work that answers it.
+
+**Migration:** none. `Invoice`, `InvoiceLine`, `Payment`, `InvoiceStatus`, `PaymentMethod` and
+`DOCUMENT_PREFIXES.INVOICE = 'INV'` were designed in Phase 1 and already in the database.
+
+**Known limits.** There is no credit note: an invoice with money against it cannot be voided and an overpayment
+cannot be taken, both of which the messages say. The customer page has no Invoices tab (the job page and
+`/invoices` are the two screens). Payment has no proof-of-payment upload — the method and reference are what is
+recorded. No e2e walks the invoices screen; the integration suite is what proves it.
+
+### 7.12 Phase 3 and Phase 4 (outline, not sliced yet)
 
 **Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;
 stock movements linked to jobs and DOs; serial/batch traceability; reorder alerts grouped by supplier; purchase orders

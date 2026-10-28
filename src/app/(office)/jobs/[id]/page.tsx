@@ -20,9 +20,13 @@ import {
 } from '@/components/office/delivery-order-forms'
 import { QuoteForm } from '@/components/office/quote-forms'
 import { QuoteStatusBadge } from '@/components/office/quote-badges'
+import { InvoiceForm } from '@/components/office/invoice-forms'
+import { InvoiceStatusBadge, OverdueBadge } from '@/components/office/invoice-badges'
 import { openFindingsForJob } from '@/server/findings/findings'
 import { quotesForJob } from '@/server/quotes/quotes'
+import { invoicesForJob, jobCosting } from '@/server/invoices/invoices'
 import { createQuoteAction } from '../../quotes/actions'
+import { createInvoiceAction } from '../../invoices/actions'
 import {
   deliveryOrdersForJob,
   issuedPartsForJob,
@@ -98,6 +102,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const mayDeliver = can(context.role, 'deliveryorder.write')
   const mayQuote = can(context.role, 'quote.read')
   const mayWriteQuote = can(context.role, 'quote.write')
+  const mayInvoice = can(context.role, 'invoice.read')
+  const mayWriteInvoice = can(context.role, 'invoice.write')
 
   const [
     jobResult,
@@ -114,6 +120,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     deliverableParts,
     quotes,
     quotableFindings,
+    invoices,
+    costing,
   ] = await Promise.all([
       getJob(context, id).then(
         (job) => ({ job }),
@@ -159,6 +167,15 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             throw error
           })
         : Promise.resolve([]),
+      // Invoices (slice 20). The book for this job, and the parts it could be costed from — the
+      // same ISSUE movements the delivery order prints, priced at their sell price.
+      mayInvoice ? invoicesForJob(context, id) : Promise.resolve([]),
+      mayWriteInvoice
+        ? jobCosting(context, id).catch((error: unknown) => {
+            if (error instanceof NotFoundError) return { parts: [], partsCost: 0 }
+            throw error
+          })
+        : Promise.resolve({ parts: [], partsCost: 0 }),
     ])
   const job = jobResult.job
 
@@ -715,6 +732,65 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                       description: finding.description,
                       recommendation: finding.recommendation,
                     }))}
+                  />
+                </div>
+              </details>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {mayInvoice ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-slate-900">Invoices</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            What this job has been billed. An invoice is raised once the job has been reviewed;
+            issuing it moves the job to Invoiced and gives it a due date from the customer&rsquo;s
+            payment terms.
+          </p>
+
+          {invoices.length > 0 ? (
+            <ul className="mt-3 space-y-2 text-sm">
+              {invoices.map((invoice) => (
+                <li
+                  key={invoice.id}
+                  className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 pb-2 last:border-0"
+                >
+                  <span className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/invoices/${invoice.id}`}
+                      className="font-medium text-slate-900 underline"
+                    >
+                      {invoice.number}
+                    </Link>
+                    <InvoiceStatusBadge status={invoice.status} />
+                    {invoice.overdue ? <OverdueBadge /> : null}
+                  </span>
+                  <span className="text-slate-600">
+                    {formatMoney(invoice.total, settings.currency)}
+                    {invoice.balance > 0
+                      ? ` · ${formatMoney(invoice.balance, settings.currency)} owing`
+                      : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-slate-600">
+              None yet. {job.status === 'REVIEWED' ? 'The job is reviewed — raise one below.' : 'The job must be reviewed before it can be invoiced.'}
+            </p>
+          )}
+
+          {mayWriteInvoice && job.status === 'REVIEWED' ? (
+            <div className="mt-4 border-t border-slate-200 pt-4">
+              <details>
+                <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                  Raise an invoice
+                </summary>
+                <div className="mt-3">
+                  <InvoiceForm
+                    action={createInvoiceAction.bind(null, job.id)}
+                    suggested={costing.parts}
                   />
                 </div>
               </details>

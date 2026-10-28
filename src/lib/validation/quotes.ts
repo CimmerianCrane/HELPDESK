@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { dayKey } from '@/lib/time'
+import { documentTotals, type DocumentTotals } from './money'
 
 /**
  * Input rules and money arithmetic for quotes (brief §4.2, §12, slice 19).
@@ -55,34 +56,12 @@ export function effectiveQuoteStatus(
   return dayKey(quote.validUntil, timeZone) < dayKey(now, timeZone) ? 'EXPIRED' : quote.status
 }
 
-export interface QuoteTotals {
-  /** Per line, in cents, in the same order as the input. */
-  lineTotalsCents: number[]
-  subtotalCents: number
-  gstCents: number
-  totalCents: number
-}
+export type QuoteTotals = DocumentTotals
 
-/**
- * Line totals, subtotal, GST and total, all in integer cents.
- *
- * Each line is rounded before it is summed — the total a customer can add up by hand — and GST is
- * charged on the rounded subtotal. Doing it in cents keeps a half-cent from appearing in a document.
- */
-export function quoteTotals(
-  lines: readonly { quantity: number; unitPrice: number }[],
-  gstRate: number,
-): QuoteTotals {
-  const lineTotalsCents = lines.map((line) => Math.round(line.quantity * line.unitPrice * 100))
-  const subtotalCents = lineTotalsCents.reduce((sum, value) => sum + value, 0)
-  const gstCents = Math.round(subtotalCents * gstRate)
-  return { lineTotalsCents, subtotalCents, gstCents, totalCents: subtotalCents + gstCents }
-}
+/** A quote's arithmetic — the same rule an invoice follows, so re-exported from one place. */
+export const quoteTotals = documentTotals
 
-/** Cents to the decimal string Prisma stores, so no float ever reaches a `Decimal(12,2)` column. */
-export function centsToDecimalString(cents: number): string {
-  return (cents / 100).toFixed(2)
-}
+export { centsToDecimalString } from './money'
 
 const optionalText = (max: number) =>
   z

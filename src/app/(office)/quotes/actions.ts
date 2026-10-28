@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { column } from '@/lib/validation/form-columns'
 import { formValues } from '@/lib/validation/parse'
 import { runAction, type FormState } from '@/server/action-result'
 import { requireAuth } from '@/server/auth/context'
@@ -17,16 +18,10 @@ import { createQuote, transitionQuote, updateQuote } from '@/server/quotes/quote
  * one empty row at the bottom for the next item.
  */
 function lineBody(values: Record<string, string | string[]>): Record<string, unknown> {
-  const column = (name: string): string[] => {
-    const value = values[name]
-    if (value === undefined) return []
-    return Array.isArray(value) ? value : [value]
-  }
-
-  const descriptions = column('description')
-  const quantities = column('quantity')
-  const unitPrices = column('unitPrice')
-  const variations = column('isVariation')
+  const descriptions = column(values, 'description')
+  const quantities = column(values, 'quantity')
+  const unitPrices = column(values, 'unitPrice')
+  const variations = column(values, 'isVariation')
 
   return {
     validUntil: values.validUntil ?? '',

@@ -142,6 +142,19 @@ describe('the permission map', () => {
     expect(can('CUSTOMER', 'deliveryorder.write')).toBe(false)
   })
 
+  /**
+   * An invoice is money owed, so the finance role raises and reads it. Everyone else neither sees a
+   * customer's bills nor issues one — the row-level half is proven in tests/integration/invoices.test.ts.
+   */
+  it('gives invoicing to finance alone', () => {
+    expect(can('FINANCE', 'invoice.read')).toBe(true)
+    expect(can('FINANCE', 'invoice.write')).toBe(true)
+    for (const role of ['DISPATCHER', 'TECHNICIAN', 'STOREKEEPER', 'CUSTOMER'] as Role[]) {
+      expect(can(role, 'invoice.read'), `${role} should not read invoices`).toBe(false)
+      expect(can(role, 'invoice.write'), `${role} should not write invoices`).toBe(false)
+    }
+  })
+
   it('keeps finance read-mostly', () => {
     expect(can('FINANCE', 'invoice.write')).toBe(true)
     expect(can('FINANCE', 'pricing.approve')).toBe(true)
