@@ -150,6 +150,8 @@ function CertificateFields({
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
+      {/* The form is only rendered on a crane's page, so the crane travels with the submission. */}
+      <input type="hidden" name="craneId" value={craneId} />
       <div>
         <label htmlFor={id('type')} className={labelClass}>
           Kind

@@ -13,6 +13,7 @@ import {
   transitionInvoice,
   updateInvoice,
 } from '@/server/invoices/invoices'
+import { exportAccounting } from '@/server/accounting/accounting'
 import { craneFixtures, inRolledBackTx, jobFixture, technicianFixture, testSuffix, type Tx } from './helpers'
 
 /**
@@ -433,6 +434,47 @@ describe('reading the invoice book', () => {
       const { filename, bytes } = await renderInvoice(finance, issued.id, tx)
       expect(filename).toBe(`${issued.number}.pdf`)
       expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
+    })
+  })
+})
+
+describe('the accounting export (slice 21)', () => {
+  it('refuses a role that cannot read invoices', async () => {
+    await inRolledBackTx(async (tx) => {
+      const technician = contextFor(await makeUser(tx, 'TECHNICIAN'))
+      await expect(exportAccounting(technician, {}, tx)).rejects.toBeInstanceOf(ForbiddenError)
+    })
+  })
+
+  it('exports the billed invoice and its payment, and refuses to export a draft', async () => {
+    await inRolledBackTx(async (tx) => {
+      const finance = contextFor(await makeUser(tx, 'FINANCE'))
+      const { job } = await invoiceFixture(tx)
+      const draft = await createInvoice(finance, { jobId: job.id, lines: [line()] }, tx)
+      const issued = await issuedInvoice(tx, finance, job.id, [line({ quantity: 2, unitPrice: 150 })])
+      await recordPayment(
+        finance,
+        issued.id,
+        { amount: 327, method: 'BANK_TRANSFER', reference: 'TXN-E2E' },
+        tx,
+      )
+
+      const invoices = await exportAccounting(finance, {}, tx)
+      // 2 × 150 plus 9% GST, from the stored decimals rather than a recomputation.
+      expect(invoices.rows).toBe(1)
+      expect(invoices.csv).toContain(issued.number)
+      expect(invoices.csv).toContain('327.00')
+      expect(invoices.csv).not.toContain(draft.number)
+      expect(invoices.filename).toMatch(/^invoices-\d{4}-\d{2}-\d{2}\.csv$/)
+
+      const payments = await exportAccounting(finance, { what: 'payments' }, tx)
+      expect(payments.rows).toBe(1)
+      expect(payments.csv).toContain('Bank transfer')
+      expect(payments.csv).toContain('TXN-E2E')
+
+      // The screen's filter travels into the file, so a narrowed export cannot silently widen.
+      const none = await exportAccounting(finance, { q: 'no-such-invoice' }, tx)
+      expect(none.rows).toBe(0)
     })
   })
 })

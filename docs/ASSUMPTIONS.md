@@ -615,6 +615,22 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     and its `JobStatusHistory` row itself, inside the invoice's transaction, after checking the same
     `canTransition` map. The alternative — granting finance `job.transition` — would let it move any job to any
     state, which is a much larger grant than invoicing needs.
+130. **The accounting export writes dates as `YYYY-MM-DD`.** The screens use `DD/MM/YYYY`, which is right for
+    people and ambiguous to an importer — `03/04/2026` is two different days depending on who reads it. The day
+    is computed in the operating timezone (`dayKey`), so an invoice issued at 09:30 Singapore time is filed on
+    the day the office saw, not the UTC date before it.
+131. **Only billed money is exported: `ISSUED`, `PART_PAID`, `PAID`.** A draft is still being edited and a void
+    invoice is not a bill; neither belongs in a ledger. The panel on `/invoices` states the rule above the link
+    so the file cannot surprise the person who downloads it.
+132. **The export states the ledger, not today's settings.** Amounts, the GST rate and the paid total are the
+    stored ones — a re-export months later shows what the customer was charged, not what the current rate would
+    compute. The file does no arithmetic of its own; it reads `listInvoices` and formats.
+133. **The export is not audited.** It is a read, not a business mutation, and `AuditAction` has only
+    `CREATE | UPDATE | DELETE`. Adding `EXPORT` would need a migration to put "someone looked at the ledger" in
+    the same trail as "someone voided a bill", which dilutes the trail rather than strengthening it.
+134. **The export is two documents behind one route**, `?what=payments` for the second, and both honour the
+    invoice book's own `q`/`status` filters. `AccountingExporter` is the seam: the Xero/QuickBooks push renders
+    the same `InvoiceExportRow`/`PaymentExportRow` shapes rather than adding a second export path.
 
 ## Not assumed — deliberately left to you
 

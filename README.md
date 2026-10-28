@@ -178,6 +178,26 @@ development and keeping Supabase for deployment; the app does not care which one
 
 ## What works today
 
+### Slice 21 — the accounting export, and Phase 2 proven end to end
+
+- **The invoice book exports to accounting.** `/invoices` carries *Export invoices CSV* and *Export payments CSV*,
+  which download a file (`/invoices/export?what=invoices|payments`) for a Xero or QuickBooks import. Amounts come from
+  the issued invoice — its GST snapshot and its recorded payments — not from today's settings, so a file
+  downloaded next year still says what the books said.
+- **One seam, two formats later.** `AccountingExporter` in `src/server/accounting/accounting.ts` is the only thing
+  the route knows about; a Xero or QuickBooks adapter is another implementation of it rather than a second route.
+- **Phase 2 has an acceptance path.** `tests/e2e/phase2.spec.ts` walks the whole of it in one browser test: a
+  compliance rule is added and adopted on a crane, owner changes raise the re-registration prompt, a certificate
+  is uploaded and found on `/certificates`, a PM job is completed and its schedule rolls forward, the daily cron
+  queues a reminder, a major finding becomes a follow-up job, a quote is accepted and invoiced, and the payment is
+  recorded — then the two export files are checked.
+- **It found two bugs, both now fixed.** The schedule form and the certificate form on a crane's own page posted
+  no `craneId` (the dropdown only exists on `/schedules`), so every submission from a crane page was refused.
+- **Tests** — 6 unit tests for the exporter (which invoices are exported, the header and one row per invoice in
+  exact amounts, payments against their invoice, quoting a comma in a customer name, a header-only file) plus 2
+  integration cases (a technician is refused; finance exports the billed invoice and its payments, and a filter
+  that matches nothing yields a header-only file).
+
 ### Slice 20 — invoicing, GST and payments
 
 - **An invoice is raised from a job that has been reviewed.** On a job page, *Raise an invoice* starts from the

@@ -15,19 +15,20 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1 is complete, and Phase 2 is under way.** Slices 0–20 are built; Phase 1's acceptance path
-still passes untouched. **Phase 2 is sliced in `docs/PLAN.md` §7, which is the canonical copy** —
-§7.1 is what Phase 1 left behind, §7.2 the slice table (13 certificates, 14 compliance rules,
-15 reminders, 16 findings and follow-up jobs, 17 the two remaining templates, 18 delivery orders,
-19 quotes, 20 invoicing, 21 accounting export), and **slice 21 is the next session's work**.
+**Phase 1 and Phase 2 are complete.** Slices 0–21 are built; Phase 1's acceptance path still passes
+untouched. **Phase 2 is described in `docs/PLAN.md` §7, which is the canonical copy** — §7.2 is the
+slice table, §7.3–§7.12 each built slice's fixed decisions as built, §7.13 the Phase 3–4 outline.
+**Phase 3 (Inventory) has not been sliced yet, and that is the next session's work — ask before
+writing the first slice of it.**
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
 
-> **Slice 20 is done and verified.** No migration was needed — `Invoice`, `InvoiceLine`, `Payment` and
-> the `INV` sequence key already existed. `npm run verify` (342 unit tests), `npm run test:integration`
-> (279, 17 of them new), `npm run test:e2e` and `npm run build` all pass, and
-> `tests/e2e/happy-path.spec.ts` passes **unmodified**. Slice 21 (accounting CSV export and the Phase 2
-> acceptance path) is next — see the section near the bottom of this file.
+> **Slice 21 is done and verified.** No migration was needed. `npm run verify` (348 unit tests),
+> `npm run test:integration` (281), `npm run test:e2e` (36 passed, 2 offline-only skipped) and
+> `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes **unmodified**. Phase 2's
+> acceptance path is `tests/e2e/phase2.spec.ts`. The spec found two real bugs (the crane page's "Add a
+> schedule" and "Add a certificate" forms never posted `craneId`); both are fixed — see
+> `docs/PLAN.md` §7.12.
 
 | Slice | State |
 |---|---|
@@ -52,7 +53,7 @@ asked.**
 | 18 Delivery orders | done |
 | 19 Quotes & variations | done |
 | 20 Invoicing, GST & payments | done |
-| 21 Accounting export & Phase 2 acceptance | planned in `docs/PLAN.md` §7.2; slice 21 is next |
+| 21 Accounting export & Phase 2 acceptance | done |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -149,7 +150,14 @@ computed from the lines at the rate in force when the invoice is issued, and pay
 `PART_PAID` and `PAID` from the money rather than from a form. Issuing moves the job to `INVOICED`; the invoice
 downloads as a PDF, and `/invoices` is the book of what is owed and overdue.
 
-**Not yet built:** slice 21 (the accounting export and the Phase 2 acceptance path) and all of Phases 3–4.
+**Phase 2, slice 21 — the accounting export and the acceptance path.** Issued, partly paid and paid invoices
+leave the app as CSV — `GET /invoices/export`, or `?what=payments` for the payment file — with `YYYY-MM-DD`
+dates, the amounts and GST rate stored on each invoice rather than recomputed, and the invoice book's own
+filters applied to the file. `AccountingExporter` is the seam a Xero/QuickBooks driver renders later.
+`tests/e2e/phase2.spec.ts` walks the whole of Phase 2 in one browser run, starting with a compliance rule
+added on `/admin/compliance`, adopted on a crane, and ending with the invoice exported.
+
+**Not yet built:** all of Phases 3–4 (inventory, then the customer portal and reporting).
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
@@ -280,13 +288,13 @@ number but no stored PDF, because the seed runs under `tsx`, which cannot load
 
 ---
 
-## Slice 20 is done — slice 21 is next
+## Slice 21 is done — Phase 2 complete, Phase 3 is next
 
 **Read `docs/PLAN.md` §7 first; it is the canonical copy and is not repeated here.** §7.2 is the
 Phase 2 slice table, §7.4 is slice 13 as built, §7.5 is slice 14 as built, §7.6 is slice 15 as built,
 §7.7 is slice 16 as built, §7.8 is slice 17 as built, §7.9 is slice 18 as built, §7.10 is slice 19 as
-built, §7.11 is slice 20 as built, and §7.12 is the Phase 3–4 outline. Slice 19's account below is kept for the
-record.
+built, §7.11 is slice 20 as built, §7.12 is slice 21 as built, and §7.13 is the Phase 3–4 outline. Slice 19's and
+slice 20's accounts below are kept for the record.
 
 **What slice 20 delivered.** `src/server/invoices/invoices.ts` is the one read/write path, scoped through the
 new `invoiceReadWhere` and gated on `invoice.read`/`invoice.write` — finance and admin only, so a dispatcher who
@@ -502,13 +510,23 @@ recompute the amounts as well as the rate, or the PDF can state 10% beside a 9% 
 
 **Before continuing:** `npx prisma migrate status` should report nothing pending — this slice added none.
 
-**Slice 21 — accounting CSV export and the Phase 2 acceptance path — is the next session's work.**
-`docs/PLAN.md` §7.2 row 21: an export adapter (CSV first, Xero/QuickBooks behind the same seam) for invoices and
-payments, and one Playwright path proving Phase 2 end to end — a PM job completed → schedule rolls forward →
-certificate uploaded → compliance screen shows it → reminder queued → finding becomes a follow-up job → quote →
-invoice. The first carry-over from §7.5 (a Playwright path for `/admin/compliance`) belongs in that same spec.
-Read §7.10 and §7.11 for the numbering and snapshot patterns, and `src/lib/validation/money.ts` for the
-arithmetic an export should reuse rather than recompute.
+**Slice 21 — accounting CSV export and the Phase 2 acceptance path — is done.** `docs/PLAN.md` §7.12 records it as
+built and §7.2 row 21 is marked off. `src/server/accounting/accounting.ts` holds `AccountingExporter` (the seam a
+Xero or QuickBooks adapter slots behind) and one CSV implementation; `/invoices/export?what=invoices|payments`
+streams it through the existing `﻿`/CRLF attachment convention. Amounts come from the issued ledger, not from
+today's settings, and the export is deliberately not audited — `AuditAction` has no EXPORT (assumptions 130–134).
+`tests/e2e/phase2.spec.ts` walks Phase 2 end to end in one test: compliance rule → adoption → re-registration
+prompt → certificate → PM job completed → schedule rolls forward → cron reminds → finding → follow-up job → quote →
+invoice → payment.
+
+The acceptance path earned its keep: it found two product bugs, both the same shape. The schedule form and the
+certificate form on a crane's own page rendered no `craneId` — the dropdown only exists on `/schedules` — so every
+submission from a crane page failed validation. Each now posts a hidden `craneId`.
+
+**Before continuing:** `npx prisma migrate status` should report nothing pending — this slice added none.
+
+**Phase 2 is complete.** The next session starts Phase 3 (inventory), whose first slice is not yet written into
+`docs/PLAN.md` §7.13. Write that slice before building it.
 
 The gate is unchanged for every slice: `npm run verify` and `npm run verify:full`, then
 `tests/e2e/happy-path.spec.ts` must still pass **untouched**.

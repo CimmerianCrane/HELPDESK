@@ -1425,17 +1425,19 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 | **18** | **Delivery orders** (**built** — see §7.9) | DO generated from the parts already issued on a job (no second source of truth — read from `StockMovement`), lines with serial/batch, `chargeable \| warranty \| loan` + expected return, partial delivery, receiver name/signature/timestamp, numbered `DO-YYYY-NNNN`, printable PDF via the existing renderer | `src/server/delivery-orders/` (new), `src/app/(office)/jobs/[id]/page.tsx`, `src/server/documents/` | §6.5 |
 | **19** | **Quotes & variations** (**built** — see §7.10) | Quote from a job or a set of findings, lines with qty/unit price, `variation` flag, GST computed, send/accept/decline/expire, numbered `QTE-YYYY-NNNN`, PDF; accepting a quote moves the job into `QUOTED → APPROVED` through the existing status machine | `src/server/quotes/` (new), `src/app/(office)/quotes/` (new), `src/server/jobs/status.ts` | §4.2, §12 |
 | **20** | **Invoicing, GST and payments** (**built** — see §7.11) | Invoice from a reviewed job (job costing from `StockMovement` + labour lines), `gstRate` snapshot at issue, `INV-YYYY-NNNN`, PDF, payments recorded, `amountPaid` derived, statuses `DRAFT/ISSUED/PART_PAID/PAID/VOID`, dashboard "awaiting invoicing" gains a screen | `src/server/invoices/` (new), `src/app/(office)/invoices/` (new) | §12, §5 |
-| **21** | **Accounting CSV export + Phase 2 acceptance** | An export adapter (CSV first, Xero/QuickBooks later per §12/§14) for invoices and payments, and one Playwright path proving Phase 2 end to end: a PM job completed → schedule rolls forward → certificate uploaded → compliance screen shows it → reminder email queued → finding becomes a follow-up job → quote → invoice | `src/server/accounting/` (new), `tests/e2e/` | §12, §14 |
+| **21** | **Accounting CSV export + Phase 2 acceptance** (**built** — see §7.12) | An export adapter (CSV first, Xero/QuickBooks later per §12/§14) for invoices and payments, and one Playwright path proving Phase 2 end to end: a PM job completed → schedule rolls forward → certificate uploaded → compliance screen shows it → reminder email queued → finding becomes a follow-up job → quote → invoice | `src/server/accounting/` (new), `tests/e2e/` | §12, §14 |
 
 Each slice also carries the Definition of done from `../CLAUDE.md` (server-side permission test, audit entries, empty /
 loading / error states, seed still runnable, README + this file updated in the same commit).
 
-**Where the next session starts: slice 21 (accounting CSV export and the Phase 2 acceptance path)**, with the
-three carry-over items at the end of §7.5 and the ended-schedules filter noted in §7.3 queued behind it. They
-are deliberately not slices of their own — take the first one whenever the slice in flight edits the same
-screen or service. Slice 20 touched the job page, `/invoices` and the document renderer, not a rule screen, so
-the `/admin/compliance` Playwright path (carry-over 1) still waits for whichever slice next touches
-`/admin/compliance`. Slice 21 builds the Phase 2 acceptance spec, which is the natural place to take it.
+**Phase 2 is complete.** Slice 21 built the accounting export and the acceptance path, and took carry-over 1
+(the `/admin/compliance` Playwright path) into that spec, so §7.5's queue is down to its last two items: a state
+filter on the rules table and re-pointing schedules that cite a superseded rule if asked — neither wanted yet.
+The ended-schedules filter noted in §7.3 is likewise still open. They are deliberately not slices of their own —
+take the first one whenever the slice in flight edits the same screen or service.
+
+**Where the next session starts: Phase 3 — Inventory (the first slice of it, still to be written into this
+section).**
 
 ### 7.3 Slice 12 — schedules on the crane page (**built**)
 
@@ -1858,7 +1860,57 @@ cannot be taken, both of which the messages say. The customer page has no Invoic
 `/invoices` are the two screens). Payment has no proof-of-payment upload — the method and reference are what is
 recorded. No e2e walks the invoices screen; the integration suite is what proves it.
 
-### 7.12 Phase 3 and Phase 4 (outline, not sliced yet)
+### 7.12 Slice 21 — the accounting export and the Phase 2 acceptance path (**built**)
+
+**Goal:** the money the business has billed leaves the app in a file an accounting system can read, and one
+browser run proves the whole of Phase 2 still joins up (brief §12, §14).
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 130–134):
+
+1. **Only billed invoices are exported** — `ISSUED`, `PART_PAID`, `PAID`. A draft is still being edited and a
+   void invoice is not a bill; the panel on `/invoices` says so above the link.
+2. **The file states the ledger, not today's settings.** Amounts and the GST rate are the ones stored on the
+   invoice and snapshotted at issue, so a re-export months later shows what the customer was charged.
+3. **Dates are `YYYY-MM-DD`.** The app's own `DD/MM/YYYY` is for people; an importer reading `03/04` cannot tell
+   March from April.
+4. **Two documents, one link each** — `?what=payments` switches file. Both run the invoice book's own `q`/`status`
+   filters, so a filtered screen and the file it offers describe the same subset.
+5. **The export is not audited.** It is a read, not a business mutation, and `AuditAction` has no entry for one.
+   Widening the enum for a report would put "someone looked at the ledger" in the same trail as "someone voided a
+   bill".
+6. **The seam is `AccountingExporter`.** The service builds two row shapes; a driver renders them. A Xero or
+   QuickBooks push is a second driver over the same rows, not a second export path.
+
+**As built.** `src/server/accounting/accounting.ts` holds the pure row builders (`invoiceExportRows`,
+`paymentExportRows`), the CSV driver (`createCsvExporter(timeZone)`) and `exportAccounting(context, raw, client)`.
+It reads through `listInvoices` and `getSettings` — the same calls the screen makes — and does no arithmetic of
+its own: money goes through `centsToDecimalString`, dates through `dayKey` in the operating timezone, payments
+are sorted oldest-first and their methods spelled out. `GET /invoices/export` mirrors `/jobs/export`: 401 without
+a session, 403 with a sentence for a role without `invoice.read`, `﻿` BOM, CRLF, `Content-Disposition:
+attachment`, `no-store`. `/invoices` gains an **Accounting export** panel with the two links, carrying the current
+filters.
+
+`tests/e2e/phase2.spec.ts` is the Phase 2 acceptance path: a compliance rule is added on `/admin/compliance`
+(carry-over 1, §7.5), adopted on a crane, the owner is changed and the re-registration prompt cleared, a
+certificate is uploaded and shows in the certificate book, a PM job is completed and rolls the schedule forward,
+`/api/cron/daily` queues the reminder, an approved report's finding becomes a follow-up job, that job is quoted
+and the quote accepted (job to `APPROVED`), and the reviewed PM job is invoiced, issued, paid, and both
+accounting files download. It runs in the desktop project only.
+
+**Two bugs the acceptance path found, both fixed here.** The "Add a schedule" and "Add a certificate" forms on
+the crane page never sent `craneId` — the dropdown is replaced by the crane, and no hidden field carried it — so
+both submitted with "Choose a crane." and could not succeed from that page. The certificate form is only ever
+rendered on a crane's page; the schedule form now posts the crane as a hidden field when it is not offering the
+dropdown.
+
+**Migration:** none.
+
+**Known limits.** CSV only — no Xero/QuickBooks driver yet, by design. There is no export of credit notes
+(there are none) and no date-range filter: the export follows the invoice book's filters, and the book has none.
+The acceptance spec signs in as ADMIN throughout; the per-role answers are the integration suite's job
+(`exportAccounting` refuses a technician, tested in `invoices.test.ts`).
+
+### 7.13 Phase 3 and Phase 4 (outline, not sliced yet)
 
 **Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;
 stock movements linked to jobs and DOs; serial/batch traceability; reorder alerts grouped by supplier; purchase orders

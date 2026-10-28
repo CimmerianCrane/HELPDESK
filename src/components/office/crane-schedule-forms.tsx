@@ -94,9 +94,13 @@ function ScheduleFields({
           </select>
         </div>
       ) : crane ? (
-        <p className="text-sm text-slate-600 sm:col-span-2">
-          Obligation for <span className="font-medium text-slate-900">{crane.assetTag}</span>.
-        </p>
+        <>
+          {/* On a crane's own page the dropdown is replaced by the crane, so the id has to be sent. */}
+          <input type="hidden" name="craneId" value={crane.id} />
+          <p className="text-sm text-slate-600 sm:col-span-2">
+            Obligation for <span className="font-medium text-slate-900">{crane.assetTag}</span>.
+          </p>
+        </>
       ) : null}
 
       {/* Shown even with no rules in force when the schedule already cites one, so the citation

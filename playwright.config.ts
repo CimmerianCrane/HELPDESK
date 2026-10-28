@@ -30,12 +30,12 @@ export default defineConfig({
   projects: [
     { name: 'office', use: { ...devices['Desktop Chrome'] } },
     // Technician screens are mobile-first and must be checked at ~390px (brief §14).
-    // The Phase 1 acceptance path is the exception: it is a four-minute office-plus-phone test whose
-    // phone half already runs here as `report.spec.ts`, so it only runs in the desktop project.
+    // The acceptance paths are the exception: they are long office-only tests whose phone halves
+    // already run here as `report.spec.ts`, so they only run in the desktop project.
     {
       name: 'technician',
       use: { ...devices['Pixel 7'] },
-      testIgnore: /happy-path\.spec\.ts/,
+      testIgnore: /happy-path\.spec\.ts|phase2\.spec\.ts/,
     },
   ],
   webServer: {

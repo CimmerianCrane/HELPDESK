@@ -32,6 +32,10 @@ export default async function InvoicesPage({
   ])
 
   const filtered = Boolean(filters.q || filters.status)
+  // The same filters, as the export route reads them (it ignores `what` for the invoices file).
+  const exportQuery = new URLSearchParams(
+    Object.entries(filters).filter(([, value]) => Boolean(value)) as [string, string][],
+  ).toString()
 
   return (
     <div className="space-y-8">
@@ -95,6 +99,29 @@ export default async function InvoicesPage({
           </Link>
         ) : null}
       </form>
+
+      {/* The export runs the invoice book's own filters, so a filtered screen and its file agree. */}
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-sm">
+        <div className="flex-1">
+          <p className="font-medium text-slate-900">Accounting export</p>
+          <p className="mt-1 text-slate-600">
+            Issued, partly paid and paid invoices only — a draft is still being edited and a void
+            invoice is not a bill. Amounts and the GST rate are the ones stored on the invoice.
+          </p>
+        </div>
+        <a
+          href={`/invoices/export?${exportQuery}`}
+          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-700 hover:bg-slate-100"
+        >
+          Export invoices CSV
+        </a>
+        <a
+          href={`/invoices/export?${exportQuery}&what=payments`}
+          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-700 hover:bg-slate-100"
+        >
+          Export payments CSV
+        </a>
+      </div>
 
       {invoices.length === 0 ? (
         <div className={`${cardClass} text-center`}>
