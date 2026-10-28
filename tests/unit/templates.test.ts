@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { JOB_TYPES, TEMPLATES } from '@/server/templates/definitions'
-import { templateFieldKeys, templateSchema } from '@/lib/templates/schema'
+import {
+  calibrationWarnings,
+  templateFieldKeys,
+  templateSchema,
+  type TemplateSchema,
+} from '@/lib/templates/schema'
 
 /**
  * The seeded catalogue. Fourteen job types and four templates is not arbitrary: they are the work
@@ -85,5 +90,141 @@ describe('the seeded report templates', () => {
     expect(loadTest).toBeDefined()
     const layouts = loadTest!.report.sections.map((section) => section.layout)
     expect(layouts).toContain('table')
+  })
+})
+
+describe('slice 17: the built-out templates', () => {
+  const loadTest = TEMPLATES.find((template) => template.key === 'LOAD_TEST')!
+  const visual = TEMPLATES.find((template) => template.key === 'VISUAL_INSPECTION')!
+
+  it('publishes the load test and visual inspection at version 2', () => {
+    expect(loadTest.version).toBe(2)
+    expect(visual.version).toBe(2)
+    expect(loadTest.code).toBe('LOAD_TEST')
+  })
+
+  it('checks the load test’s instruments against the register at the test date', () => {
+    const instruments = loadTest.report.sections.find((section) => section.key === 'instruments')!
+    expect(instruments.calibration).toEqual({
+      testDateKey: 'testDate',
+      labelKey: 'instrument',
+      serialKey: 'serialNumber',
+      dueKey: 'calibrationDue',
+    })
+    expect(instruments.fields.map((field) => field.key)).toContain('instrumentType')
+    expect(templateFieldKeys(loadTest.report)).toContain('deflectionMm')
+  })
+
+  it('covers the visual inspection categories the brief names (§6.3)', () => {
+    const labels = visual.report.sections.map((section) => section.label)
+    expect(labels).toEqual(
+      expect.arrayContaining([
+        'Structure',
+        'Safety devices',
+        'Markings and load charts',
+        'Wire rope and hook',
+        'Operator controls',
+        'Overall condition',
+      ]),
+    )
+    const overall = visual.report.sections.find((section) => section.key === 'condition')!
+    expect(overall.fields.find((field) => field.key === 'overallCondition')?.options).toEqual([
+      'Good',
+      'Fair',
+      'Poor',
+    ])
+  })
+})
+
+describe('calibrationWarnings', () => {
+  const template: TemplateSchema = {
+    sections: [
+      {
+        key: 'setup',
+        label: 'Setup',
+        layout: 'fields',
+        fields: [{ key: 'testDate', label: 'Date of test', type: 'DATE', required: true }],
+      },
+      {
+        key: 'instruments',
+        label: 'Instruments',
+        layout: 'table',
+        fields: [
+          { key: 'instrument', label: 'ID', type: 'TEXT' },
+          { key: 'serialNumber', label: 'Serial', type: 'TEXT' },
+          { key: 'calibrationDue', label: 'Calibration due', type: 'DATE' },
+        ],
+        calibration: {
+          testDateKey: 'testDate',
+          labelKey: 'instrument',
+          serialKey: 'serialNumber',
+          dueKey: 'calibrationDue',
+        },
+      },
+    ],
+  }
+
+  function rows(...instruments: Array<[string, string, string]>): Record<string, unknown>[] {
+    return instruments.map(([instrument, serialNumber, calibrationDue]) => ({
+      instrument,
+      serialNumber,
+      calibrationDue,
+    }))
+  }
+
+  it('warns when the recorded due date was already past on the test date', () => {
+    const warnings = calibrationWarnings(template, {
+      testDate: '2026-03-10',
+      instruments: rows(['LC-1', 'A1', '2026-03-01']),
+    })
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0].message).toBe('LC-1 was out of calibration on 10/03/2026: its due date was 01/03/2026.')
+  })
+
+  it('says nothing when the instrument was in date on the day', () => {
+    expect(
+      calibrationWarnings(template, {
+        testDate: '2026-03-10',
+        instruments: rows(['LC-1', 'A1', '2026-03-10']),
+      }),
+    ).toEqual([])
+  })
+
+  it('warns when the register disagrees and its date has passed', () => {
+    const warnings = calibrationWarnings(
+      template,
+      { testDate: '2026-03-10', instruments: rows(['LC-1', 'a1', '']) },
+      new Map([['A1', '2026-02-01']]),
+    )
+    expect(warnings.map((warning) => warning.message)).toEqual([
+      'The register says LC-1 (a1) was due for calibration on 01/02/2026, before this test.',
+    ])
+  })
+
+  it('warns when the register has no date and the form did not record one', () => {
+    const warnings = calibrationWarnings(
+      template,
+      { testDate: '2026-03-10', instruments: rows(['LC-1', 'A1', '']) },
+      new Map([['A1', null]]),
+    )
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0].message).toContain('has no calibration date in the register')
+  })
+
+  it('stays quiet about a serial the register has never heard of', () => {
+    // Hired test weights are normal: the register cannot speak for them, so the form's date is it.
+    expect(
+      calibrationWarnings(
+        template,
+        { testDate: '2026-03-10', instruments: rows(['Hired weight', 'H-9', '']) },
+        new Map([['A1', '2020-01-01']]),
+      ),
+    ).toEqual([])
+  })
+
+  it('does nothing until a test date has been given', () => {
+    expect(
+      calibrationWarnings(template, { instruments: rows(['LC-1', 'A1', '2020-01-01']) }),
+    ).toEqual([])
   })
 })

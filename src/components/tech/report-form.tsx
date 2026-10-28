@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import type { TemplateField, TemplateSection } from '@/lib/templates/schema'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { calibrationWarnings, type TemplateField, type TemplateSection } from '@/lib/templates/schema'
 import { reportSubmitSchema, type ChecklistAnswer } from '@/lib/validation/reports'
 import {
   TECHNICIAN_NAME_KEY,
   techDb,
+  type CachedCalibrationResource,
   type CachedPart,
   type LocalFile,
   type ReportDraft,
@@ -51,6 +52,7 @@ export function ReportForm({
 
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [partsCatalogue, setPartsCatalogue] = useState<CachedPart[]>([])
+  const [calibration, setCalibration] = useState<CachedCalibrationResource[]>([])
   const [message, setMessage] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
@@ -63,7 +65,7 @@ export function ReportForm({
     if (!template || submitted) return
 
     void (async () => {
-      const [existing, catalogue, nameRow] = await Promise.all([
+      const [existing, catalogue, nameRow, resources] = await Promise.all([
         techDb.drafts
           .where('jobId')
           .equals(job.id)
@@ -71,6 +73,7 @@ export function ReportForm({
           .first(),
         techDb.parts.toArray(),
         techDb.meta.get(TECHNICIAN_NAME_KEY),
+        techDb.calibrationResources.toArray(),
       ])
 
       // The page's own answer first: the bundle that carries the name can arrive after this form
@@ -98,6 +101,7 @@ export function ReportForm({
       const queued = Boolean(await techDb.outbox.get(draft.id))
 
       setPartsCatalogue(catalogue)
+      setCalibration(resources)
       setLoaded({
         draft,
         photos: draft.photoIds
@@ -352,6 +356,12 @@ export function ReportForm({
 
   // --- render ----------------------------------------------------------------------------------
 
+  // The register's due date per serial, so an instrument row can be checked with the radio off.
+  const calibrationBySerial = useMemo(
+    () => new Map(calibration.map((resource) => [resource.serialNumber, resource.calibrationDue])),
+    [calibration],
+  )
+
   if (!template) {
     return (
       <p className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
@@ -428,14 +438,36 @@ export function ReportForm({
 
       {template.schema.sections
         .filter((section) => !(section.key === 'parts' && section.layout === 'table'))
-        .map((section) =>
-          section.layout === 'table' ? (
-            <TableSection
-              key={section.key}
-              section={section}
-              rows={asRows(draft.data[section.key])}
-              onChange={(rows) => setRows(section.key, rows)}
-            />
+        .map((section) => {
+          const warnings = section.calibration
+            ? calibrationWarnings(template.schema, draft.data, calibrationBySerial)
+            : []
+          return section.layout === 'table' ? (
+            <div key={section.key} className="space-y-2">
+              <TableSection
+                section={section}
+                rows={asRows(draft.data[section.key])}
+                onChange={(rows) => setRows(section.key, rows)}
+              />
+              {/* A warning, not a refusal: the brief asks that expired calibration be flagged
+                  (§6.3), and a test that has already happened cannot be blocked retroactively. */}
+              {warnings.length > 0 && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
+                >
+                  <p className="font-medium">Check the instruments before you submit</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {warnings.map((warning) => (
+                      <li key={`${warning.instrument}-${warning.message}`}>{warning.message}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-2">
+                    This can still be submitted — the dates you record are what the office reviews.
+                  </p>
+                </div>
+              )}
+            </div>
           ) : (
             <div key={section.key} className="rounded-xl border border-slate-200 bg-white p-4">
               <h2 className="text-base font-semibold text-slate-900">{section.label}</h2>
@@ -450,8 +482,8 @@ export function ReportForm({
                 ))}
               </div>
             </div>
-          ),
-        )}
+          )
+        })}
 
       <PartsSection
         parts={draft.parts}

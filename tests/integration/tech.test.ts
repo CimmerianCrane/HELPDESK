@@ -352,6 +352,47 @@ describe('the sync bundle', () => {
     })
   })
 
+  it('sends only the instruments booked on this technician’s own jobs', async () => {
+    await inRolledBackTx(async (tx) => {
+      const base = await siteFixtures(tx)
+      const mine = await makeTechnician(tx, 'Mine')
+      const theirs = await makeTechnician(tx, 'Theirs')
+      const myJob = await mobileJob(tx, base, { technicianId: mine.technician.id })
+      const theirJob = await mobileJob(tx, base, { technicianId: theirs.technician.id })
+      const suffix = testSuffix()
+
+      const ours = await tx.resource.create({
+        data: {
+          name: `Load cell ${suffix}`,
+          type: 'LOAD_CELL',
+          serialNumber: `LC-${suffix}`,
+          calibrationDueDate: new Date('2027-01-31T00:00:00Z'),
+        },
+      })
+      const theirResource = await tx.resource.create({
+        data: {
+          name: `Test weight ${suffix}`,
+          type: 'TEST_WEIGHT',
+          serialNumber: `TW-${suffix}`,
+        },
+      })
+      await tx.jobResource.create({ data: { jobId: myJob.id, resourceId: ours.id } })
+      await tx.jobResource.create({
+        data: { jobId: theirJob.id, resourceId: theirResource.id },
+      })
+
+      const bundle = await syncBundle(mine.context, tx)
+      const serials = bundle.calibrationResources.map((row) => row.serialNumber)
+
+      expect(serials).toContain(`LC-${suffix}`)
+      expect(serials).not.toContain(`TW-${suffix}`)
+      // The register's date travels as a day in the operating zone, which is what the warning compares.
+      const mineRow = bundle.calibrationResources.find((row) => row.serialNumber === `LC-${suffix}`)
+      expect(mineRow?.calibrationDue).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+      expect(bundle.calibrationResources.find((row) => row.serialNumber === `TW-${suffix}`)).toBeUndefined()
+    })
+  })
+
   it('refuses a technician whose session has no technician record', async () => {
     await inRolledBackTx(async (tx) => {
       const user = await tx.user.create({

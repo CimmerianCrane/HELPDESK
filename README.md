@@ -10,8 +10,9 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
 **Status:** Phase 1 complete (slice 11: the end-to-end happy path and the demo dataset); Phase 2 under
-way (slices 12–16: schedules on the crane page, the certificate register, compliance rules, the
-daily reminder scan, and findings with one-click follow-up jobs). See "What works today" below.
+way (slices 12–17: schedules on the crane page, the certificate register, compliance rules, the
+daily reminder scan, findings with one-click follow-up jobs, and the completed load test and visual
+inspection templates with calibration checks). See "What works today" below.
 
 ---
 
@@ -173,6 +174,32 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 17 — the load test and visual inspection reports, complete
+
+- **The load test asks everything brief §6.3 asks for.** The test load; the radii tested with the SWL
+  and the result at each; the instruments used with a load cell ID, its serial and its calibration due
+  date; the pre-test and post-test examination; deflection and any abnormality; whether an Authorised
+  Examiner attended and their name and firm; and the final outcome.
+- **The visual inspection covers the same brief**: structure, safety devices, markings and load charts,
+  wire rope and hook, operator controls, findings with a severity and recommendation each, photographs,
+  and an overall condition rating of *Good / Fair / Poor*.
+- **A lapsed calibration is pointed out, not blocked.** On the instruments table the phone compares each
+  row against the equipment register **on the test date** and, when an instrument had gone out of date
+  before it was used, shows an amber panel naming it and the date — and says plainly that the report can
+  still be submitted, because a form that refuses to save on a phone with no signal is a lost report.
+  The same check appears on the office report page when the reviewer opens it. An instrument the
+  register has never heard of is left alone: hired test weights are normal.
+- **The old reports still say what they said.** The two templates are **version 2**; anything signed
+  under version 1 keeps its answers and re-renders exactly as issued. The seed moves the job type onto
+  v2 only if it was still on v1 of the same template.
+- **Try it:** raise a load test job, book a load cell whose calibration date is in the past (the
+  schedule board's resource booking, or the database), fill the report on the phone with that cell's
+  serial and a test date after it lapsed, and watch the amber panel appear.
+- **Tests** — 9 unit tests (the two completed shapes, and six cases for the calibration check: a lapsed
+  recorded date, an in-date one, a register that disagrees, a register with no date, an unknown serial,
+  and no test date yet) and one integration test proving the phone's sync sends only the instruments
+  booked on that technician's own jobs.
 
 ### Slice 16 — findings become follow-up jobs
 

@@ -35,6 +35,24 @@ export interface TemplateField {
   help?: string
 }
 
+/**
+ * How a table of instruments is checked against the calibration register (brief §6.3).
+ *
+ * Declared by the template rather than found by column name, so a load test can name its own columns
+ * and the form still knows which date the instruments had to be valid on and which cell to match
+ * against `Resource.serialNumber`. The check warns; it never refuses a report.
+ */
+export interface CalibrationCheck {
+  /** A `fields` section field of type DATE: the day the instrument was used. */
+  testDateKey: string
+  /** This section's column holding the instrument's serial number. */
+  serialKey: string
+  /** This section's column holding the calibration due date recorded against the instrument. */
+  dueKey: string
+  /** This section's column naming the instrument, for the warning's wording. */
+  labelKey: string
+}
+
 export interface TemplateSection {
   key: string
   label: string
@@ -47,6 +65,8 @@ export interface TemplateSection {
   fields: TemplateField[]
   /** For a table: how many rows before the form complains. */
   minRows?: number
+  /** Set on a table of test instruments, to check each one's calibration at the test date. */
+  calibration?: CalibrationCheck
 }
 
 export interface TemplateSchema {
@@ -79,6 +99,13 @@ const fieldSchema = z
     }
   })
 
+const calibrationSchema = z.object({
+  testDateKey: z.string().min(1),
+  serialKey: z.string().min(1),
+  dueKey: z.string().min(1),
+  labelKey: z.string().min(1),
+})
+
 const sectionSchema = z
   .object({
     key: z.string().min(1).regex(/^[a-z][a-zA-Z0-9]*$/, 'Section keys are lower camel case.'),
@@ -86,6 +113,7 @@ const sectionSchema = z
     layout: z.enum(['fields', 'table']),
     fields: z.array(fieldSchema).min(1),
     minRows: z.number().int().min(1).optional(),
+    calibration: calibrationSchema.optional(),
   })
   .superRefine((section, ctx) => {
     const keys = section.fields.map((field) => field.key)
@@ -96,6 +124,12 @@ const sectionSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'minRows is only meaningful for a table section.',
+      })
+    }
+    if (section.calibration && section.layout !== 'table') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'A calibration check belongs on a table of instruments.',
       })
     }
   })
@@ -119,16 +153,122 @@ export const templateSchema = z
     // Fields in `fields` sections share one answer map, so their keys must be unique template-wide.
     // Table columns do not: each section's rows are stored under the section key, so `description`
     // can mean "what is wrong" in findings and "the part's description" in parts without collision.
-    const flatKeys = template.sections
+    const flats = template.sections
       .filter((section) => section.layout === 'fields')
-      .flatMap((section) => section.fields.map((field) => field.key))
-    if (new Set(flatKeys).size !== flatKeys.length) {
+      .flatMap((section) => section.fields)
+    if (new Set(flats.map((field) => field.key)).size !== flats.length) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Two form sections use the same field key; answers would overwrite each other.',
       })
     }
+
+    // A calibration check points at a date the form already asks for and at three of its own
+    // columns. Naming a key that does not exist would make the check silently do nothing.
+    for (const section of template.sections.filter((entry) => entry.calibration)) {
+      const check = section.calibration!
+      const dateField = flats.find((field) => field.key === check.testDateKey)
+      if (dateField?.type !== 'DATE') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Calibration check on ${section.key} needs ${check.testDateKey} to be a DATE field.`,
+        })
+      }
+      for (const key of [check.serialKey, check.dueKey, check.labelKey]) {
+        if (!section.fields.some((field) => field.key === key)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Calibration check on ${section.key} names a column it does not have (${key}).`,
+          })
+        }
+      }
+    }
   })
+
+/** An instrument as the register knows it: what the phone caches, nothing more. */
+export interface CalibrationResource {
+  name: string
+  /** Matched against the template's `serialKey` column, as typed or scanned on site. */
+  serialNumber: string
+  /** `YYYY-MM-DD` in the operating timezone, from `Resource.calibrationDueDate`. */
+  calibrationDue: string | null
+}
+
+/** `YYYY-MM-DD` as the office prints it, DD/MM/YYYY (CLAUDE.md rule 8). */
+function day(value: string): string {
+  const [year, month, date] = value.split('-')
+  return `${date}/${month}/${year}`
+}
+
+/**
+ * Calibration warnings for a report's instrument table (brief §6.3, slice 17).
+ *
+ * The brief asks that a load test's referenced calibration be valid **at the test date**, and warns
+ * rather than blocks. Three things are worth saying out loud, and a fourth is deliberately not:
+ *
+ *  - the recorded due date is before the test date (lapsed on the day);
+ *  - the register's due date for that serial is before the test date, even if the form says otherwise;
+ *  - nobody has told this phone the register's date, so the certificate is unverified.
+ *
+ * An instrument the register has never heard of is not a warning: test weights hired for the day are
+ * normal, and their due date is still recorded on the form. Warnings are plain strings so the phone,
+ * the office page and a test can all read them, and nothing here reads a clock — the test date is the
+ * only date that matters, which is what makes an old report's check reproducible.
+ */
+export function calibrationWarnings(
+  template: TemplateSchema,
+  data: Record<string, unknown>,
+  calibrationDueBySerial: ReadonlyMap<string, string | null> = new Map(),
+): Array<{ instrument: string; message: string }> {
+  const warnings: Array<{ instrument: string; message: string }> = []
+  const known = new Map(
+    [...calibrationDueBySerial].map(([serial, due]) => [serial.trim().toUpperCase(), due]),
+  )
+
+  for (const section of template.sections) {
+    const check = section.calibration
+    if (!check) continue
+    const testDate = data[check.testDateKey]
+    if (typeof testDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(testDate)) continue
+
+    const rows = Array.isArray(data[section.key]) ? (data[section.key] as unknown[]) : []
+    for (const raw of rows) {
+      if (!raw || typeof raw !== 'object') continue
+      const row = raw as Record<string, unknown>
+      const cell = (key: string) =>
+        typeof row[key] === 'string' ? (row[key] as string).trim() : ''
+      const label = cell(check.labelKey) || 'An instrument'
+      const serial = cell(check.serialKey)
+      const stated = cell(check.dueKey)
+
+      if (stated && stated < testDate) {
+        warnings.push({
+          instrument: label,
+          message: `${label} was out of calibration on ${day(testDate)}: its due date was ${day(stated)}.`,
+        })
+      }
+
+      // The register only speaks for a serial it knows; no serial, no question to ask it. Serials are
+      // compared case-insensitively, because nobody types TW-1000-04 the same way twice.
+      if (!serial) continue
+      const registered = known.get(serial.toUpperCase())
+      if (registered === undefined) continue
+      if (registered === null && !stated) {
+        warnings.push({
+          instrument: label,
+          message: `${label} (${serial}) has no calibration date in the register, so this phone cannot verify it.`,
+        })
+      } else if (registered && registered < testDate && registered !== stated) {
+        warnings.push({
+          instrument: label,
+          message: `The register says ${label} (${serial}) was due for calibration on ${day(registered)}, before this test.`,
+        })
+      }
+    }
+  }
+
+  return warnings
+}
 
 /** Every field key in the template, in document order. Handy for tests and for the slice 8 form. */
 export function templateFieldKeys(template: TemplateSchema): string[] {

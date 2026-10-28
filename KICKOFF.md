@@ -15,18 +15,19 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phase 1 is complete, and Phase 2 is under way.** Slices 0–16 are built; Phase 1's acceptance path
+**Phase 1 is complete, and Phase 2 is under way.** Slices 0–17 are built; Phase 1's acceptance path
 still passes untouched. **Phase 2 is sliced in `docs/PLAN.md` §7, which is the canonical copy** —
 §7.1 is what Phase 1 left behind, §7.2 the slice table (13 certificates, 14 compliance rules,
 15 reminders, 16 findings and follow-up jobs, 17 the two remaining templates, 18 delivery orders,
-19 quotes, 20 invoicing, 21 accounting export), and **slice 17 is the next session's work**.
+19 quotes, 20 invoicing, 21 accounting export), and **slice 18 is the next session's work**.
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
 
-> **Slice 16 is done and verified.** No migration was needed — the Finding columns, both relations and
-> `File.findingId` already existed. `npm run verify` (279 unit tests), `npm run test:integration`,
-> `npm run test:e2e` and `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes
-> **unmodified**. Slice 17 is next — see the section near the bottom of this file.
+> **Slice 17 is done and verified.** No migration was needed — `Resource.calibrationDueDate` and the
+> Dexie cache were already there; the load test and visual inspection are published as **version 2**
+> templates. `npm run verify` (288 unit tests), `npm run test:integration`, `npm run test:e2e` and
+> `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes **unmodified**. Slice 18
+> (delivery orders) is next — see the section near the bottom of this file.
 
 | Slice | State |
 |---|---|
@@ -47,7 +48,8 @@ asked.**
 | 14 Compliance rule admin, adoption, re-registration prompts | done |
 | 15 Reminder engine in the daily cron | done |
 | 16 Findings & one-click follow-up jobs | done |
-| 17–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 17 is next |
+| 17 Load test & visual inspection templates | done |
+| 18–21 Phase 2 | planned in `docs/PLAN.md` §7.2; slice 18 is next |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -118,8 +120,22 @@ falls due — with normal numbering, SLA targets and an audit entry naming the s
 claimed in `ReminderDispatch`, unique per schedule, threshold and due date, so a retried cron run
 cannot email twice, and a schedule that is done and rolled forward can remind again.
 
-**Not yet built:** slices 16–21 (findings, the remaining templates, delivery orders, quotes, invoicing,
-the accounting export) and all of Phases 3–4.
+**Phase 2, slice 16 — findings.** A defect a report raises now has a state and a place to live: the
+report page moves a finding through quoted / scheduled / rectified, a refusal is a signed
+acknowledgement from the customer rather than a tick-box, the crane page lists what is still open on
+it, and one click raises a follow-up job pre-filled from the finding (kind, crane, description, and a
+priority derived from severity but capped at P2) linked both ways. **Phase 2, slice 17 — the two
+weight-bearing templates.** The load test and visual inspection reports are complete against brief
+§6.3 — test load, radii with SWL and result at each, instruments with load cell ID and calibration due,
+the pre- and post-test examination, deflection, AE attendance and outcome; structure, safety devices,
+markings and load charts, wire rope and hook, operator controls, findings by severity and an overall
+condition rating. The load test now checks each instrument against the equipment register **at the test
+date** and says so in amber when one had lapsed — on the phone under the instruments table and again
+on the office report page. It warns and never blocks: a blocked form on a phone with no signal is a lost
+report.
+
+**Not yet built:** slices 18–21 (delivery orders, quotes, invoicing, the accounting export) and all of
+Phases 3–4.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
@@ -246,14 +262,36 @@ number but no stored PDF, because the seed runs under `tsx`, which cannot load
 
 ---
 
-## Slice 16 is done — slice 17 is next
+## Slice 17 is done — slice 18 is next
 
 **Read `docs/PLAN.md` §7 first; it is the canonical copy and is not repeated here.** §7.2 is the
 Phase 2 slice table, §7.4 is slice 13 as built, §7.5 is slice 14 as built (its six fixed decisions and
-one known limit), §7.6 is slice 15 as built, §7.7 is slice 16 as built, and §7.8 is the Phase 3–4
-outline.
+one known limit), §7.6 is slice 15 as built, §7.7 is slice 16 as built, §7.8 is slice 17 as built, and
+§7.9 is the Phase 3–4 outline.
 
-**What slice 16 delivered.** `src/server/findings/findings.ts` is the one read/write path: reads
+**What slice 17 delivered.** `LOAD_TEST` and `VISUAL_INSPECTION` are published at **version 2** in
+`src/server/templates/definitions.ts`; the seed creates `LOAD_TEST-v2` / `VISUAL_INSPECTION-v2` rows and
+repoints the job type at them, but only when the job type still points at an *older version of the same
+template* — a job type the office pointed elsewhere is left alone. `TemplateSection.calibration` in
+`src/lib/templates/schema.ts` names the test-date field, the instrument, its serial and its due-date
+column, so no code knows a column name of the load test; `calibrationWarnings(template, answers,
+register)` is a pure function that reads no clock and returns amber messages. The register reaches the
+phone through the existing single sync call (`SyncBundle.calibrationResources`, scoped by
+`resourceReadWhere` to instruments booked on the technician's own jobs) and one new Dexie table
+(`version(3)`). The report form shows the warnings under the instruments table; the office report page
+runs the same function on the dates as recorded. `tests/unit/templates.test.ts` pins both v2 shapes and
+six `calibrationWarnings` cases; `tests/integration/tech.test.ts` proves the bundle carries only the
+technician's own instruments.
+
+**The gate it passed:** `npm run verify` (288 unit tests, 9 new), `npm run test:integration` (12 new
+in `tests/integration/tech.test.ts`), `npm run test:e2e` (35 passed, 2 skipped as offline-only) and
+`npm run build`. `happy-path.spec.ts` passes unmodified — it drives BREAKDOWN, which is still v1, as
+does `approval.spec.ts` with PM.
+
+**Known limit:** the register only reaches the phone for instruments booked on that technician's jobs;
+an unbooked one falls back to the due date typed on the form, which is the honest source anyway.
+
+**What slice 16 delivered.** (Previous session's slice, kept for the record.) `src/server/findings/findings.ts` is the one read/write path: reads
 scoped by `findingReadWhere` (the finding follows its report), `updateFindingStatus` for the three
 office moves, `acknowledgeDecline` for a signed refusal, and `createFollowUpJob`, which calls
 `createJob` **inside its own transaction** so the job, the finding's `followUpJobId`, its move to
@@ -340,14 +378,14 @@ certificates (rule 3). No migration — the model, `deletedAt` and the file kind
 new in `certificates.test.ts`), `npm run test:e2e` and `npm run build`. `happy-path.spec.ts` passes
 unmodified.
 
-**Slice 17 — the load test and visual inspection templates — is the next session's work.**
-`docs/PLAN.md` §7.2 row 17: the two templates completed against brief §6.3 (test load, radii, SWL per
-radius, instruments, pre- and post-test examination, AE attendance; structure, safety devices,
-markings, wire rope and hook), with **calibration-expiry validation against
-`Resource.calibrationDueDate` at the test date — warn, never block**. The work lands in
-`src/server/templates/definitions.ts`, `src/lib/templates/schema.ts`, the report form and
-`prisma/seed.ts` as new template versions. No migration is expected; start by confirming
-`npx prisma migrate status` reports nothing pending.
+**Slice 18 — delivery orders — is the next session's work.** `docs/PLAN.md` §7.2 row 18: a DO generated
+from the parts already issued on a job (read from `StockMovement`, never a second source of truth),
+lines with serial/batch and `chargeable | warranty | loan` plus an expected return date, partial
+delivery, receiver name / signature / timestamp, numbered `DO-YYYY-NNNN`, and a printable PDF through
+the existing renderer. The work lands in `src/server/delivery-orders/` (new),
+`src/app/(office)/jobs/[id]/page.tsx` and `src/server/documents/`. The `DeliveryOrder` and
+`DeliveryOrderLine` models and the `DO` sequence key already exist, so no migration is expected; start
+by confirming `npx prisma migrate status` reports nothing pending.
 
 The gate is unchanged for every slice: `npm run verify` and `npm run verify:full`, then
 `tests/e2e/happy-path.spec.ts` must still pass **untouched**.

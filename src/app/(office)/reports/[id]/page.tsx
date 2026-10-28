@@ -16,7 +16,7 @@ import { cardClass } from '@/components/office/ui'
 import { formatDate, formatDateTime } from '@/lib/format'
 import { dayKey } from '@/lib/time'
 import { FINDING_SEVERITY_LABELS, FINDING_STATUS_LABELS } from '@/lib/validation/findings'
-import { templateSchema } from '@/lib/templates/schema'
+import { calibrationWarnings, templateSchema } from '@/lib/templates/schema'
 import { requireAuth } from '@/server/auth/context'
 import { NotFoundError } from '@/server/auth/errors'
 import { can } from '@/server/auth/permissions'
@@ -92,6 +92,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const data = (report.data ?? {}) as Record<string, unknown>
 
   const openAmendment = report.amendments.find((entry) => entry.status !== 'AMENDED')
+  // The register is not passed: the office reads the dates as recorded and the reviewer decides.
+  const calibration = parsed.success ? calibrationWarnings(parsed.data, data) : []
 
   return (
     <div className="space-y-8">
@@ -239,6 +241,17 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       {parsed.success ? (
         <section className={cardClass}>
           <h2 className="font-semibold text-slate-900">What was recorded</h2>
+          {/* The same check the phone ran, on the dates as recorded — the reviewer decides what to do. */}
+          {calibration.length > 0 ? (
+            <div role="alert" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-medium">An instrument was out of calibration on the test date</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {calibration.map((warning) => (
+                  <li key={`${warning.instrument}-${warning.message}`}>{warning.message}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <div className="mt-4 space-y-5">
             {parsed.data.sections.map((section) => {
               const rows =

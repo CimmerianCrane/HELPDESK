@@ -1387,7 +1387,7 @@ historical jobs, 2 open P1 tickets, 40 parts with some below reorder level, demo
 
 **Phase 2 is Compliance & recurring work, then the paperwork.** It is sliced below the same way Phase 1 was: one
 vertical slice per session, database → service → API/action → UI → tests, `npm run verify:full` and a commit before the
-summary. **Slices 12–15 are built and verified; slice 16 is the next session's work (§7.2).**
+summary. **Slices 12–17 are built and verified; slice 18 is the next session's work (§7.2).**
 Do not start a second slice in the same session. Slice 11's e2e path
 (`tests/e2e/happy-path.spec.ts`) is the Phase 1 regression guard: it must still pass, and it must not be edited to make a
 Phase 2 change fit.
@@ -1407,7 +1407,7 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 | `Certificate` | Model only | No service, no upload (`FileKind.CERTIFICATE` unused), no screen. `certificatesExpiring` counts a table nothing writes, so the tile is honestly 0 |
 | `ComplianceRule` | Model + `compliancerule.manage` capability granted | No screen; rule 2 (compliance is data, with the MOM notice) is currently unprovable in the UI |
 | `Finding` | Written on report submit, rendered on the report page | No status flow, no follow-up job, no list on the crane page. `finding.followUpJob` is granted and unused |
-| Calibration | `Resource.calibrationDueDate` never read | Load-test reports cannot validate an instrument at test date |
+| Calibration | **Closed in slice 17** — the load test warns when an instrument was out of date at the test date | — |
 | `Quote` `Invoice` `Payment` `DeliveryOrder` | Models only | No service, no screen, no numbering (`DocumentSequence` keys unused) |
 | Admin | `/admin/users` and `/admin/audit` only | No job types, templates, SLA policy, compliance rules or settings screens |
 | Permissions | `certificate.read/write`, `schedule.manage`, `compliancerule.manage`, `finding.followUpJob` already declared and granted per role | Nothing enforces them yet — each slice must consume them, not add new ones |
@@ -1421,7 +1421,7 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 | **14** | **ComplianceRule admin** (**built** — see §7.5) | Admin screen to maintain rules (`craneType × scheduleType`, interval, `requiresAE`, effective dates, **required `sourceReference` and `reviewedAt`**), carrying `Setting.complianceNotice` verbatim; a schedule can adopt a rule (`source = RULE`, interval copied); "re-registration may be required" reminder when a crane's `ownerEntity`/customer UEN changes or it is re-assembled at another site | `src/app/(office)/admin/compliance/` (new), `src/server/compliance/` (new), `src/server/cranes/cranes.ts` (change detection) | §7 |
 | **15** | **Reminder engine in the daily cron** (**built** — see §7.6) | `/api/cron/daily` evaluates every `CraneSchedule.nextDueDate` at `reminderOffsetsDays` (default 90/60/30) then overdue, notifies the account owner in-app + email via the existing `notify` fan-out, and honours `autoCreateDraftJobs`; at-most-once per (schedule, offset, period) so a re-run sends nothing twice — needs an additive migration for the dispatch key | `src/app/api/cron/daily/route.ts`, `src/server/reminders/` (new), migration | §8 |
 | **16** | **Findings & one-click follow-up jobs** (**built** — see §7.7) | Finding status flow (open → quoted → scheduled → rectified / declined), open findings on the crane page, **one click creates a follow-up job** pre-filled from the finding (job type, crane, description, priority from severity) linked by `followUpJobId`/`parentJobId`; customer-declined critical repair captured with name, signature and date | `src/server/findings/` (new), report page, crane page, `src/server/jobs/jobs.ts` | §4.2, §6.4 |
-| **17** | **Load test & visual inspection templates built out** | The two templates completed against §6.3 (test load / radii / SWL per radius / instruments / pre- and post-test exam / AE attendance; structure, safety devices, markings, wire rope and hook), with **calibration-expiry validation against `Resource.calibrationDueDate` at the test date — warn, never block** | `src/server/templates/definitions.ts`, `src/lib/templates/schema.ts`, the report form, `prisma/seed.ts` (new versions) | §6.3 |
+| **17** | **Load test & visual inspection templates built out** (**built** — see §7.8) | The two templates completed against §6.3 (test load / radii / SWL per radius / instruments / pre- and post-test exam / AE attendance; structure, safety devices, markings, wire rope and hook), with **calibration-expiry validation against `Resource.calibrationDueDate` at the test date — warn, never block** | `src/server/templates/definitions.ts`, `src/lib/templates/schema.ts`, the report form, `prisma/seed.ts` (new versions) | §6.3 |
 | **18** | **Delivery orders** | DO generated from the parts already issued on a job (no second source of truth — read from `StockMovement`), lines with serial/batch, `chargeable \| warranty \| loan` + expected return, partial delivery, receiver name/signature/timestamp, numbered `DO-YYYY-NNNN`, printable PDF via the existing renderer | `src/server/delivery-orders/` (new), `src/app/(office)/jobs/[id]/page.tsx`, `src/server/documents/` | §6.5 |
 | **19** | **Quotes & variations** | Quote from a job or a set of findings, lines with qty/unit price, `variation` flag, GST computed, send/accept/decline/expire, numbered `QTE-YYYY-NNNN`, PDF; accepting a quote moves the job into `QUOTED → APPROVED` through the existing status machine | `src/server/quotes/` (new), `src/app/(office)/quotes/` (new), `src/server/jobs/status.ts` | §4.2, §12 |
 | **20** | **Invoicing, GST and payments** | Invoice from a reviewed job (job costing from `StockMovement` + labour lines), `gstRate` snapshot at issue, `INV-YYYY-NNNN`, PDF, payments recorded, `amountPaid` derived, statuses `DRAFT/ISSUED/PART_PAID/PAID/VOID`, dashboard "awaiting invoicing" gains a screen | `src/server/invoices/` (new), `src/app/(office)/invoices/` (new) | §12, §5 |
@@ -1430,11 +1430,11 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 Each slice also carries the Definition of done from `../CLAUDE.md` (server-side permission test, audit entries, empty /
 loading / error states, seed still runnable, README + this file updated in the same commit).
 
-**Where the next session starts: slice 17**, with the three carry-over items at the end of §7.5 and the
-ended-schedules filter noted in §7.3 queued behind it. They are deliberately not slices of their own —
-take the first one whenever the slice in flight edits the same screen or service. Slice 17 edits the report
-form and the template definitions, so the `/admin/compliance` Playwright path (carry-over 1) does not
-naturally land with it; take it with whichever slice next touches a rule screen.
+**Where the next session starts: slice 18 (delivery orders)**, with the three carry-over items at the end
+of §7.5 and the ended-schedules filter noted in §7.3 queued behind it. They are deliberately not slices of
+their own — take the first one whenever the slice in flight edits the same screen or service. Slice 18
+touches the job page and the document renderer, not a rule screen, so the `/admin/compliance` Playwright
+path (carry-over 1) still waits for whichever slice next touches `/admin/compliance`.
 
 ### 7.3 Slice 12 — schedules on the crane page (**built**)
 
@@ -1686,7 +1686,44 @@ column, both relations and `File.findingId` already existed.
 COMPLETED leaves the finding at SCHEDULED until someone marks it rectified. Wiring completion to the
 finding belongs with slice 19's quotes, where "the customer accepted the variation" also arrives.
 
-### 7.8 Phase 3 and Phase 4 (outline, not sliced yet)
+### 7.8 Slice 17 — the load test and visual inspection templates (**built**)
+
+**Goal:** the two templates that carry legal weight are complete against brief §6.3, and a load test
+cannot be signed with an instrument whose calibration had lapsed on the day of the test without the
+person filling it in being told.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 106–108):
+
+1. **A new version, never an edit.** The two definitions are published at `version: 2`; the seed creates
+   `LOAD_TEST-v2` and `VISUAL_INSPECTION-v2` and repoints the job type at them. Approved reports that
+   were filled under v1 stay on v1 and still re-render as issued.
+2. **The repoint is narrow, and runs once.** The seed moves a job type only when it still points at an
+   *older version of the same template* (`code` shares the `<key>-v` prefix). A job type pointed at
+   something else is the office's decision and is left alone.
+3. **The calibration check is template data.** `TemplateSection.calibration` names the test-date field,
+   the instrument label, the serial and the due-date column; `calibrationWarnings(template, data,
+   register)` is a pure function that reads no clock. Nothing in code names a column of the load test.
+4. **It warns and never blocks.** The phone shows an amber panel under the instruments table, and the
+   office report page runs the same check on the dates as recorded. A serial the register has never
+   heard of is silent — hired test weights are normal.
+
+**As built.** `LOAD_TEST` v2 (test load, radii with SWL and result per radius, instruments with load
+cell ID / serial / calibration due, pre- and post-test examination, deflection, AE attendance with name
+and firm, outcome) and `VISUAL_INSPECTION` v2 (structure, safety devices, markings and load charts, wire
+rope and hook, operator controls, findings by severity, photos, overall condition Good/Fair/Poor);
+`CalibrationCheck` and `calibrationWarnings` in `src/lib/templates/schema.ts`; the
+`calibrationResources` set on the sync bundle (`src/server/tech/my-jobs.ts`), scoped through
+`resourceReadWhere` to instruments booked on the technician's own jobs, cached in Dexie
+(`src/offline/db.ts`, now `version(3)`); the amber panel in `src/components/tech/report-form.tsx`; the
+same warnings on `src/app/(office)/reports/[id]/page.tsx`. New coverage: `tests/unit/templates.test.ts`
+(the two v2 shapes, and six `calibrationWarnings` cases), `tests/integration/tech.test.ts` (the bundle
+carries only the technician's own instruments). **No migration** — `Resource.calibrationDueDate` and the
+Dexie cache are both already there.
+
+**Known limit:** the register reaches the phone only for instruments booked on that technician's jobs.
+An unbooked instrument falls back to the date typed on the form, which is the honest source anyway.
+
+### 7.9 Phase 3 and Phase 4 (outline, not sliced yet)
 
 **Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;
 stock movements linked to jobs and DOs; serial/batch traceability; reorder alerts grouped by supplier; purchase orders

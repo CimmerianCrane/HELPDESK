@@ -241,6 +241,11 @@ export interface TemplateDefinition {
   key: TemplateKey
   /** Report template code, unique per version, e.g. SERVICING-v1. */
   code: string
+  /**
+   * The version this definition publishes. A template is immutable once published, so a wording or
+   * field change is version 2 — the seed then points the job type at the newer row (slice 17).
+   */
+  version: 1 | 2
   name: string
   checklist: {
     code: string
@@ -402,6 +407,12 @@ const breakdownReport: TemplateSchema = {
   ],
 }
 
+/**
+ * Visual inspection, version 2 (slice 17). Version 1 had one line per component the brief names;
+ * this one splits each category into the checks an inspector actually makes and adds the two the
+ * brief asks for that were missing entirely — runway/rail condition and the state of the hoist rope's
+ * drum and sheaves. Same components, same order, so a report's answers still line up by key.
+ */
 const visualInspectionReport: TemplateSchema = {
   checklistCode: 'VISUAL_INSPECTION',
   sections: [
@@ -413,6 +424,8 @@ const visualInspectionReport: TemplateSchema = {
         passFailNa('structureCondition', 'Structural members sound, no cracks or distortion'),
         passFailNa('corrosion', 'No significant corrosion or loose fasteners'),
         passFailNa('welds', 'Load-bearing welds visually sound'),
+        passFailNa('runway', 'Runway beams, rails and end stops sound and aligned'),
+        passFailNa('connections', 'Bolted and pinned connections tight, no movement'),
       ],
     },
     {
@@ -424,6 +437,8 @@ const visualInspectionReport: TemplateSchema = {
         passFailNa('overload', 'Overload protection present and operating (if fitted)'),
         passFailNa('antiCollision', 'Anti-collision or travel limits where fitted'),
         passFailNa('emergencyStop', 'Emergency stop operates'),
+        passFailNa('brakes', 'Hoist and travel brakes hold, no slip or drag'),
+        passFailNa('guards', 'Guards, covers and access barriers in place'),
       ],
     },
     {
@@ -432,8 +447,9 @@ const visualInspectionReport: TemplateSchema = {
       layout: 'fields',
       fields: [
         passFailNa('swlMarked', 'Safe working load marked and legible'),
-        passFailNa('loadChart', 'Load chart present and legible'),
+        passFailNa('loadChart', 'Load chart present, legible and matches the rating'),
         passFailNa('registrationMarking', 'Registration or identification marking present'),
+        passFailNa('warningLabels', 'Warning labels and operating instructions legible'),
       ],
     },
     {
@@ -443,6 +459,8 @@ const visualInspectionReport: TemplateSchema = {
       fields: [
         passFailNa('ropeCondition', 'Wire rope free of broken wires, kinks and corrosion'),
         measurement('ropeDiameterMm', 'Wire rope diameter', 'mm'),
+        passFailNa('ropeEndFittings', 'Rope end fittings, terminations and anchorage sound'),
+        passFailNa('drumAndSheaves', 'Rope drum, sheaves and guards sound, rope sitting correctly'),
         passFailNa('hookCondition', 'Hook free of cracks, twist or excessive wear'),
         measurement('hookThroatMm', 'Hook throat opening', 'mm'),
         passFailNa('latch', 'Hook latch present and working'),
@@ -455,6 +473,7 @@ const visualInspectionReport: TemplateSchema = {
       fields: [
         passFailNa('pendant', 'Pendant or radio controls serviceable'),
         passFailNa('indicators', 'Warning devices and indicators working'),
+        narrative('controlsTested', 'Controls tested from the ground', 'Which motions were run, and from where.'),
       ],
     },
     {
@@ -478,6 +497,13 @@ const visualInspectionReport: TemplateSchema = {
   ],
 }
 
+/**
+ * Load test, version 2 (slice 17). Version 1 was published in slice 4 and already asked the
+ * questions brief §6.3 names; what was missing was in the answers rather than the questions — a
+ * radius with no unit, an instrument with no way to say whether it was a load cell or a weight, and
+ * no place to put the deflection the examination looks for. Version 1 stays untouched so the reports
+ * filled under it still render as issued; the seed points the job type at this one.
+ */
 const loadTestReport: TemplateSchema = {
   checklistCode: 'LOAD_TEST',
   sections: [
@@ -497,23 +523,38 @@ const loadTestReport: TemplateSchema = {
       label: 'Instruments used',
       layout: 'table',
       fields: [
+        {
+          key: 'instrumentType',
+          label: 'Kind',
+          type: 'RADIO',
+          options: ['Load cell', 'Test weights', 'Other'],
+          required: true,
+        },
         { key: 'instrument', label: 'Load cell / test weight ID', type: 'TEXT', required: true },
         { key: 'serialNumber', label: 'Serial number', type: 'TEXT' },
         { key: 'calibrationDue', label: 'Calibration due', type: 'DATE' },
       ],
       minRows: 1,
+      // Warnings only: brief §6.3 asks that expired calibration be flagged, not that the test be
+      // refused. `calibrationWarnings` in src/lib/templates/schema.ts does the comparison.
+      calibration: {
+        testDateKey: 'testDate',
+        labelKey: 'instrument',
+        serialKey: 'serialNumber',
+        dueKey: 'calibrationDue',
+      },
     },
     {
       key: 'radii',
       label: 'Results at each radius',
       layout: 'table',
       fields: [
-        { key: 'radiusM', label: 'Radius', type: 'NUMBER', required: true },
-        { key: 'swlKg', label: 'SWL at this radius', type: 'NUMBER', required: true },
-        { key: 'testLoadKg', label: 'Test load applied', type: 'NUMBER', required: true },
+        { key: 'radiusM', label: 'Radius', type: 'NUMBER', unit: 'm', required: true },
+        { key: 'swlKg', label: 'SWL at this radius', type: 'NUMBER', unit: 'kg', required: true },
+        { key: 'testLoadKg', label: 'Test load applied', type: 'NUMBER', unit: 'kg', required: true },
         {
           key: 'result',
-          label: 'Result',
+          label: 'Result at this point',
           type: 'RADIO',
           options: ['Pass', 'Fail'],
           required: true,
@@ -528,7 +569,8 @@ const loadTestReport: TemplateSchema = {
       fields: [
         passFailNa('preTestExamination', 'Pre-test examination satisfactory'),
         passFailNa('postTestExamination', 'Post-test examination satisfactory'),
-        narrative('deflection', 'Deflection or abnormalities observed'),
+        measurement('deflectionMm', 'Maximum deflection observed', 'mm'),
+        narrative('deflection', 'Deflection or abnormalities observed', 'What was deformed, sagged or moved, and where.'),
       ],
     },
     {
@@ -556,6 +598,7 @@ export const TEMPLATES: readonly TemplateDefinition[] = [
   {
     key: 'SERVICING',
     code: 'SERVICING',
+    version: 1,
     name: 'Scheduled servicing report',
     checklist: { code: 'SERVICING', name: 'Scheduled servicing checklist', items: servicingChecklist },
     report: servicingReport,
@@ -563,6 +606,7 @@ export const TEMPLATES: readonly TemplateDefinition[] = [
   {
     key: 'BREAKDOWN',
     code: 'BREAKDOWN',
+    version: 1,
     name: 'Breakdown report',
     checklist: {
       code: 'BREAKDOWN',
@@ -584,6 +628,7 @@ export const TEMPLATES: readonly TemplateDefinition[] = [
   {
     key: 'VISUAL_INSPECTION',
     code: 'VISUAL_INSPECTION',
+    version: 2,
     name: 'Visual inspection report',
     checklist: {
       code: 'VISUAL_INSPECTION',
@@ -608,6 +653,7 @@ export const TEMPLATES: readonly TemplateDefinition[] = [
   {
     key: 'LOAD_TEST',
     code: 'LOAD_TEST',
+    version: 2,
     name: 'Load test report',
     checklist: {
       code: 'LOAD_TEST',

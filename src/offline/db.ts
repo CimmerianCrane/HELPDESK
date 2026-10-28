@@ -39,6 +39,9 @@ export interface CachedPart {
   uom: string
 }
 
+/** One row of the calibration register. Keyed by serial, because that is what an instrument row names. */
+export type CachedCalibrationResource = SyncBundle['calibrationResources'][number]
+
 export interface CachedMeta {
   key: string
   value: string
@@ -111,6 +114,7 @@ class TechDatabase extends Dexie {
   checklistItems!: Table<TechChecklistItem, string>
   parts!: Table<CachedPart, string>
   contacts!: Table<CachedContact, string>
+  calibrationResources!: Table<CachedCalibrationResource, string>
   meta!: Table<CachedMeta, string>
   drafts!: Table<ReportDraft, string>
   files!: Table<LocalFile, string>
@@ -135,6 +139,11 @@ class TechDatabase extends Dexie {
       files: 'id, jobId, kind',
       outbox: 'id, createdAt',
     })
+
+    // Slice 17: the calibration register, so a load test's instruments can be checked with no signal.
+    this.version(3).stores({
+      calibrationResources: 'serialNumber',
+    })
   }
 }
 
@@ -151,13 +160,21 @@ export const TECHNICIAN_NAME_KEY = 'technicianName'
 /**
  * Replaces the cache in one transaction.
  *
- * Dexie runs this as a single transaction across five tables: either the whole bundle lands or none
- * of it does. A half-written cache would show a job whose access notes had been deleted.
+ * Dexie runs this as a single transaction across the cached tables: either the whole bundle lands or
+ * none of it does. A half-written cache would show a job whose access notes had been deleted.
  */
 export async function storeBundle(bundle: SyncBundle): Promise<void> {
   await techDb.transaction(
     'rw',
-    [techDb.jobs, techDb.cranes, techDb.checklistItems, techDb.parts, techDb.contacts, techDb.meta],
+    [
+      techDb.jobs,
+      techDb.cranes,
+      techDb.checklistItems,
+      techDb.parts,
+      techDb.contacts,
+      techDb.calibrationResources,
+      techDb.meta,
+    ],
     async () => {
       await Promise.all([
         techDb.jobs.clear(),
@@ -165,6 +182,7 @@ export async function storeBundle(bundle: SyncBundle): Promise<void> {
         techDb.checklistItems.clear(),
         techDb.parts.clear(),
         techDb.contacts.clear(),
+        techDb.calibrationResources.clear(),
       ])
 
       await Promise.all([
@@ -178,6 +196,7 @@ export async function storeBundle(bundle: SyncBundle): Promise<void> {
             ...contact,
           })),
         ),
+        techDb.calibrationResources.bulkPut(bundle.calibrationResources),
       ])
 
       await techDb.meta.bulkPut([
@@ -231,6 +250,7 @@ export async function clearCache(): Promise<void> {
       techDb.checklistItems,
       techDb.parts,
       techDb.contacts,
+      techDb.calibrationResources,
       techDb.meta,
       techDb.drafts,
       techDb.files,
@@ -243,6 +263,7 @@ export async function clearCache(): Promise<void> {
         techDb.checklistItems.clear(),
         techDb.parts.clear(),
         techDb.contacts.clear(),
+        techDb.calibrationResources.clear(),
         techDb.meta.clear(),
         techDb.drafts.clear(),
         techDb.files.clear(),

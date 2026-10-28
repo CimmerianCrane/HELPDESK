@@ -501,6 +501,26 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     `finding.write` and the follow-up form on `finding.followUpJob`, so nobody is shown an action that
     would answer 403.
 
+106. **The built-out templates are version 2, not an edit of version 1.** `ReportTemplate` rows are
+    immutable once reports cite them, so completing the load test and visual inspection against §6.3
+    publishes `LOAD_TEST-v2` and `VISUAL_INSPECTION-v2`. A report signed under v1 keeps rendering as
+    issued; the job type moves to v2 for new work.
+107. **The seed moves a job type onto a new version only from an older version of the same template.**
+    The definition declares its version, the row is created at `code = <key>-v<n>`, and the repoint runs
+    only when the job type's current template shares the `<key>-v` prefix and carries a lower version.
+    Anything else — a different template, a hand-made one — is an office decision and is left alone.
+    Without the narrow rule, "publish v2" would silently overwrite where the office pointed a job type.
+108. **The calibration check lives in the template, and compares against the register on the phone.**
+    `TemplateSection.calibration` names which fields hold the test date, the instrument, its serial and
+    its due date, so no code knows a column name of the load test. `calibrationWarnings` is a pure
+    function of `(schema, answers, register)` and reads no clock — the test date on the form is what the
+    instrument is judged at, not today. It **warns and never blocks** (the brief's words): an out-of-date
+    instrument is a decision for the person on site and the reviewer, and a blocked form on a phone with
+    no signal is a lost report (rule 11). The office page runs the same function without the register,
+    because the reviewer is looking at a signed document and a register disagreement is a different
+    question. A serial the register has never seen produces nothing: hired test weights are normal and
+    the register cannot speak for them.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

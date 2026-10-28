@@ -1,9 +1,10 @@
 import type { Prisma } from '@prisma/client'
 import { db, type Tx } from '@/lib/db'
 import { templateSchema, type TemplateSchema } from '@/lib/templates/schema'
+import { dayKey } from '@/lib/time'
 import { ForbiddenError, NotFoundError } from '@/server/auth/errors'
 import { assertCan } from '@/server/auth/permissions'
-import { jobReadWhere } from '@/server/auth/scope'
+import { jobReadWhere, resourceReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { getSettings } from '@/server/settings/settings'
 
@@ -113,6 +114,17 @@ export interface SyncBundle {
     role: string
     phone: string | null
     email: string | null
+  }>
+  /**
+   * Test weights, load cells and tools with a serial number, so a load test's instrument rows can be
+   * checked against the calibration register with the radio off (brief §6.3). Scoped by
+   * `resourceReadWhere`: a technician gets what is booked on their own jobs.
+   */
+  calibrationResources: Array<{
+    name: string
+    serialNumber: string
+    /** `YYYY-MM-DD` in the operating timezone, or null when nobody has recorded one. */
+    calibrationDue: string | null
   }>
 }
 
@@ -452,7 +464,7 @@ export async function syncBundle(context: AuthContext, client: Tx = db): Promise
   }
 
   const siteIds = [...new Set(rows.map((row) => row.site.id))]
-  const [settings, parts, contacts] = await Promise.all([
+  const [settings, parts, contacts, resources] = await Promise.all([
     getSettings(client),
     client.part.findMany({
       where: { deletedAt: null, isActive: true },
@@ -467,6 +479,17 @@ export async function syncBundle(context: AuthContext, client: Tx = db): Promise
           select: { siteId: true, name: true, role: true, phone: true, email: true },
         })
       : Promise.resolve([]),
+    client.resource.findMany({
+      where: {
+        ...resourceReadWhere(context),
+        type: { in: ['TEST_WEIGHT', 'LOAD_CELL', 'TOOL'] },
+        serialNumber: { not: null },
+        status: { not: 'RETIRED' },
+      },
+      orderBy: { name: 'asc' },
+      take: 200,
+      select: { name: true, serialNumber: true, calibrationDueDate: true },
+    }),
   ])
 
   // The checklist is per job type, and several jobs share a type — send each item once.
@@ -489,6 +512,15 @@ export async function syncBundle(context: AuthContext, client: Tx = db): Promise
       role: contact.role,
       phone: contact.phone,
       email: contact.email,
+    })),
+    calibrationResources: resources.map((resource) => ({
+      name: resource.name,
+      serialNumber: resource.serialNumber!,
+      // A calibration date is a day, not an instant: read in the office's zone so a +8 date does not
+      // print as the day before, the same way every other date on the phone is formatted.
+      calibrationDue: resource.calibrationDueDate
+        ? dayKey(resource.calibrationDueDate, settings.timezone)
+        : null,
     })),
   }
 }
