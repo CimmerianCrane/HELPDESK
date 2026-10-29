@@ -106,6 +106,7 @@ cimmerian-crane/
     server/
       auth/                # session, password hashing, permission map, row-level scope
       users/               # user administration service
+      contracts/           # a customer's contracts and the SLA targets agreed on them
       audit/               # audit(context, ...) — the only way to write business data; the viewer's
                            # cross-entity search and record labels
       dashboard/           # the office board's morning counts, derived from jobSla

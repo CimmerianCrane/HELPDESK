@@ -760,6 +760,22 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
      open order) already *is* the back-order; a second number could only disagree with it.
 178. **"Late" is counted in whole days in the operating timezone**, because an order past its date is a problem to
      chase rather than a plan to restate.
+179. **A contract's targets are `SlaPolicy` rows carrying the contract's id, not `Contract.slaOverrides`.** The JSON
+     column is dead — nothing reads it — and two records of one negotiated number can only disagree while a job
+     snapshots from whichever it read. The column stays unused rather than being filled "for consistency".
+180. **A blank priority follows the company-wide target.** The form never shows a number the contract has not agreed
+     to, and saving replaces the contract's rows wholesale, so clearing a pair removes the row rather than zeroing it.
+181. **A priority carries both numbers or neither**, because `SlaPolicy` is one response and one resolution per row; a
+     half pair would leave the other number undefined at the moment it matters.
+182. **Contract reads ride on `customer.read`, writes on `sla.manage`.** Dispatch and finance need to see the agreed
+     terms; changing a target is the capability that has guarded targets since Phase 1, unused until now.
+183. **A contract covers this customer's cranes only, checked in the service.** No cranes ticked means the whole
+     account (usually an AMC); named cranes mean only those. The ids are validated against the customer inside the
+     transaction, because a tampered form could otherwise attach another customer's crane.
+184. **A contract is retired (`deletedAt`), never deleted.** Jobs and tickets keep naming it, so a retired contract
+     leaves the list and `insertJob`'s lookup but keeps its SLA rows as the record of what was agreed.
+185. **A renewal badge uses 90 days, counted in whole UTC days** — the same window certificates use — and is derived
+     on read, never stored.
 
 ## Not assumed — deliberately left to you
 

@@ -9,13 +9,11 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Architecture, data model, screens and the phase plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
-**Status:** Phases 1 and 2 are complete. Phase 3 (inventory) is under way: slice 22 built the parts
-book and made the stock ledger the single writer of every quantity, slice 23 added stock locations
-and transfers, slice 24 traces every serial and batch to the crane it went on, slice 25 turns the
-below-reorder list into purchase orders, slice 26 settles the shelf against the books with a
-blind count and an approved variance, slice 27 adds the supplier book the reorder list groups by,
-and slice 28 links a job on hold to the part it is waiting for. **Phase 3 is complete; Phase 4 — the
-customer portal and reporting — is next.** See "What works today" below.
+**Status:** Phases 1–3 are complete. Phase 4 (optimisation) is under way: slice 29 gives a customer's
+**contracts** a screen on its customer page — type, reference, term, renewal, covered cranes and the
+response/resolution targets agreed — written as the contract-scoped SLA rows a new job already
+resolves. **Phase 4 continues with SLA management and the customer portal.** See "What works today"
+below.
 
 ---
 
@@ -177,6 +175,29 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 29 — contracts on the customer page
+
+- **The agreed terms finally have a home.** A customer page's **Contracts** tab lists its contracts — kind,
+  reference, term, renewal date, included visits, covered cranes and scope notes — with an add form and,
+  per contract, an edit form and **Retire**.
+- **The SLA numbers are the contract's.** Each contract carries its own response and resolution minutes per
+  priority. Blank means "follow the company-wide target"; a pair is written as an `SlaPolicy` row carrying
+  the contract's id, which is exactly the row `createJob` already reads — so a new job snapshots the
+  contract's numbers, and changing the contract later never rewrites history.
+- **Covers the account or named cranes.** Tick no cranes and the contract covers the whole customer (what an
+  AMC usually is); tick some and it covers only those. A crane belonging to another customer is refused.
+- **Retired, never deleted.** Jobs and tickets keep naming the contract; a retired one leaves the list and
+  stops being picked for new jobs, and its SLA rows stay as the record of what was agreed. Renewals show an
+  amber badge inside 90 days and a red one once overdue.
+- **Try it:** open a customer → **Contracts** → *Add a contract* → tick a crane, give P1 a response and
+  resolution, save. Then raise a P1 job for that customer's crane and compare its SLA due time with a job on
+  a customer that has no contract.
+- **Tests** — 13 unit tests (`contracts.test.ts`: blanks read as absent, UTC dates, both-or-neither and
+  resolution ≥ response, checkbox de-duplication, the override map, the renewal window, crane coverage) and a
+  5-case integration suite (`contracts.test.ts`: the SLA rows written per contract, a job snapshotting them
+  and the rows cleared when the pair is blanked, another customer's crane refused, retire-not-delete, and
+  finance reading but only Admin writing).
 
 ### Slice 28 — back-orders linked to jobs on hold
 

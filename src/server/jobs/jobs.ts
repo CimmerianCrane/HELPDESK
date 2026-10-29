@@ -2,6 +2,7 @@ import type { JobStatus, OnHoldReason, Prisma } from '@prisma/client'
 import { cache } from 'react'
 import { db, type Tx } from '@/lib/db'
 import { addDays, wallTimeToUtc } from '@/lib/time'
+import { contractCoversCranes } from '@/lib/validation/contracts'
 import { parseInput } from '@/lib/validation/parse'
 import {
   convertTicketSchema,
@@ -689,17 +690,24 @@ async function insertJob(
   })
   if (!jobType) throw new RuleError('That kind of work is not available.')
 
-  // The contract, if one covers this customer, decides which SLA row applies. Null means the
-  // company-wide policy.
-  const contract = await tx.contract.findFirst({
+  // The contract, if one covers this job, decides which SLA row applies. Null means the company-wide
+  // policy. A contract naming cranes covers a job only when it touches one of them; one naming none
+  // covers the whole account.
+  const contracts = await tx.contract.findMany({
     where: {
       customerId: input.customerId,
       deletedAt: null,
       OR: [{ endDate: null }, { endDate: { gte: reportedAt } }],
     },
     orderBy: { startDate: 'desc' },
-    select: { id: true },
+    select: { id: true, coveredCranes: { where: { deletedAt: null }, select: { id: true } } },
   })
+  const contract = contracts.find((row) =>
+    contractCoversCranes(
+      row.coveredCranes.map((crane) => crane.id),
+      location.craneIds,
+    ),
+  )
   const targets = await resolveSlaTargets(input.priority, contract?.id ?? null, tx)
 
   const number = await nextDocumentNumber(tx, 'JOB')

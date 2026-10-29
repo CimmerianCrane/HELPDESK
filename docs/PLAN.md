@@ -2256,16 +2256,75 @@ queries join the existing inventory service.
 note. There is no browser test of the hold banner or the part panel; the integration suite proves the
 stored link, the refusal of an unknown part, the clearing on resume, and what counts as on back-order.
 
-### 7.14 Phase 4 (outline, not sliced yet)
-**Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;
-stock movements linked to jobs and DOs; serial/batch traceability; reorder alerts grouped by supplier; purchase orders
-and back-orders linked to jobs on hold awaiting parts; stock take workflow with blind counts, variance, recounts, reason
-codes and approved adjustments; repeat-discrepancy flagging. Slice it the same way when Phase 2 closes.
+### 7.14 Phase 4 — Optimisation (slice table)
 
-**Phase 4 — Optimisation.** Customer portal (`CUSTOMER` role is modelled and unsliced); contracts and SLA management
-(`Contract.slaOverrides` exists and is honoured by slice 5's SLA computation, no screen); profitability and
-technician-utilisation reporting (`report.financial` capability exists and is unused); equipment calibration tracking;
-route optimisation; WhatsApp/SMS adapters; Xero/QuickBooks integration (slice 21 leaves the adapter seam for this).
+Phase 4 is where the app stops only *running* the business and starts telling it something: the customer gets a door,
+the contracts the SLA numbers were always meant to come from get a screen, and the money and hours already recorded
+become reports. The schema was designed up front (§3) and the `CUSTOMER` role and `Contract`/`SlaPolicy` tables have
+been migrated since Phase 1 — **no migration is expected for the first slices.**
+
+| # | Slice | Delivers | Where the work lands | Brief § |
+|---|---|---|---|---|
+| **29** | **Contracts on the customer page** (**built** — see §7.15) | A customer's contracts: type, reference, term, renewal, included visits, scope notes and covered cranes, with the negotiated response/resolution targets written as `SlaPolicy` rows for that contract — the rows `createJob` already reads. Retired, never deleted | `src/server/contracts/` (new), `src/lib/validation/contracts.ts` (new), the customer page's Contracts tab | §5, §8 |
+| 30 | SLA management and the renewal board | Company-wide targets editable on a screen (they are seed-only today), and every contract renewing or overdue in one queue | `/admin/sla` (new), `/customers` | §4.3, §8 |
+| 31 | The customer portal | The `CUSTOMER` role finally signs in: their jobs and their cranes' certificates and reports, read-only, scoped by `customerId` | `src/app/(portal)/`, `src/server/auth/scope.ts` | §4.1 |
+| 32 | Profitability reporting | Revenue against cost per customer, contract and job type, from the invoices and purchase orders already recorded | `src/server/reports/profitability.ts` (new), office reports | §11 |
+| 33 | Technician utilisation | Hours on the road and on the tools against the roster, from job status history | `src/server/reports/utilisation.ts` (new) | §11 |
+| 34 | Equipment calibration tracking | A calibration register beside certificates, with its own due/overdue queue | `/calibrations` | §4.5 |
+| 35 | Route optimisation | An ordered round from the day's jobs, using the site addresses already held | `/schedule` | §4.4 |
+| 36 | WhatsApp and SMS adapters | A third and fourth `notify` channel, behind the adapter seam that already exists | `src/server/notify/` | §10 |
+| 37 | Xero/QuickBooks integration | Push issued invoices through the accounting adapter slice 21 left in place | `src/server/accounting/` | §10 |
+
+Slice 29 was taken first because the contract is the one record the app has been *shaped* around and could not enter:
+`Contract` and contract-scoped `SlaPolicy` rows existed, `createJob` already resolved them, and the customer page
+already had a disabled Contracts tab. It also gives `sla.manage` its first use.
+
+### 7.15 Slice 29 — contracts on the customer page (**built**)
+
+**Goal:** the SLA numbers a customer actually agreed to could not be entered. `Contract` and contract-scoped
+`SlaPolicy` rows had been in the schema since Phase 1, `createJob` had read them since slice 5, and the customer page
+had shown a disabled Contracts tab — but the seed was the only thing that could write one.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 179–185):
+
+1. **The targets are `SlaPolicy` rows carrying the contract's id, never `Contract.slaOverrides`.** The JSON column is
+   dead: nothing reads it, and two records of one negotiated number can only disagree — while a job snapshots its
+   deadline from whichever one it read. It stays unused rather than being filled in "for consistency".
+2. **Blank means "follow the company-wide row".** A priority is one row with both numbers or no row at all; the form
+   never shows a number the contract has not agreed to, and saving replaces the contract's rows wholesale, so clearing
+   a pair removes the row rather than zeroing it.
+3. **Both numbers or neither.** `SlaPolicy` holds a response and a resolution per row, so half a pair would leave the
+   other undefined at the moment it matters; the schema refuses it and says so on the response field.
+4. **Reads ride on `customer.read`, writes on `sla.manage`.** A contract is a view of the customer and is part of what
+   dispatch and finance need to see; changing an agreed target is the capability that has guarded targets since
+   Phase 1 and was unused until now (Admin-only today).
+5. **Covered cranes are this customer's live cranes, checked in the service.** No cranes ticked means the whole
+   account — what an AMC usually is — and named cranes mean only those. The ids are validated against `craneReadWhere`
+   and the customer inside the transaction, because a tampered form could otherwise attach another customer's crane.
+6. **Retire, never delete.** Jobs and tickets keep naming the contract; a retired one (`deletedAt`) drops out of
+   `insertJob`'s lookup and out of the page, while its `SlaPolicy` rows stay as the record of what was agreed.
+7. **The renewal badge is derived, not stored** — 90 days, the same window certificates use, in whole UTC days.
+
+**As built.** `src/lib/validation/contracts.ts` holds the pure rules (`createContractSchema`, `slaOverridesFrom`,
+`renewalState`, `contractCoversCranes`, the type labels). `src/server/contracts/contracts.ts` holds
+`listCustomerContracts`, `contractCraneOptions`, `createContract`, `updateContract` and `retireContract` — the first
+domain folder in `src/server/` for Phase 4. The customer page gains a Contracts section (list, renewal badge, term,
+coverage, agreed targets, notes; per-contract Retire and Edit; an "Add a contract" form, everything written behind
+`sla.manage`), and its Contracts tab becomes an anchor. Three server actions sit in the customer page's `actions.ts`,
+and the audit viewer labels a `Contract` and links it to `/customers/<id>#contracts`. `insertJob` now chooses the
+newest live contract that actually **covers the job's cranes**, so a crane-specific contract stops leaking onto jobs
+for the customer's other cranes.
+
+**Migration:** none. `Contract`, `ContractType`, `SlaPolicy` and its `@@unique([priority, contractId])` were designed
+in Phase 1 and already applied.
+
+**Known limits.** `insertJob` now picks the latest-starting live contract that covers the job's cranes (an
+account-wide contract covers everything), but where two candidates cover the same job the later start still wins
+outright — there is no precedence between an AMC and a warranty arranged on the same crane. There is no company-wide
+`/contracts` list and no renewal dashboard (slice 30), and the ticket
+SLA board still reads company-wide rows only — a ticket has no contract. `priceSchedule` and included visits are stored
+and shown but not yet used by quoting or invoicing. No browser test of the Contracts panel; the integration suite proves
+the SLA rows, the job snapshot, the cross-customer crane refusal, the retire and the permissions.
 
 ---
 

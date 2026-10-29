@@ -2,6 +2,7 @@ import type { AuditLog, Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import type { Tx } from '@/lib/db'
 import { addDays, wallTimeToUtc } from '@/lib/time'
+import { CONTRACT_TYPE_LABELS } from '@/lib/validation/contracts'
 import { assertCan } from '@/server/auth/permissions'
 import type { AuthContext } from '@/server/auth/types'
 import { changedFields } from './diff'
@@ -187,6 +188,7 @@ function dateRange(
 export const AUDIT_ENTITIES = [
   'Customer',
   'Contact',
+  'Contract',
   'Site',
   'Crane',
   'CraneSchedule',
@@ -272,6 +274,7 @@ export async function auditEntityLabels(
     purchaseOrders,
     suppliers,
     stockTakes,
+    contracts,
   ] =
     await Promise.all([
     present('Job')
@@ -359,6 +362,13 @@ export async function auditEntityLabels(
           select: { id: true, reference: true },
         })
       : [],
+    // A contract is read on its customer's page, so its label has to carry that page's id.
+    present('Contract')
+      ? client.contract.findMany({
+          where: { id: { in: idsFor('Contract') } },
+          select: { id: true, type: true, reference: true, customerId: true },
+        })
+      : [],
   ])
 
   const labels = new Map<string, AuditEntityLabel>()
@@ -385,6 +395,14 @@ export async function auditEntityLabels(
   for (const row of purchaseOrders) put('PurchaseOrder', row.id, row.number)
   for (const row of suppliers) put('Supplier', row.id, row.name)
   for (const row of stockTakes) put('StockTake', row.id, row.reference)
+  for (const row of contracts) {
+    labels.set(`Contract:${row.id}`, {
+      entity: 'Contract',
+      entityId: row.id,
+      label: row.reference ?? CONTRACT_TYPE_LABELS[row.type],
+      href: `/customers/${row.customerId}#contracts`,
+    })
+  }
   for (const row of findings) {
     labels.set(`Finding:${row.id}`, {
       entity: 'Finding',

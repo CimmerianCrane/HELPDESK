@@ -15,16 +15,27 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phases 1 and 2 are complete, and Phase 3 (Inventory) is complete.** Slices 0–28 are built; Phase 1's
-acceptance path still passes untouched. **`docs/PLAN.md` §7 is the canonical copy** — §7.2 is the
-Phase 2 slice table, §7.3–§7.12 each Phase 2 slice's fixed decisions as built, and **§7.13 is the
+**Phases 1, 2 and 3 are complete, and Phase 4 (Optimisation) is under way.** Slices 0–29 are built;
+Phase 1's acceptance path still passes untouched. **`docs/PLAN.md` §7 is the canonical copy** — §7.2 is
+the Phase 2 slice table, §7.3–§7.12 each Phase 2 slice's fixed decisions as built, **§7.13 is the
 Phase 3 slice table plus slices 22 and 23 as built (§7.13.1), slice 24 as built (§7.13.2), slice 25
 as built (§7.13.3), slice 26 as built (§7.13.4), slice 27 as built (§7.13.5) and slice 28 as built
-(§7.13.6)**; §7.14 outlines Phase 4.
-**Phase 3's slices (22 → 28) are all built; Phase 4 (the customer portal and reporting) is next — read
-`docs/PLAN.md` §7.14, then ask before starting the next slice.**
+(§7.13.6)**, and **§7.14 is the Phase 4 slice table with slice 29 as built (§7.15)**.
+**Slice 29 is built; slice 30 (SLA management and the renewal board) is next — read `docs/PLAN.md`
+§7.14, then ask before starting it.**
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
+
+> **Slice 29 is done and verified.** No migration was needed. `npm run verify` (423 unit tests),
+> `npm run test:integration` (341), `npm run test:e2e` (38 passed) and `npm run build` all pass, and
+> `tests/e2e/happy-path.spec.ts` passes **unmodified**.
+
+> **Slice 29 — contracts on the customer page.** A customer's Contracts tab lists its contracts — kind,
+> reference, term, renewal, included visits, covered cranes, scope notes — with add, edit and *Retire*
+> behind `sla.manage`. The response and resolution minutes agreed per priority are written as
+> `SlaPolicy` rows carrying the contract's id — the rows `createJob` already resolves — and `insertJob`
+> now picks the newest live contract that actually covers the job's cranes. Retired, never deleted. See
+> `docs/PLAN.md` §7.15.
 
 > **Slice 28 is done and verified.** `20261028600000_slice28_job_on_hold_part` is applied.
 > `npm run verify` (410 unit tests), `npm run test:integration` (335), `npm run test:e2e` (38 passed,
@@ -131,7 +142,8 @@ asked.**
 | 25 Reorder alerts & purchase orders | done |
 | 26 Stock take | done |
 | 27 Suppliers | done |
-| 28 Back-orders & jobs on hold | next |
+| 28 Back-orders & jobs on hold | done |
+| 29 Contracts on the customer page | done |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -235,8 +247,10 @@ filters applied to the file. `AccountingExporter` is the seam a Xero/QuickBooks 
 `tests/e2e/phase2.spec.ts` walks the whole of Phase 2 in one browser run, starting with a compliance rule
 added on `/admin/compliance`, adopted on a crane, and ending with the invoice exported.
 
-**Not yet built:** all of Phase 4 (the customer portal and reporting). Phase 3 is complete — its slice
-table is `docs/PLAN.md` §7.13 and Phase 4 is outlined in §7.14.
+**Not yet built:** the rest of Phase 4 — SLA management and the renewal board, the customer portal,
+profitability and utilisation reporting, calibration, route optimisation, WhatsApp/SMS and the
+Xero/QuickBooks driver. Phase 3 is complete (§7.13); Phase 4's slice table is §7.14 and slice 29 as
+built is §7.15.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 

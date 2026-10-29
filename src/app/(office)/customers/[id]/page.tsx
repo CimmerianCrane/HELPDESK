@@ -7,11 +7,19 @@ import {
   ContactForm,
   EditCustomerForm,
 } from '@/components/office/customer-forms'
+import { ContractForm, RetireContractButton } from '@/components/office/contract-forms'
 import { SiteForm } from '@/components/office/site-forms'
 import { cardClass } from '@/components/office/ui'
 import { formatDate } from '@/lib/format'
+import { PRIORITIES } from '@/lib/validation/tickets'
+import { CONTRACT_TYPE_LABELS } from '@/lib/validation/contracts'
 import { requireAuth } from '@/server/auth/context'
 import { can } from '@/server/auth/permissions'
+import {
+  contractCraneOptions,
+  listCustomerContracts,
+  type ContractSummary,
+} from '@/server/contracts/contracts'
 import { getCustomer, listCustomerSites, type CustomerDetail } from '@/server/customers/customers'
 import {
   CONTACT_ROLE_LABELS,
@@ -24,8 +32,11 @@ import {
   archiveContactAction,
   archiveCustomerAction,
   createContactAction,
+  createContractAction,
   createSiteAction,
+  retireContractAction,
   updateContactAction,
+  updateContractAction,
   updateCustomerAction,
 } from '../actions'
 
@@ -48,6 +59,15 @@ export async function generateMetadata({
   }
 }
 
+/** "P1 30 / 240 min · P2 120 / 480 min", or the company-wide fallback when nothing is agreed. */
+function contractTargetsLabel(contract: ContractSummary): string {
+  const rows = PRIORITIES.flatMap((priority) => {
+    const target = contract.targets[priority]
+    return target ? [`${priority} ${target.responseMinutes} / ${target.resolutionMinutes} min`] : []
+  })
+  return rows.length === 0 ? 'Company-wide SLA targets' : rows.join(' · ')
+}
+
 function addressLines(customer: CustomerDetail): string[] {
   const address = customer.billingAddress
   if (!address) return []
@@ -66,7 +86,7 @@ const TABS: ReadonlyArray<{ label: string; anchor?: string }> = [
   { label: 'Cranes' },
   { label: 'Jobs' },
   { label: 'Contacts' },
-  { label: 'Contracts' },
+  { label: 'Contracts', anchor: 'contracts' },
   { label: 'Documents' },
   { label: 'Invoices' },
 ]
@@ -83,9 +103,16 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
     throw error
   }
 
-  const [sites, settings] = await Promise.all([listCustomerSites(context, id), getSettings()])
   const mayWrite = can(context.role, 'customer.write')
   const maySiteWrite = can(context.role, 'site.write')
+  const mayContractWrite = can(context.role, 'sla.manage')
+
+  const [sites, settings, contracts, contractCranes] = await Promise.all([
+    listCustomerSites(context, id),
+    getSettings(),
+    listCustomerContracts(context, id),
+    mayContractWrite ? contractCraneOptions(context, id) : Promise.resolve([]),
+  ])
   const address = addressLines(customer)
 
   const primary = customer.contacts.find((contact) => contact.isPrimary)
@@ -324,6 +351,113 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
                 sites={sites}
                 submitLabel="Add contact"
                 idPrefix="new-contact"
+              />
+            </div>
+          </details>
+        ) : null}
+      </section>
+
+      <section id="contracts" className={cardClass}>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold text-slate-900">Contracts</h2>
+          <p className="text-sm text-slate-500">
+            A contract&apos;s response and resolution targets override the company-wide ones on every
+            job raised under it.
+          </p>
+        </div>
+
+        {contracts.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-600">
+            No contract recorded. Jobs on this customer use the company-wide SLA targets.
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-slate-100">
+            {contracts.map((contract) => (
+              <li key={contract.id} className="py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-slate-900">
+                      {CONTRACT_TYPE_LABELS[contract.type]}
+                      {contract.reference ? ` · ${contract.reference}` : ''}
+                      {contract.renewal === 'overdue' ? (
+                        <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-800">
+                          Renewal overdue
+                        </span>
+                      ) : contract.renewal === 'due' ? (
+                        <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900">
+                          Renewal within 90 days
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {contract.startDate || contract.endDate
+                        ? `${formatDate(contract.startDate, settings.timezone)} – ${
+                            contract.endDate
+                              ? formatDate(contract.endDate, settings.timezone)
+                              : 'open-ended'
+                          }`
+                        : 'No term recorded'}
+                      {contract.renewalDate
+                        ? ` · renews ${formatDate(contract.renewalDate, settings.timezone)}`
+                        : ''}
+                      {contract.includedVisits !== null
+                        ? ` · ${contract.includedVisits} visits included`
+                        : ''}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {contract.coveredCranes.length === 0
+                        ? 'Covers the whole account'
+                        : `Covers ${contract.coveredCranes.map((crane) => crane.assetTag).join(', ')}`}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {contractTargetsLabel(contract)}
+                    </p>
+                    {contract.scopeNotes ? (
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">
+                        {contract.scopeNotes}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {mayContractWrite ? (
+                    <RetireContractButton
+                      action={retireContractAction.bind(null, customer.id, contract.id)}
+                      label={CONTRACT_TYPE_LABELS[contract.type]}
+                    />
+                  ) : null}
+                </div>
+
+                {mayContractWrite ? (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs text-slate-600 underline hover:text-slate-900">
+                      Edit contract
+                    </summary>
+                    <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-4">
+                      <ContractForm
+                        action={updateContractAction.bind(null, customer.id, contract.id)}
+                        values={contract}
+                        cranes={contractCranes}
+                        submitLabel="Save contract"
+                        idPrefix={`contract-${contract.id}`}
+                      />
+                    </div>
+                  </details>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {mayContractWrite ? (
+          <details className="mt-6" open={contracts.length === 0}>
+            <summary className="cursor-pointer font-medium text-slate-900">Add a contract</summary>
+            <div className="mt-4">
+              <ContractForm
+                action={createContractAction.bind(null, customer.id)}
+                values={null}
+                cranes={contractCranes}
+                submitLabel="Add contract"
+                idPrefix="new-contract"
               />
             </div>
           </details>
