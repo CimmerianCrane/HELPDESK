@@ -71,6 +71,7 @@ async function fixtures(tx: Tx) {
     dispatcher,
     {
       customerId: base.customer.id,
+      siteId: base.site.id,
       jobTypeId: base.jobType.id,
       description: 'Brake replacement.',
       priority: 'P3',
