@@ -725,6 +725,10 @@ model Job {
   /// Required whenever status = ON_HOLD — enforced by a DB CHECK constraint and by the service.
   onHoldReason OnHoldReason?
   onHoldNote   String?
+  /// The catalogue part the hold is waiting for (slice 28), so "awaiting parts" names which one and
+  /// when it lands. The date is never stored — it is the open purchase order line's `expectedAt`.
+  onHoldPartId String?
+  onHoldPart   Part?   @relation("JobOnHoldPart", fields: [onHoldPartId], references: [id])
 
   scheduledStart DateTime?
   scheduledEnd   DateTime?
@@ -1180,6 +1184,8 @@ model Part {
 
   stockLevels StockLevel[]
   movements   StockMovement[]
+  /// Jobs on hold awaiting this part (slice 28).
+  heldJobs    Job[]         @relation("JobOnHoldPart")
 
   @@index([brand])
   @@index([isActive])

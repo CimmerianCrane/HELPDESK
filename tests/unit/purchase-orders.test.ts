@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { can } from '@/server/auth/permissions'
 import {
+  expectedDateLabel,
   purchaseOrderStatusFor,
   raisePurchaseOrderSchema,
   receivePurchaseOrderSchema,
@@ -114,6 +115,46 @@ describe('the forms', () => {
     })
     expect(parsed.locationId).toBeNull()
     expect(parsed.lines[0]).toMatchObject({ received: 4, serialOrBatch: null })
+  })
+})
+
+describe('when a back-ordered part is expected (slice 28)', () => {
+  const now = new Date('2026-11-01T09:00:00Z')
+
+  it('says the order has not gone yet, and has no date, rather than inventing one', () => {
+    expect(expectedDateLabel('DRAFT', new Date('2026-11-10T00:00:00Z'), now, 'UTC')).toEqual({
+      text: 'Order not sent yet',
+      late: false,
+    })
+    expect(expectedDateLabel('SENT', null, now, 'UTC')).toEqual({
+      text: 'No expected date',
+      late: false,
+    })
+  })
+
+  it('counts whole days from today, forwards and backwards', () => {
+    expect(expectedDateLabel('SENT', new Date('2026-11-01T00:00:00Z'), now, 'UTC')).toEqual({
+      text: 'Expected today',
+      late: false,
+    })
+    expect(expectedDateLabel('SENT', new Date('2026-11-04T00:00:00Z'), now, 'UTC')).toEqual({
+      text: 'Expected in 3 days',
+      late: false,
+    })
+    expect(expectedDateLabel('PARTIAL', new Date('2026-10-30T00:00:00Z'), now, 'UTC')).toEqual({
+      text: '2 days late',
+      late: true,
+    })
+    expect(expectedDateLabel('PARTIAL', new Date('2026-10-31T00:00:00Z'), now, 'UTC').text).toBe(
+      '1 day late',
+    )
+  })
+
+  it('reads the date in the operating timezone, not in UTC', () => {
+    // 20:00 UTC on 1 Nov is 04:00 on the 2nd in Singapore, which is the day the order is due.
+    expect(
+      expectedDateLabel('SENT', new Date('2026-11-02T00:00:00Z'), new Date('2026-11-01T20:00:00Z'), 'Asia/Singapore'),
+    ).toEqual({ text: 'Expected today', late: false })
   })
 })
 

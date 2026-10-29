@@ -99,6 +99,16 @@ export const transitionJobSchema = z
       .optional()
       .transform((value) => (value === '' || value === undefined ? null : value)),
     /**
+     * The part the hold is waiting for (slice 28). Only lawful with `AWAITING_PARTS` — a weather hold
+     * waiting on a brake would put the store's reorder list under a job that is not short of it.
+     */
+    onHoldPartId: z
+      .string()
+      .trim()
+      .max(40)
+      .optional()
+      .transform((value) => (value ? value : null)),
+    /**
      * Schedules this visit completed (slice 12). Only meaningful on COMPLETED — the service records
      * them in the same transaction as the status change and refuses them against any other target.
      */
@@ -124,6 +134,13 @@ export const transitionJobSchema = z
         code: z.ZodIssueCode.custom,
         path: ['onHoldReason'],
         message: 'A hold reason only applies when the job is on hold.',
+      })
+    }
+    if (input.onHoldPartId && input.onHoldReason !== 'AWAITING_PARTS') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['onHoldPartId'],
+        message: 'A part can only be named when the job is waiting for parts.',
       })
     }
   })

@@ -206,6 +206,66 @@ export async function listOpenPurchaseOrders(
   }))
 }
 
+export interface BackOrderLine {
+  purchaseOrderId: string
+  number: string
+  supplierName: string
+  /** Only open orders are returned, which is why this is narrower than `PurchaseOrderStatus`. */
+  status: (typeof OPEN_PURCHASE_ORDER_STATUSES)[number]
+  expectedAt: Date | null
+  /** Still owed: ordered less received. */
+  remaining: number
+  unitCost: number
+}
+
+/** A part the store still owes stock on, from any open purchase order line that names it. */
+export async function backOrdersForPart(
+  context: AuthContext,
+  partId: string,
+  client: Tx = db,
+): Promise<BackOrderLine[]> {
+  assertCan(context, 'part.read')
+
+  const rows = await client.purchaseOrderLine.findMany({
+    where: {
+      partId,
+      purchaseOrder: { status: { in: [...OPEN_PURCHASE_ORDER_STATUSES] } },
+    },
+    orderBy: [{ purchaseOrder: { expectedAt: 'asc' } }, { purchaseOrder: { createdAt: 'asc' } }],
+    select: {
+      quantity: true,
+      receivedQuantity: true,
+      unitCost: true,
+      purchaseOrder: {
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          expectedAt: true,
+          supplier: { select: { name: true } },
+        },
+      },
+    },
+  })
+
+  return rows.flatMap((row) => {
+    const remaining = remainingOnOrder(Number(row.quantity), Number(row.receivedQuantity))
+    if (remaining <= 0) return []
+    return [
+      {
+        purchaseOrderId: row.purchaseOrder.id,
+        number: row.purchaseOrder.number,
+        supplierName: row.purchaseOrder.supplier.name,
+        // The `in` filter above is what makes this safe; Prisma's type stays the full enum.
+        status: row.purchaseOrder.status as BackOrderLine['status'],
+        expectedAt: row.purchaseOrder.expectedAt,
+        remaining,
+        unitCost: Number(row.unitCost),
+      },
+    ]
+  })
+}
+
 /**
  * Raises one PO for one supplier's reorder group.
  *

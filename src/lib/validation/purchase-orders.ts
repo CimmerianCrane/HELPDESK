@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { dayKey } from '@/lib/time'
 
 /**
  * Reorder suggestions and purchase orders (brief §9, slice 25).
@@ -57,6 +58,35 @@ export function purchaseOrderStatusFor(
 /** What is still owed on a line: ordered less received, never below zero. */
 export function remainingOnOrder(quantity: number, received: number): number {
   return round3(Math.max(quantity - received, 0))
+}
+
+/**
+ * When a back-ordered part is expected, in the words the job page uses (slice 28, brief §9).
+ *
+ * Nothing new is stored: a part is on back-order while an open purchase order line still owes some
+ * of it, and that order's `expectedAt` is when it lands. "Late" is measured in whole days in the
+ * operating timezone — a date typed as 02/11 means that day wherever the office reads it — because
+ * an order past its date is a problem to chase, not a plan to restate.
+ */
+export function expectedDateLabel(
+  status: 'DRAFT' | 'SENT' | 'PARTIAL',
+  expectedAt: Date | null,
+  now: Date,
+  timezone: string,
+): { text: string; late: boolean } {
+  if (status === 'DRAFT') return { text: 'Order not sent yet', late: false }
+  if (!expectedAt) return { text: 'No expected date', late: false }
+
+  const days = Math.round(
+    (Date.parse(`${dayKey(expectedAt, timezone)}T00:00:00Z`) -
+      Date.parse(`${dayKey(now, timezone)}T00:00:00Z`)) /
+      86_400_000,
+  )
+  if (days < 0) {
+    return { text: `${Math.abs(days)} ${Math.abs(days) === 1 ? 'day' : 'days'} late`, late: true }
+  }
+  if (days === 0) return { text: 'Expected today', late: false }
+  return { text: `Expected in ${days} ${days === 1 ? 'day' : 'days'}`, late: false }
 }
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/

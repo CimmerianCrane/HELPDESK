@@ -155,6 +155,29 @@ describe('job input', () => {
     expect(stray.success).toBe(false)
   })
 
+  it('only names a part the hold is waiting for (slice 28)', () => {
+    const partsHold = transitionJobSchema.safeParse({
+      status: 'ON_HOLD',
+      onHoldReason: 'AWAITING_PARTS',
+      onHoldPartId: 'part-1',
+    })
+    expect(partsHold.success && partsHold.data.onHoldPartId).toBe('part-1')
+
+    const weatherHold = transitionJobSchema.safeParse({
+      status: 'ON_HOLD',
+      onHoldReason: 'WEATHER',
+      onHoldPartId: 'part-1',
+    })
+    expect(weatherHold.success).toBe(false)
+
+    const blank = transitionJobSchema.safeParse({
+      status: 'ON_HOLD',
+      onHoldReason: 'AWAITING_PARTS',
+      onHoldPartId: '',
+    })
+    expect(blank.success && blank.data.onHoldPartId).toBeNull()
+  })
+
   it('treats an empty status or priority filter as no filter', () => {
     const parsed = jobFilterSchema.parse({ status: '', priority: '', q: '' })
     expect(parsed.status).toBeNull()

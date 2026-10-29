@@ -222,6 +222,7 @@ export function TransitionJobForm({
   status,
   nextStatuses,
   completionSchedules = [],
+  parts = [],
 }: {
   action: FormAction
   status: JobStatus
@@ -231,12 +232,16 @@ export function TransitionJobForm({
    * explicit: nothing maps a job type to an obligation — that is the compliance rules' job (slice 14).
    */
   completionSchedules?: Array<{ id: string; label: string; dueLabel: string; overdue: boolean }>
+  /** The catalogue, offered only when the hold is "awaiting parts" (slice 28). */
+  parts?: Array<{ id: string; partNumber: string; description: string }>
 }) {
   const [state, formAction, pending] = useActionState(action, IDLE_FORM)
   // `status` is only the fallback: the caller does not render this form when there is nowhere to go.
   const [target, setTarget] = useState<JobStatus>(nextStatuses[0] ?? status)
+  const [holdReason, setHoldReason] = useState<OnHoldReason>('AWAITING_PARTS')
 
   const goingOnHold = target === 'ON_HOLD'
+  const awaitingParts = goingOnHold && holdReason === 'AWAITING_PARTS'
   const completing = target === 'COMPLETED' && completionSchedules.length > 0
 
   return (
@@ -273,7 +278,8 @@ export function TransitionJobForm({
             id="transition-reason"
             name="onHoldReason"
             required
-            defaultValue="AWAITING_PARTS"
+            value={holdReason}
+            onChange={(event) => setHoldReason(event.target.value as OnHoldReason)}
             className={inputClass}
           >
             {ON_HOLD_REASONS.map((reason: OnHoldReason) => (
@@ -283,6 +289,27 @@ export function TransitionJobForm({
             ))}
           </select>
           <FieldError state={state} name="onHoldReason" />
+        </div>
+      ) : null}
+
+      {awaitingParts && parts.length > 0 ? (
+        <div>
+          <label htmlFor="transition-part" className={labelClass}>
+            Part it is waiting for{' '}
+            <span className="font-normal text-slate-500">(optional)</span>
+          </label>
+          <select id="transition-part" name="onHoldPartId" defaultValue="" className={inputClass}>
+            <option value="">Not a particular catalogue part</option>
+            {parts.map((part) => (
+              <option key={part.id} value={part.id}>
+                {part.partNumber} — {part.description}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-slate-500">
+            The job page then shows what is still on order for it and when it lands.
+          </p>
+          <FieldError state={state} name="onHoldPartId" />
         </div>
       ) : null}
 

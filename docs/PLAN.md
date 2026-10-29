@@ -1924,7 +1924,7 @@ designed up front (§3.8) and is already migrated — **no migration is expected
 | **25** | **Reorder alerts and a suggested purchase order** (**built** — see §7.13.3) | Group what is below reorder by preferred supplier, suggest the reorder quantity, and raise a `PurchaseOrder` from the group. Receiving a PO posts `RECEIVE` | `/parts/reorder` (new), `src/server/inventory/` | §9 |
 | 26 | Stock take (**built** — see §7.13.4) | Session → blind count → variance → recount → approve, posting one `ADJUST`/`WRITEOFF` per line difference, and flagging a part/location that keeps disagreeing | `/stock-takes` (new), `src/server/inventory/` | §9 |
 | 27 | Suppliers (**built** — see §7.13.5) | `/suppliers`: every supplier with the parts that prefer it and the orders raised from it (the price history), add/edit behind `supplier.write`, retired rather than deleted and refused while a part still prefers it; the part form finally gains the preferred-supplier select, which the reorder grouping had and no screen could set | `/suppliers` (new), `src/server/inventory/suppliers.ts` (new), the part form | §9 |
-| 28 | Back-orders linked to jobs on hold | A part on order appears against the jobs held awaiting it, so "awaiting parts" says **which** part and when it lands | job page, `/parts` | §4.2, §9 |
+| 28 | Back-orders linked to jobs on hold (**built** — see §7.13.6) | A part on order appears against the jobs held awaiting it, so "awaiting parts" says **which** part and when it lands | job page, `/parts` | §4.2, §9 |
 
 Slice 22 was taken first because a catalogue without a correct on-hand figure is a list of part numbers, and the
 figure was wrong: `StockLevel` was written only by the seed while every report's `ISSUE` bypassed it. Slices 23
@@ -2216,6 +2216,45 @@ in Phase 1 and already applied, and the seed has created three suppliers since s
 price that never became an order is not recorded anywhere. A part's supplier is set on the part form,
 one part at a time; there is no bulk re-pointing screen, which is what retiring a busy supplier would
 want. There is no browser test of `/suppliers`; the integration suite is what proves it.
+
+#### 7.13.6 Slice 28 — back-orders linked to jobs on hold (**built**)
+
+**Goal:** "on hold — awaiting parts" said why but never *what*. The store could not tell which part a job
+was standing still for, and a part could not tell anyone which jobs were waiting on it.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 174–178):
+
+1. **The link is one nullable column, `Job.onHoldPartId`.** Not a join table: a hold waits on the
+   part the job is actually short of, and a second part is a second hold's worth of problem. The
+   migration is additive and its foreign key is `ON DELETE SET NULL`, so a withdrawn part empties the
+   link rather than blocking.
+2. **The part may only be named on an `AWAITING_PARTS` hold**, and the service clears it whenever the
+   job is not on that hold — so a weather hold or a job that has resumed cannot leave a stale link
+   behind. The id is checked against the live catalogue inside the transaction, not trusted from the
+   form.
+3. **"When it lands" is derived, not stored.** It is the `expectedAt` of the open purchase order line
+   that still owes the part (`backOrdersForPart`, existing `OPEN_PURCHASE_ORDER_STATUSES`). A line
+   that has received everything contributes nothing, so an order that arrived stops being a back-order
+   the moment it is receipted — no status to keep in step.
+4. **`PurchaseOrderLine.backOrderedQuantity` stays unused.** Ordered less received already is the
+   outstanding quantity.
+5. **The wording is one pure function, `expectedDateLabel`** in `src/lib/validation/purchase-orders.ts`:
+   "Order not sent yet", "No expected date", "Expected today", "Expected in N days", "N days late" —
+   counted in whole days in the operating timezone, with the lateness flagged so the page can colour it.
+
+**As built.** The job page's amber hold banner gains a "waiting for *part*" block listing each open order
+still owing it (quantity, order number, supplier, when it lands, and the landing date) or a link to the
+reorder list when nothing is on order. The transition form gains a "Part it is waiting for" select,
+offered only when the reason is awaiting parts, fed by `partOptions`. The part page gains a "Jobs
+waiting for this part" panel (number and customer, linked), fed by `heldJobsForPart`, which reads
+through `jobReadWhere` so a technician sees only their own. `backOrdersForPart` and the two new parts
+queries join the existing inventory service.
+
+**Migration:** `20261028600000_slice28_job_on_hold_part` — one nullable column plus its foreign key.
+
+**Known limits.** A hold names one part, so a job short of two shows one here and the rest in the
+note. There is no browser test of the hold banner or the part panel; the integration suite proves the
+stored link, the refusal of an unknown part, the clearing on resume, and what counts as on back-order.
 
 ### 7.14 Phase 4 (outline, not sliced yet)
 **Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;

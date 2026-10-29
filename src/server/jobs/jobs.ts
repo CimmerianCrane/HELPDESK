@@ -15,7 +15,7 @@ import {
 } from '@/lib/validation/jobs'
 import { withAudit } from '@/server/audit/audit'
 import { markSchedulesDone } from '@/server/schedules/schedules'
-import { NotFoundError, RuleError } from '@/server/auth/errors'
+import { NotFoundError, RuleError, ValidationError } from '@/server/auth/errors'
 import { assertCan } from '@/server/auth/permissions'
 import {
   craneReadWhere,
@@ -68,6 +68,8 @@ export interface JobSummary {
   priority: 'P1' | 'P2' | 'P3' | 'P4'
   onHoldReason: OnHoldReason | null
   onHoldNote: string | null
+  /** The part an `AWAITING_PARTS` hold waits for (slice 28). Null for every other hold. */
+  onHoldPart: { id: string; partNumber: string; description: string; uom: string } | null
   customerPoRef: string | null
   jobType: JobTypeRef
   customer: { id: string; legalName: string; tradingName: string | null }
@@ -114,6 +116,8 @@ const jobSelect = {
   priority: true,
   onHoldReason: true,
   onHoldNote: true,
+  onHoldPartId: true,
+  onHoldPart: { select: { id: true, partNumber: true, description: true, uom: true } },
   description: true,
   internalNotes: true,
   customerPoRef: true,
@@ -186,6 +190,7 @@ function toSummary(row: JobRow, now: Date): JobSummary {
     priority: row.priority,
     onHoldReason: row.onHoldReason,
     onHoldNote: row.onHoldNote,
+    onHoldPart: row.onHoldPart,
     customerPoRef: row.customerPoRef,
     jobType: row.jobType,
     customer: row.customer,
@@ -925,6 +930,7 @@ export async function transitionJob(
           status: true,
           onHoldReason: true,
           onHoldNote: true,
+          onHoldPartId: true,
           reportedAt: true,
           respondedAt: true,
           onSiteAt: true,
@@ -949,8 +955,22 @@ export async function transitionJob(
       // Never overwrite: the first time a job reached a state is the one that counts. Rework sends a
       // job from COMPLETED back to IN_PROGRESS, and that must not reset `onSiteAt` or `completedAt`.
       const stamp = stampField
-        ? ({ [stampField]: before[stampField] ?? now } as Prisma.JobUpdateInput)
+        ? ({ [stampField]: before[stampField] ?? now } as Prisma.JobUncheckedUpdateInput)
         : {}
+
+      // The part a parts-hold waits for (slice 28). Checked against the active catalogue rather than
+      // trusted from the form, the way a movement's locations are — a job held for a part that is not
+      // in the book would never be found by the store looking for what to order.
+      const onHoldPartId = goingOnHold && input.onHoldReason === 'AWAITING_PARTS' ? input.onHoldPartId : null
+      if (onHoldPartId) {
+        const part = await tx.part.findFirst({
+          where: { id: onHoldPartId, deletedAt: null },
+          select: { id: true },
+        })
+        if (!part) {
+          throw new ValidationError({ onHoldPartId: ['That part is not in the catalogue.'] })
+        }
+      }
 
       const after = await tx.job.update({
         where: { id: jobId },
@@ -958,9 +978,10 @@ export async function transitionJob(
           status: input.status,
           onHoldReason: goingOnHold ? input.onHoldReason : null,
           onHoldNote: goingOnHold ? input.note : null,
+          onHoldPartId,
           ...stamp,
         },
-        select: { status: true, onHoldReason: true, onHoldNote: true },
+        select: { status: true, onHoldReason: true, onHoldNote: true, onHoldPartId: true },
       })
 
       await tx.jobStatusHistory.create({
@@ -978,10 +999,15 @@ export async function transitionJob(
         entity: 'Job',
         entityId: jobId,
         action: 'UPDATE',
-        before: { status: before.status, onHoldReason: before.onHoldReason },
+        before: {
+          status: before.status,
+          onHoldReason: before.onHoldReason,
+          onHoldPartId: before.onHoldPartId,
+        },
         after: {
           status: after.status,
           onHoldReason: after.onHoldReason,
+          onHoldPartId: after.onHoldPartId,
           note: input.note,
         },
       })

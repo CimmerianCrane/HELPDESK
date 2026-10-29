@@ -23,6 +23,9 @@ import { QuoteStatusBadge } from '@/components/office/quote-badges'
 import { InvoiceForm } from '@/components/office/invoice-forms'
 import { InvoiceStatusBadge, OverdueBadge } from '@/components/office/invoice-badges'
 import { openFindingsForJob } from '@/server/findings/findings'
+import { partOptions } from '@/server/inventory/parts'
+import { backOrdersForPart } from '@/server/inventory/purchase-orders'
+import { expectedDateLabel } from '@/lib/validation/purchase-orders'
 import { quotesForJob } from '@/server/quotes/quotes'
 import { invoicesForJob, jobCosting } from '@/server/invoices/invoices'
 import { createQuoteAction } from '../../quotes/actions'
@@ -122,6 +125,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     quotableFindings,
     invoices,
     costing,
+    catalogue,
   ] = await Promise.all([
       getJob(context, id).then(
         (job) => ({ job }),
@@ -176,8 +180,18 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             throw error
           })
         : Promise.resolve({ parts: [], partsCost: 0 }),
+      // The part an "awaiting parts" hold names (slice 28). Only the move form offers it.
+      mayMove && can(context.role, 'part.read') ? partOptions(context) : Promise.resolve([]),
     ])
   const job = jobResult.job
+
+  // Which open orders still owe the part this job waits for. Outside the batch because it needs the
+  // job row, and it only runs for the one hold that names a part.
+  const waitingOn =
+    job.onHoldPart && can(context.role, 'part.read')
+      ? await backOrdersForPart(context, job.onHoldPart.id)
+      : []
+  const holdPart = job.onHoldPart
 
   // Only the bump candidates need the job row (to exclude itself), so the filter stays here.
   const unplaced = allJobs.filter(
@@ -263,6 +277,52 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           <p className="mt-1 text-sm text-amber-900">
             {job.onHoldNote ?? 'No further detail was recorded.'}
           </p>
+
+          {holdPart ? (
+            <div className="mt-3 border-t border-amber-300 pt-3">
+              <p className="text-sm text-amber-900">
+                Waiting for{' '}
+                <Link
+                  href={`/parts/${holdPart.id}`}
+                  className="font-medium underline hover:text-amber-950"
+                >
+                  {holdPart.partNumber}
+                </Link>{' '}
+                — {holdPart.description}
+              </p>
+              {waitingOn.length === 0 ? (
+                <p className="mt-1 text-sm text-amber-900">
+                  Nothing on order for it. Raise one from the{' '}
+                  <Link href="/parts/reorder" className="underline hover:text-amber-950">
+                    reorder list
+                  </Link>
+                  .
+                </p>
+              ) : (
+                <ul className="mt-1 space-y-1 text-sm text-amber-900">
+                  {waitingOn.map((order) => {
+                    const when = expectedDateLabel(
+                      order.status,
+                      order.expectedAt,
+                      new Date(),
+                      settings.timezone,
+                    )
+                    return (
+                      <li key={order.purchaseOrderId}>
+                        {order.remaining} {holdPart.uom} on {order.number} from {order.supplierName} —{' '}
+                        <span className={when.late ? 'font-medium text-red-800' : ''}>
+                          {when.text}
+                        </span>
+                        {order.expectedAt
+                          ? ` (${formatDate(order.expectedAt, settings.timezone)})`
+                          : ''}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -877,6 +937,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             action={transitionJobAction.bind(null, job.id)}
             status={job.status}
             nextStatuses={moves}
+            parts={catalogue}
             completionSchedules={completionSchedules.map((schedule) => ({
               id: schedule.id,
               label: `${schedule.crane.assetTag} — ${SCHEDULE_TYPE_LABELS[schedule.scheduleType]}`,

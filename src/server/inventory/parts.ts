@@ -13,6 +13,7 @@ import { parseInput } from '@/lib/validation/parse'
 import { withAudit, type AuditLogger } from '@/server/audit/audit'
 import { NotFoundError, RuleError, ValidationError } from '@/server/auth/errors'
 import { assertCan } from '@/server/auth/permissions'
+import { jobReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { assertLocationsExist } from './locations'
 import { defaultLocation, issueLocationFor, postMovement } from './stock'
@@ -165,6 +166,49 @@ export async function listParts(
     belowCount: all.filter((part) => part.belowReorder).length,
     brands: brands.sort(),
   }
+}
+
+/** The catalogue as a dropdown: the part the store is waiting for, chosen on a held job (slice 28). */
+export async function partOptions(
+  context: AuthContext,
+  client: Tx = db,
+): Promise<Array<{ id: string; partNumber: string; description: string }>> {
+  assertCan(context, 'part.read')
+  return client.part.findMany({
+    where: { deletedAt: null, isActive: true },
+    orderBy: { partNumber: 'asc' },
+    take: 500,
+    select: { id: true, partNumber: true, description: true },
+  })
+}
+
+/**
+ * The jobs held waiting for this part (slice 28) — the other half of the link, shown on the part so
+ * the store can see which customer is standing still while it is out of stock. Scoped by
+ * `jobReadWhere`, so a technician sees only their own.
+ */
+export async function heldJobsForPart(
+  context: AuthContext,
+  partId: string,
+  client: Tx = db,
+): Promise<Array<{ id: string; number: string; customerName: string }>> {
+  assertCan(context, 'part.read')
+
+  const rows = await client.job.findMany({
+    where: { ...jobReadWhere(context), status: 'ON_HOLD', onHoldPartId: partId },
+    orderBy: { number: 'asc' },
+    select: {
+      id: true,
+      number: true,
+      customer: { select: { legalName: true, tradingName: true } },
+    },
+  })
+
+  return rows.map((row) => ({
+    id: row.id,
+    number: row.number,
+    customerName: row.customer.tradingName ?? row.customer.legalName,
+  }))
 }
 
 export async function getPart(

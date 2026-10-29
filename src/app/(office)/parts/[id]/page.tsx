@@ -8,7 +8,7 @@ import { MOVEMENT_TYPE_LABELS } from '@/lib/validation/parts'
 import { requireAuth } from '@/server/auth/context'
 import { can } from '@/server/auth/permissions'
 import { locationOptions } from '@/server/inventory/locations'
-import { getPart, tracePartSerials } from '@/server/inventory/parts'
+import { getPart, heldJobsForPart, tracePartSerials } from '@/server/inventory/parts'
 import { supplierOptions } from '@/server/inventory/suppliers'
 import { getSettings } from '@/server/settings/settings'
 import { isAppError } from '@/server/auth/errors'
@@ -30,7 +30,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
 
   const mayWrite = can(context.role, 'part.write')
 
-  const [part, settings, locations, traces, suppliers] = await Promise.all([
+  const [part, settings, locations, traces, suppliers, heldJobs] = await Promise.all([
     getPart(context, id).catch((error: unknown) => {
       if (isAppError(error) && error.status === 404) notFound()
       throw error
@@ -43,6 +43,8 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
     // has ever typed a serial against, which is most of the catalogue.
     tracePartSerials(context, id),
     mayWrite ? supplierOptions(context) : Promise.resolve([]),
+    // Who is standing still while this is out of stock (slice 28).
+    heldJobsForPart(context, id),
   ])
 
   const mayMove = can(context.role, 'stock.move')
@@ -107,6 +109,27 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
           <p className="mt-1 text-lg text-slate-900">{formatMoney(part.sellPrice, settings.currency)}</p>
         </div>
       </section>
+
+      {heldJobs.length > 0 ? (
+        <section
+          className="rounded-lg border border-amber-300 bg-amber-50 p-4"
+          aria-labelledby="held-jobs-heading"
+        >
+          <h2 id="held-jobs-heading" className="font-semibold text-amber-900">
+            Jobs waiting for this part
+          </h2>
+          <ul className="mt-2 space-y-1 text-sm text-amber-900">
+            {heldJobs.map((job) => (
+              <li key={job.id}>
+                <Link href={`/jobs/${job.id}`} className="font-medium underline hover:text-amber-950">
+                  {job.number}
+                </Link>{' '}
+                — {job.customerName}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section aria-labelledby="levels-heading">
         <h2 id="levels-heading" className="font-semibold text-slate-900">

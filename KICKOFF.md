@@ -15,16 +15,27 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phases 1 and 2 are complete, and Phase 3 (Inventory) is under way.** Slices 0–27 are built; Phase 1's
+**Phases 1 and 2 are complete, and Phase 3 (Inventory) is complete.** Slices 0–28 are built; Phase 1's
 acceptance path still passes untouched. **`docs/PLAN.md` §7 is the canonical copy** — §7.2 is the
 Phase 2 slice table, §7.3–§7.12 each Phase 2 slice's fixed decisions as built, and **§7.13 is the
 Phase 3 slice table plus slices 22 and 23 as built (§7.13.1), slice 24 as built (§7.13.2), slice 25
-as built (§7.13.3), slice 26 as built (§7.13.4) and slice 27 as built (§7.13.5)**; §7.14 outlines
-Phase 4.
-**The Phase 3 slices are 22 → 28 (parts book → back-orders); slice 28 (back-orders linked to jobs on
-hold) is next — read §7.13, then ask before starting the next slice.**
+as built (§7.13.3), slice 26 as built (§7.13.4), slice 27 as built (§7.13.5) and slice 28 as built
+(§7.13.6)**; §7.14 outlines Phase 4.
+**Phase 3's slices (22 → 28) are all built; Phase 4 (the customer portal and reporting) is next — read
+`docs/PLAN.md` §7.14, then ask before starting the next slice.**
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
+
+> **Slice 28 is built; its migration is not yet applied.** `20261028600000_slice28_job_on_hold_part`
+> must be deployed against the database before the integration suite can run — the agent cannot apply
+> it to shared Supabase without your approval. `npm run verify` (410 unit tests, typecheck, lint)
+> passes. Once migrated, run `npm run test:integration`, `npm run test:e2e` and `npm run build`.
+
+> **Slice 28 — back-orders linked to jobs on hold.** An on-hold job can now name the catalogue part it
+> is waiting for, and its amber banner says which part, how many are still owed, from whom, and when
+> — read from the open purchase order line rather than stored. The part's own page lists the jobs
+> standing still for it. One nullable `Job.onHoldPartId`, cleared whenever the job leaves an awaiting-
+> parts hold. See `docs/PLAN.md` §7.13.6.
 
 > **Slice 27 is done and verified.** No migration was needed. `npm run verify` (406 unit tests),
 > `npm run test:integration` (330), `npm run test:e2e` (38 passed, 2 offline-only skipped) and
@@ -225,8 +236,8 @@ filters applied to the file. `AccountingExporter` is the seam a Xero/QuickBooks 
 `tests/e2e/phase2.spec.ts` walks the whole of Phase 2 in one browser run, starting with a compliance rule
 added on `/admin/compliance`, adopted on a crane, and ending with the invoice exported.
 
-**Not yet built:** the last Phase 3 slice (28: back-orders linked to jobs on hold) and all of Phase 4
-(the customer portal and reporting). The Phase 3 slice table is `docs/PLAN.md` §7.13.
+**Not yet built:** all of Phase 4 (the customer portal and reporting). Phase 3 is complete — its slice
+table is `docs/PLAN.md` §7.13 and Phase 4 is outlined in §7.14.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 

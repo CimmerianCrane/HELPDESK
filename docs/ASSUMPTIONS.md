@@ -749,6 +749,17 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
      register, and a role that could write without reading would edit what it cannot see. `supplier.write` has been
      in the permission map since slice 22 and is the storekeeper's and Admin's.
 173. **Supplier names are unique**, as location names are: two "Sin Heng"s in a dropdown is a support call.
+174. **A job names at most one part it is waiting for**, a nullable `Job.onHoldPartId`. A hold that waits on two parts
+     is a job the store is waiting for two deliveries on; the second is visible on the part's own page and in the
+     note, and a join table for it would be a feature nobody asked for yet.
+175. **A part may only be named on an `AWAITING_PARTS` hold**, enforced in the schema and cleared whenever the job
+     leaves that hold. A weather hold naming a brake would put the store's attention on a part the job is not short of.
+176. **"When it lands" is not stored.** It is the `expectedAt` of the open purchase order line still owing the part, read
+     when the job page renders — the same derive-don't-store rule as quote expiry and overdue schedules.
+177. **`PurchaseOrderLine.backOrderedQuantity` stays unused.** The outstanding quantity (ordered less received, on an
+     open order) already *is* the back-order; a second number could only disagree with it.
+178. **"Late" is counted in whole days in the operating timezone**, because an order past its date is a problem to
+     chase rather than a plan to restate.
 
 ## Not assumed — deliberately left to you
 
