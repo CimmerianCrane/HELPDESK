@@ -290,6 +290,18 @@ export function ReportForm({
     setMessage(null)
 
     const { draft } = loaded
+
+    // A traced part with no serial is a movement nobody can follow to a crane (slice 24). Said here
+    // rather than refused by the server, so the draft stays on the phone and the technician can fix
+    // it in the van — the same trade the calibration warnings make.
+    const untraced = draft.parts.find((part) => {
+      const cached = partsCatalogue.find((entry) => entry.partNumber === part.partNumber)
+      return cached?.trackSerialOrBatch && !part.serialOrBatch
+    })
+    if (untraced) {
+      setMessage(`Record the serial or batch for ${untraced.partNumber} — it is a traced part.`)
+      return
+    }
     const parsed = reportSubmitSchema(template.schema, job.checklist).safeParse({
       reportId: draft.id,
       jobId: draft.jobId,
@@ -964,6 +976,13 @@ function PartsSection({
                     }
                     className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
                   />
+                  {/* Traced parts cannot be submitted without it — the office traces by this. */}
+                  {catalogue.find((entry) => entry.partNumber === part.partNumber)
+                    ?.trackSerialOrBatch ? (
+                    <span className="mt-1 block text-xs text-amber-800">
+                      Required: this part is traced to the crane by serial or batch.
+                    </span>
+                  ) : null}
                 </label>
               </div>
             </li>

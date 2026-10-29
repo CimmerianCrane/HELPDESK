@@ -10,9 +10,9 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 - Assumptions made where the brief was silent: [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md)
 
 **Status:** Phases 1 and 2 are complete. Phase 3 (inventory) is under way: slice 22 built the parts
-book and made the stock ledger the single writer of every quantity, and slice 23 added stock
-locations and transfers. Next is slice 24 — serial and batch traceability. See "What works today"
-below.
+book and made the stock ledger the single writer of every quantity, slice 23 added stock locations
+and transfers, and slice 24 traces every serial and batch to the crane it went on. Next is slice 25 —
+reorder alerts and a suggested purchase order. See "What works today" below.
 
 ---
 
@@ -174,6 +174,25 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 24 — serial and batch traceability
+
+- **Which crane did this rope go on?** A part page now carries a **Serial and batch trace**: every serial or batch
+  the ledger has seen for that part, how much of it is still held and at which locations, and every job it was
+  issued to with that job's cranes. That is the question a recall asks, answered without a spreadsheet.
+- **Derived, never typed.** A serial's position is worked out from the movements carrying it, using the same
+  direction table that moves the shelf — so a trace and the stock figure cannot disagree.
+- **Traced parts must say which one.** A part flagged *Trace by serial or batch* (wire rope, hooks, chain) can no
+  longer be issued on a report without its serial. The phone checks it before queueing, the server checks it
+  again and names the part, and the report stays on the phone until it is filled in.
+- **Try it:** on a freshly seeded database, **Parts** → open a wire-rope line — the demo book flags rope, hooks and
+  chain as traced and opens them as a batch — and the trace shows that batch and where it sits. On a database
+  seeded before this slice, tick *Trace by serial or batch* on a part, receive some stock with a batch number,
+  and the trace appears; the seed does not retrofit parts that already exist.
+- **Tests** — 4 unit tests for the whereabouts arithmetic (receive/issue, transfer counted once, negative issue,
+  three-decimal rounding), a 5-case integration suite (`traceability.test.ts`: whereabouts and issued jobs, the
+  transfer case, a fully issued batch, an untraced part, the permission split) and a report-submission case in
+  `reports.test.ts` refusing a traced part with no serial.
 
 ### Slice 23 — stock locations and transfers
 

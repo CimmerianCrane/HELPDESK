@@ -269,6 +269,45 @@ describe('submitting a report', () => {
     })
   })
 
+  it('refuses an issue of a traced part with no serial, and takes one that has it', async () => {
+    await inRolledBackTx(async (tx) => {
+      const mine = await makeTechnician(tx)
+      const setup = await reportSetup(tx, mine.technician.id)
+      const part = await tx.part.create({
+        data: {
+          partNumber: `HOOK-${testSuffix()}`,
+          description: 'Hook block',
+          uom: 'pc',
+          cost: '320.00',
+          sellPrice: '610.00',
+          trackSerialOrBatch: true,
+        },
+      })
+
+      await expect(
+        submitReport(
+          mine.context,
+          await payloadFor(tx, setup, mine.user, {
+            parts: [{ partNumber: part.partNumber, quantity: 1, serialOrBatch: null }],
+          }),
+          tx,
+        ),
+      ).rejects.toBeInstanceOf(ValidationError)
+
+      // The same report with the serial recorded is accepted — the refusal is the missing field,
+      // not the part.
+      await expect(
+        submitReport(
+          mine.context,
+          await payloadFor(tx, setup, mine.user, {
+            parts: [{ partNumber: part.partNumber, quantity: 1, serialOrBatch: 'SN-9001' }],
+          }),
+          tx,
+        ),
+      ).resolves.toMatchObject({ status: 'SUBMITTED' })
+    })
+  })
+
   it('refuses a template version the phone did not render', async () => {
     await inRolledBackTx(async (tx) => {
       const mine = await makeTechnician(tx)

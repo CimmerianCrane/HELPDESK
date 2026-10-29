@@ -66,6 +66,40 @@ export function needsReorder(onHand: number, reorderLevel: number | null): boole
   return reorderLevel !== null && onHand < reorderLevel
 }
 
+/**
+ * Where a quantity sits now, from the movements it accumulated (slice 24).
+ *
+ * "Now" is the ledger, not `StockLevel`: the trace is filtered to one part or one serial, which the
+ * materialised level cannot answer, so both are derived from the same direction table — a serial
+ * cannot say it is in the van while the part says otherwise. The caller drops the zero positions.
+ */
+export function locationBalances(
+  movements: Array<{
+    type: MovementType
+    quantity: number
+    fromLocationId: string | null
+    toLocationId: string | null
+  }>,
+): Map<string, number> {
+  const balances = new Map<string, number>()
+  const add = (locationId: string | null, delta: number) => {
+    if (!locationId || delta === 0) return
+    balances.set(locationId, (balances.get(locationId) ?? 0) + delta)
+  }
+
+  for (const movement of movements) {
+    const signs = movementSigns(movement.type, Boolean(movement.fromLocationId))
+    add(movement.fromLocationId, signs.from * movement.quantity)
+    add(movement.toLocationId, signs.to * movement.quantity)
+  }
+
+  // Rounded to the ledger's three decimals, the same as `applyLevel`, so nothing trails a float.
+  for (const [locationId, quantity] of balances) {
+    balances.set(locationId, Math.round(quantity * 1000) / 1000)
+  }
+  return balances
+}
+
 export const partFilterSchema = z.object({
   q: z.string().trim().max(160).optional().default(''),
   brand: z.string().trim().max(80).optional().default(''),

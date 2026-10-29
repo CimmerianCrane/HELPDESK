@@ -2,6 +2,7 @@ import type { MovementType, Prisma } from '@prisma/client'
 import { db, type Tx } from '@/lib/db'
 import {
   createPartSchema,
+  locationBalances,
   needsReorder,
   partFilterSchema,
   stockEntrySchema,
@@ -217,6 +218,101 @@ export async function getPart(
       job: movement.job,
     })),
   }
+}
+
+export interface SerialTrace {
+  serial: string
+  /** Net quantity the ledger still holds under this serial — the rest of the batch. */
+  held: number
+  whereabouts: Array<{ locationName: string; quantity: number }>
+  /** The jobs that took one, each with the cranes it was fitted to. */
+  issuedTo: Array<{
+    jobId: string
+    jobNumber: string
+    craneTags: string[]
+    quantity: number
+    issuedAt: Date
+  }>
+}
+
+/**
+ * Every serial and batch the ledger has ever seen for this part (slice 24, brief §9).
+ *
+ * The trace is the movements, read one way: a serial's position is the direction table applied to
+ * the rows carrying that serial, so what it says and what `StockLevel` says come from the same rule.
+ * `held` falling to zero means every piece of that batch has been issued, written off or moved on.
+ */
+export async function tracePartSerials(
+  context: AuthContext,
+  partId: string,
+  client: Tx = db,
+): Promise<SerialTrace[]> {
+  assertCan(context, 'part.read')
+
+  // Every serialled movement for one part, not a page of them: a balance computed from part of a
+  // serial's history is a wrong answer, and "where is it" is exactly the question this answers.
+  // shortcut: unbounded for a part with a decade of issues; add a per-serial window only if a real
+  // catalogue line makes this screen slow.
+  const movements = await client.stockMovement.findMany({
+    where: { partId, serialOrBatch: { not: null } },
+    orderBy: [{ movedAt: 'desc' }, { id: 'desc' }],
+    select: {
+      type: true,
+      quantity: true,
+      serialOrBatch: true,
+      fromLocationId: true,
+      toLocationId: true,
+      movedAt: true,
+      fromLocation: { select: { name: true } },
+      toLocation: { select: { name: true } },
+      job: {
+        select: { id: true, number: true, cranes: { select: { crane: { select: { assetTag: true } } } } },
+      },
+    },
+  })
+
+  const bySerial = new Map<string, Array<Omit<(typeof movements)[number], 'quantity'> & { quantity: number }>>()
+  for (const movement of movements) {
+    const serial = movement.serialOrBatch!
+    const rows = bySerial.get(serial) ?? []
+    rows.push({ ...movement, quantity: Number(movement.quantity) })
+    bySerial.set(serial, rows)
+  }
+
+  const traces: SerialTrace[] = []
+  for (const [serial, rows] of bySerial) {
+    const balances = locationBalances(rows)
+    const nameOf = new Map<string, string>()
+    for (const row of rows) {
+      if (row.fromLocationId && row.fromLocation) nameOf.set(row.fromLocationId, row.fromLocation.name)
+      if (row.toLocationId && row.toLocation) nameOf.set(row.toLocationId, row.toLocation.name)
+    }
+
+    const whereabouts = [...balances]
+      .filter(([, quantity]) => quantity !== 0)
+      .map(([locationId, quantity]) => ({ locationName: nameOf.get(locationId) ?? '', quantity }))
+      .sort((a, b) => a.locationName.localeCompare(b.locationName))
+
+    const issuedTo = rows
+      .filter((row) => row.type === 'ISSUE' && row.job)
+      .map((row) => ({
+        jobId: row.job!.id,
+        jobNumber: row.job!.number,
+        craneTags: row.job!.cranes.map(({ crane }) => crane.assetTag),
+        quantity: row.quantity,
+        issuedAt: row.movedAt,
+      }))
+
+    traces.push({
+      serial,
+      held: Math.round([...balances.values()].reduce((sum, quantity) => sum + quantity, 0) * 1000) / 1000,
+      whereabouts,
+      issuedTo,
+    })
+  }
+
+  // `movements` is newest first, so a Map built in insertion order is already newest serial first.
+  return traces
 }
 
 export async function createPart(

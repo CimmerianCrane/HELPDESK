@@ -163,13 +163,21 @@ export async function applyReport(
             deletedAt: null,
             isActive: true,
           },
-          select: { id: true, partNumber: true, cost: true },
+          select: { id: true, partNumber: true, cost: true, trackSerialOrBatch: true },
         })
       : []
   const partByNumber = new Map(parts.map((part) => [part.partNumber, part]))
   for (const used of input.parts) {
-    if (!partByNumber.has(used.partNumber)) {
+    const part = partByNumber.get(used.partNumber)
+    if (!part) {
       throw new ValidationError({ parts: [`${used.partNumber} is not in the parts catalogue.`] })
+    }
+    // A traced part with no serial is a movement that cannot follow the rope to a crane, which is
+    // the whole point of tracing it (slice 24). The report stays on the phone until it is typed.
+    if (part.trackSerialOrBatch && !used.serialOrBatch) {
+      throw new ValidationError({
+        parts: [`Record the serial or batch for ${used.partNumber} — it is a traced part.`],
+      })
     }
   }
 

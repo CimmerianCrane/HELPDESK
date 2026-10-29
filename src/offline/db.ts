@@ -37,6 +37,8 @@ export interface CachedPart {
   partNumber: string
   description: string
   uom: string
+  /** Wire rope, hooks, chain: the field must record which one went on the crane (slice 24). */
+  trackSerialOrBatch: boolean
 }
 
 /** One row of the calibration register. Keyed by serial, because that is what an instrument row names. */

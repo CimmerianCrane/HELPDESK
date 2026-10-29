@@ -3,12 +3,12 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { PartForm, StockEntryForm, TransferForm } from '@/components/office/part-forms'
 import { cardClass } from '@/components/office/ui'
-import { formatDateTime, formatMoney } from '@/lib/format'
+import { formatDate, formatDateTime, formatMoney } from '@/lib/format'
 import { MOVEMENT_TYPE_LABELS } from '@/lib/validation/parts'
 import { requireAuth } from '@/server/auth/context'
 import { can } from '@/server/auth/permissions'
 import { locationOptions } from '@/server/inventory/locations'
-import { getPart } from '@/server/inventory/parts'
+import { getPart, tracePartSerials } from '@/server/inventory/parts'
 import { getSettings } from '@/server/settings/settings'
 import { isAppError } from '@/server/auth/errors'
 import type { MovementType } from '@prisma/client'
@@ -27,15 +27,18 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
   const context = await requireAuth()
   const { id } = await params
 
-  const [part, settings, locations] = await Promise.all([
+  const [part, settings, locations, traces] = await Promise.all([
     getPart(context, id).catch((error: unknown) => {
       if (isAppError(error) && error.status === 404) notFound()
       throw error
     }),
     getSettings(),
-    // Every active location, not only the ones this part already sits in: receiving into a new bin is
+    // Every active location, not only the ones the part already sits in: receiving into a new bin is
     // the common case, and the old list could only offer places the part had already been.
     locationOptions(context),
+    // Every serial and batch the ledger has seen for this part (slice 24). Empty for a part nobody
+    // has ever typed a serial against, which is most of the catalogue.
+    tracePartSerials(context, id),
   ])
 
   const mayWrite = can(context.role, 'part.write')
@@ -167,6 +170,63 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
           <div className="mt-4">
             <TransferForm action={transferStockAction.bind(null, part.id)} locations={locations} />
           </div>
+        </section>
+      ) : null}
+
+      {traces.length > 0 ? (
+        <section aria-labelledby="trace-heading">
+          <h2 id="trace-heading" className="font-semibold text-slate-900">
+            Serial and batch trace
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Which serial went on which crane, and where the rest of the batch is now.
+          </p>
+          <ul className="mt-3 space-y-3">
+            {traces.map((trace) => (
+              <li
+                key={trace.serial}
+                className="rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-sm"
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="font-mono font-medium text-slate-900">{trace.serial}</p>
+                  <p className={trace.held === 0 ? 'text-slate-500' : 'text-slate-900'}>
+                    {trace.held === 0
+                      ? 'None left in stock'
+                      : `${trace.held} ${part.uom} still held`}
+                  </p>
+                </div>
+
+                {trace.whereabouts.length > 0 ? (
+                  <p className="mt-1 text-slate-600">
+                    At{' '}
+                    {trace.whereabouts
+                      .map((where) => `${where.locationName} (${where.quantity})`)
+                      .join(', ')}
+                  </p>
+                ) : null}
+
+                {trace.issuedTo.length === 0 ? (
+                  <p className="mt-1 text-slate-500">Not fitted to a job yet.</p>
+                ) : (
+                  <ul className="mt-2 space-y-1 text-slate-700">
+                    {trace.issuedTo.map((issue, position) => (
+                      <li key={`${issue.jobId}-${position}`}>
+                        {issue.quantity} {part.uom} on{' '}
+                        <Link href={`/jobs/${issue.jobId}`} className="underline">
+                          {issue.jobNumber}
+                        </Link>
+                        {issue.craneTags.length > 0
+                          ? ` · crane${issue.craneTags.length === 1 ? '' : 's'} ${issue.craneTags.join(', ')}`
+                          : ''}
+                        {' · '}
+                        {formatDate(issue.issuedAt, settings.timezone)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
 

@@ -1239,6 +1239,9 @@ async function seedDemoBook(): Promise<void> {
           reorderLevel,
           reorderQty: reorderLevel * 2,
           leadTimeDays: 14,
+          // Rope, hooks and chain are the parts brief §9 names as traced, so the serial screen has
+          // something to show on a fresh database.
+          trackSerialOrBatch: /^(WR|HK|CHAIN)-/.test(partNumber),
         },
         select: { id: true },
       })
@@ -1258,6 +1261,10 @@ async function seedDemoBook(): Promise<void> {
         quantity,
         type: 'RECEIVE',
         unitCost: cost,
+        // A traced part's opening balance is a batch, so the serial trace has a receipt to read.
+        serialOrBatch: /^(WR|HK|CHAIN)-/.test(partNumber)
+          ? `DEMO-${partNumber}-001`
+          : null,
         reasonCode: 'DEMO-OPENING',
         movedAt: atLocal(timeZone, -95, 10),
       }),

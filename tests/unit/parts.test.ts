@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createLocationSchema } from '@/lib/validation/locations'
 import {
   createPartSchema,
+  locationBalances,
   movementSigns,
   needsReorder,
   partFilterSchema,
@@ -128,6 +129,52 @@ describe('a stock entry', () => {
       reasonCode: null,
       unitCost: null,
     })
+  })
+})
+
+/**
+ * A serial's whereabouts, from the movements carrying it (slice 24).
+ *
+ * The trace reads one serial's rows and applies the same direction table the ledger uses, so a rope
+ * cannot read as being in the van while the part's own on-hand says otherwise.
+ */
+describe('where one serial is', () => {
+  const row = (
+    type: 'RECEIVE' | 'ISSUE' | 'TRANSFER' | 'RETURN' | 'WRITEOFF',
+    quantity: number,
+    fromLocationId: string | null,
+    toLocationId: string | null,
+  ) => ({ type, quantity, fromLocationId, toLocationId })
+
+  it('receives into a location and issues out of it', () => {
+    const balances = locationBalances([
+      row('RECEIVE', 10, null, 'store'),
+      row('ISSUE', 3, 'store', null),
+    ])
+    expect(balances.get('store')).toBe(7)
+  })
+
+  it('follows a transfer rather than counting it twice', () => {
+    const balances = locationBalances([
+      row('RECEIVE', 5, null, 'store'),
+      row('TRANSFER', 5, 'store', 'van'),
+    ])
+    // The store's position is zero and is dropped by the caller, not left as a phantom row.
+    expect(balances.get('store')).toBe(0)
+    expect(balances.get('van')).toBe(5)
+  })
+
+  it('lets an issue go negative, exactly as the part level does', () => {
+    const balances = locationBalances([row('ISSUE', 2, 'store', null)])
+    expect(balances.get('store')).toBe(-2)
+  })
+
+  it('rounds to the ledger’s three decimals so no float trails a serial', () => {
+    const balances = locationBalances([
+      row('RECEIVE', 0.1, null, 'store'),
+      row('RECEIVE', 0.2, null, 'store'),
+    ])
+    expect(balances.get('store')).toBe(0.3)
   })
 })
 

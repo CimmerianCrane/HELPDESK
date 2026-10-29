@@ -669,6 +669,18 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
 146. **`stock.move` gates a transfer, and locations are not tenant data.** A technician holds `stock.move`
     already (issuing and returning parts), so a van-to-bin move is theirs too; finance reads the book and moves
     nothing. Locations, like the catalogue, have no row filter.
+147. **A serial's position is derived from its movements, never stored.** The trace applies the same direction
+    table `postMovement` uses to move `StockLevel`, to only the rows carrying that serial. Storing "where serial
+    X is" would be a second place to fall out of step with the shelf.
+148. **A traced part cannot be issued without a serial; an untraced one may carry one.** `trackSerialOrBatch` is
+    what makes traceability a promise, and a rope nobody can follow to a crane defeats it. The server refuses
+    and names the part, so the report stays on the phone and is fixed in the van rather than arriving incomplete.
+149. **The phone is sent which parts are traced.** The sync bundle carries `trackSerialOrBatch`, so the form can
+    say the field is needed and refuse to queue the report without it, with no signal; it is the same courtesy
+    the calibration register makes.
+150. **The trace reads every serialled movement for one part.** It is unbounded on purpose: a serial's
+    balance computed from part of its history would answer "where is it" wrongly, and that is the question the
+    screen exists for. If a real catalogue line ever makes it slow, the window belongs on the serial.
 
 ## Not assumed — deliberately left to you
 

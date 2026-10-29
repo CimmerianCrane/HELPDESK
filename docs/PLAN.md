@@ -1920,7 +1920,7 @@ designed up front (§3.8) and is already migrated — **no migration is expected
 |---|---|---|---|---|
 | **22** | **The parts book and the stock ledger** (**built** — see below) | `/parts` (search by number, description or crane model; brand filter; below-reorder filter and count) and `/parts/[id]` (on-hand, per-location levels, the part's own last 20 movements, add/edit behind `part.write`); a store form that posts `RECEIVE`, `RETURN` and `ADJUST`; **one writer** for `StockMovement` + `StockLevel`, which the report path now uses too, so issuing a part on a report finally moves the shelf | `src/server/inventory/` (new), `src/lib/validation/parts.ts` (new), `src/app/(office)/parts/` (new), `src/server/reports/reports.ts` (re-pointed) | §9 |
 | **23** | **Locations and transfers** (**built** — see §7.13.1) | `/parts/locations` (every location with what it holds; add and edit behind `part.write`; retired, never deleted), and a transfer form on the part page posting the `TRANSFER` the ledger always had a type for. The receiving form now offers **every active location**, not only the ones the part already sits in | `src/server/inventory/locations.ts` (new), `src/lib/validation/locations.ts` (new), `src/app/(office)/parts/locations/` (new), `/parts/[id]` | §9 |
-| 24 | Serial and batch traceability | Record and trace a serial on `trackSerialOrBatch` parts: which crane received which rope or hook, and where the rest of the batch is. The issue path already stores `serialOrBatch`; this is the report and the lookup | `/parts/[id]`, the report form | §9 |
+| **24** | **Serial and batch traceability** (**built** — see §7.13.2) | Record and trace a serial on `trackSerialOrBatch` parts: which crane received which rope or hook, and where the rest of the batch is. The issue path already stores `serialOrBatch`; this is the report and the lookup | `/parts/[id]`, the report form | §9 |
 | 25 | Reorder alerts and a suggested purchase order | Group what is below reorder by preferred supplier, suggest the reorder quantity, and raise a `PurchaseOrder` from the group. Receiving a PO posts `RECEIVE` | `/parts` (or `/inventory`), `src/server/inventory/` | §9 |
 | 26 | Stock take | Session → blind count → variance → recount → approve, posting one `ADJUST`/`WRITEOFF` per line difference, and flagging a part/location that keeps disagreeing | `/stock-takes` (new), `src/server/inventory/` | §9 |
 | 27 | Suppliers | The supplier book and its price history, behind `supplier.write`, with the PO screens | `/suppliers` (new) | §9 |
@@ -2024,6 +2024,47 @@ location" screen that lists every part in a van at once — the location list sh
 per-part breakdown is on the part. A location cannot be deleted, only retired. `Location.siteId` is
 unused by any screen: a customer-site location is named, not linked to the Site record, so a parts
 transfer form does not need `customer.read`.
+
+#### 7.13.2 Slice 24 — serial and batch traceability (**built**)
+
+**Goal:** answer the question a recall asks — which crane did this rope go on, and where is the rest
+of the batch? — from the ledger, without a new table.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 147–150):
+
+1. **The trace is the movements, read one way.** A serial's position is `locationBalances` applied to
+   the rows carrying that serial — the same direction table `postMovement` uses to move `StockLevel`.
+   Nothing stores "where serial X is", so it cannot disagree with the shelf.
+2. **Only parts flagged `trackSerialOrBatch` have to carry a serial.** A traced part issued with no
+   serial is refused on the server, saying which part; the report stays on the phone until it is
+   typed. An untraced part keeps its serial optional — the column has always been free text.
+3. **The phone is told which parts are traced.** `trackSerialOrBatch` rides in the sync bundle, so
+   the form can mark the field required and check it before queueing, with no signal.
+4. **The trace reads every serialled movement for one part.** A page of them would compute a serial's
+   balance from part of its history, which is a wrong answer to "where is it" — the one question the
+   screen exists for. It is unbounded on purpose; a window belongs on the serial, not the part, if a
+   catalogue line ever makes this slow.
+
+**As built.** `locationBalances` in `src/lib/validation/parts.ts` is pure and testable.
+`tracePartSerials` in `src/server/inventory/parts.ts` groups a part's serialled movements by
+`serialOrBatch` and returns, per serial: what is held, where, and every job it was issued to with that
+job's cranes. `/parts/[id]` renders it as **Serial and batch trace** above
+the movement list; `reportSubmitSchema`'s parts already carried `serialOrBatch`, so the only server
+change was the traced-part check in `applyReport`. `SyncBundle.parts` and `CachedPart` gained
+`trackSerialOrBatch`; `PartsSection` in the report form says under the field that a traced part
+needs it, and `submit()` refuses to queue one without it.
+
+**The seed** now flags wire rope, hooks and chain as traced and opens them as a batch
+(`DEMO-<number>-001`), so a fresh database has a trace to look at. It does not retrofit parts that
+already exist — the flag is set when a part is created, and re-running the seed leaves them alone.
+
+**Migration:** none. `StockMovement.serialOrBatch` and `Part.trackSerialOrBatch` were designed in
+Phase 1.
+
+**Known limits.** The lookup is per part, and only on the part page — there is no cross-catalogue
+"find serial SN-9001" box. A serial typed inconsistently (`AB-12` vs `ab-12`) is two traces; nothing
+normalises it, because normalising would rewrite what the store typed. A batch received without a
+serial and later issued with one shows the issue but not the receipt.
 
 ### 7.14 Phase 4 (outline, not sliced yet)
 

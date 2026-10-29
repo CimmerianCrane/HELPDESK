@@ -118,8 +118,9 @@ cimmerian-crane/
       documents/           # numbering, PDF render, email-on-close
       tech/                # the field phone's read layer and its one-call sync bundle
       reports/             # report queue, approval/return/amendment, issued-PDF lookup, email retry
-      inventory/           # the parts book and the stock ledger; postMovement is the only writer
-                           # of StockMovement and StockLevel
+      inventory/           # the parts book, locations and the stock ledger; postMovement is the only
+                           # writer of StockMovement and StockLevel, and tracePartSerials derives a
+                           # serial's whereabouts from those same movements
       storage/             # StorageAdapter: disk | supabase (signed upload/download URLs)
       email/               # EmailAdapter: console | smtp
       notify/              # notification fan-out to channel adapters

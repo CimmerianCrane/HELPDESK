@@ -107,7 +107,16 @@ export interface SyncBundle {
   /** Cranes on this technician's upcoming work, with what was last done to each. */
   cranes: TechCrane[]
   checklistItems: TechChecklistItem[]
-  parts: Array<{ partNumber: string; description: string; uom: string }>
+  /**
+   * `trackSerialOrBatch` rides along so the report form can require the serial on the parts that are
+   * traced (slice 24) — the phone cannot ask the server once it is offline.
+   */
+  parts: Array<{
+    partNumber: string
+    description: string
+    uom: string
+    trackSerialOrBatch: boolean
+  }>
   contacts: Array<{
     siteId: string
     name: string
@@ -470,7 +479,12 @@ export async function syncBundle(context: AuthContext, client: Tx = db): Promise
       where: { deletedAt: null, isActive: true },
       orderBy: { partNumber: 'asc' },
       take: 300,
-      select: { partNumber: true, description: true, uom: true },
+      select: {
+        partNumber: true,
+        description: true,
+        uom: true,
+        trackSerialOrBatch: true,
+      },
     }),
     siteIds.length > 0
       ? client.contact.findMany({
