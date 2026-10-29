@@ -25,9 +25,12 @@ before starting the next slice.**
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
 
-> **Slice 24 is done and verified.** No migration was needed. `npm run verify`, `npm run
-> test:integration`, `npm run test:e2e` and `npm run build` all pass, and
-> `tests/e2e/happy-path.spec.ts` passes **unmodified**.
+> **Slice 24 is done and verified.** No migration was needed. `npm run verify` (373 unit tests),
+> `npm run test:integration` (307), `npm run test:e2e` (38 passed, 2 offline-only skipped) and
+> `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes **unmodified**. Four gaps found
+> in review afterwards — a count that dropped the serial, an issue that took the fullest bin instead
+> of the serial's, a negative batch rendered as fact, and no browser coverage of `/parts` — are now
+> closed, and `tests/e2e/parts.spec.ts` walks the parts screens.
 
 > **Slice 24 — serial and batch traceability.** `/parts/[id]` now carries a **Serial and batch trace**
 > above the movement list: every serial or batch the ledger has seen for the part, how much of it is

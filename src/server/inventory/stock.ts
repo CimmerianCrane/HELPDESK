@@ -1,6 +1,6 @@
 import type { MovementType } from '@prisma/client'
 import type { Tx } from '@/lib/db'
-import { movementSigns } from '@/lib/validation/parts'
+import { locationBalances, movementSigns } from '@/lib/validation/parts'
 import type { AuditLogger } from '@/server/audit/audit'
 import { ValidationError } from '@/server/auth/errors'
 
@@ -133,11 +133,30 @@ export async function postMovement(
 }
 
 /**
- * The location an issue should come out of when the caller does not name one: wherever the most of
- * the part is. With no stock anywhere it falls back to the store, and the movement is allowed to take
- * the level negative — see `needsReorder` for why that beats refusing a signed report.
+ * The location an issue should come out of when the caller does not name one.
+ *
+ * With a serial, wherever **that serial** is: a part may be plentiful in one bin while the named
+ * batch sits in a van, and issuing from the full bin would move the wrong stock. Without one, or if
+ * the serial is not on the books, wherever the most of the part is. With no stock anywhere it falls
+ * back to the store, and the movement may take the level negative — see `needsReorder` for why that
+ * beats refusing a signed report.
  */
-export async function issueLocationFor(client: Tx, partId: string): Promise<string> {
+export async function issueLocationFor(
+  client: Tx,
+  partId: string,
+  serialOrBatch?: string | null,
+): Promise<string> {
+  if (serialOrBatch) {
+    const rows = await client.stockMovement.findMany({
+      where: { partId, serialOrBatch },
+      select: { type: true, quantity: true, fromLocationId: true, toLocationId: true },
+    })
+    const holding = [...locationBalances(rows.map((row) => ({ ...row, quantity: Number(row.quantity) })))]
+      .filter(([, quantity]) => quantity > 0)
+      .sort((left, right) => right[1] - left[1])[0]
+    if (holding) return holding[0]
+  }
+
   const fullest = await client.stockLevel.findFirst({
     where: { partId },
     orderBy: { quantity: 'desc' },

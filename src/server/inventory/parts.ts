@@ -421,7 +421,16 @@ export async function postStockEntry(
       const locationId = input.locationId ?? (await defaultLocation(tx))
 
       if (input.type === 'ADJUST') {
-        await adjustToCounted(tx, log, context, part, input.quantity, locationId, input.reasonCode)
+        await adjustToCounted(
+          tx,
+          log,
+          context,
+          part,
+          input.quantity,
+          locationId,
+          input.serialOrBatch,
+          input.reasonCode,
+        )
         return
       }
 
@@ -508,6 +517,9 @@ export async function transferStock(
  * An upward correction is an `ADJUST` into the location; a downward one is a `WRITEOFF` of the
  * difference, because `WRITEOFF` is the movement type that already means "stock left without a sale"
  * and reusing `ADJUST` in both directions would need a second sign convention for one case.
+ *
+ * The serial is carried through when the counter names one, so a correction on a traced part moves
+ * the trace as well as the shelf — otherwise the batch would drift out of sight of the level.
  */
 async function adjustToCounted(
   tx: Tx,
@@ -516,6 +528,7 @@ async function adjustToCounted(
   part: { id: string; cost: Prisma.Decimal },
   counted: number,
   locationId: string,
+  serialOrBatch: string | null,
   reasonCode: string | null,
 ): Promise<void> {
   const level = await tx.stockLevel.findUnique({
@@ -533,6 +546,7 @@ async function adjustToCounted(
     type: delta > 0 ? 'ADJUST' : 'WRITEOFF',
     quantity: Math.abs(delta),
     ...(delta > 0 ? { toLocationId: locationId } : { fromLocationId: locationId }),
+    serialOrBatch,
     reasonCode,
     unitCost: Number(part.cost),
     movedById: context.userId,
@@ -560,7 +574,7 @@ export async function issuePartForReport(
     partId: input.partId,
     type: 'ISSUE',
     quantity: input.quantity,
-    fromLocationId: await issueLocationFor(tx, input.partId),
+    fromLocationId: await issueLocationFor(tx, input.partId, input.serialOrBatch),
     unitCost: input.unitCost,
     serialOrBatch: input.serialOrBatch,
     jobId: input.jobId,

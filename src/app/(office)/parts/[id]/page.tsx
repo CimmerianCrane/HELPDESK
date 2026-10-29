@@ -189,12 +189,30 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="font-mono font-medium text-slate-900">{trace.serial}</p>
-                  <p className={trace.held === 0 ? 'text-slate-500' : 'text-slate-900'}>
+                  <p
+                    className={
+                      trace.held === 0
+                        ? 'text-slate-500'
+                        : trace.held < 0
+                          ? 'font-medium text-red-700'
+                          : 'text-slate-900'
+                    }
+                  >
                     {trace.held === 0
                       ? 'None left in stock'
-                      : `${trace.held} ${part.uom} still held`}
+                      : trace.held < 0
+                        ? `${Math.abs(trace.held)} ${part.uom} more issued than received`
+                        : `${trace.held} ${part.uom} still held`}
                   </p>
                 </div>
+
+                {trace.held < 0 ? (
+                  <p className="mt-1 text-sm text-red-700">
+                    This serial went out on more than the record shows coming in — the stock was
+                    probably received without it. Count the shelf and post an adjustment naming this
+                    serial.
+                  </p>
+                ) : null}
 
                 {trace.whereabouts.length > 0 ? (
                   <p className="mt-1 text-slate-600">

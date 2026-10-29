@@ -2054,6 +2054,12 @@ change was the traced-part check in `applyReport`. `SyncBundle.parts` and `Cache
 `trackSerialOrBatch`; `PartsSection` in the report form says under the field that a traced part
 needs it, and `submit()` refuses to queue one without it.
 
+Two follow-ups close the gap between "the trace is the shelf" and the screens: a count correction
+now carries the serial through `adjustToCounted` into its `ADJUST`/`WRITEOFF`, and an issue without
+a named location takes it from the bin that actually holds the named serial (`issueLocationFor`
+reads that serial's movements first), falling back to the fullest bin only when no serial is given
+or it has never been on the books.
+
 **The seed** now flags wire rope, hooks and chain as traced and opens them as a batch
 (`DEMO-<number>-001`), so a fresh database has a trace to look at. It does not retrofit parts that
 already exist — the flag is set when a part is created, and re-running the seed leaves them alone.
@@ -2064,7 +2070,9 @@ Phase 1.
 **Known limits.** The lookup is per part, and only on the part page — there is no cross-catalogue
 "find serial SN-9001" box. A serial typed inconsistently (`AB-12` vs `ab-12`) is two traces; nothing
 normalises it, because normalising would rewrite what the store typed. A batch received without a
-serial and later issued with one shows the issue but not the receipt.
+serial and later issued with one shows the issue but not the receipt; the part page flags that
+serial in red ("more issued than received") and points at posting a count, rather than presenting a
+negative balance as fact.
 
 ### 7.14 Phase 4 (outline, not sliced yet)
 

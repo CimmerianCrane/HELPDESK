@@ -185,14 +185,20 @@ development and keeping Supabase for deployment; the app does not care which one
 - **Traced parts must say which one.** A part flagged *Trace by serial or batch* (wire rope, hooks, chain) can no
   longer be issued on a report without its serial. The phone checks it before queueing, the server checks it
   again and names the part, and the report stays on the phone until it is filled in.
+- **A count keeps the serial, and an issue follows it.** A count correction posted against a serial moves the
+  batch as well as the shelf, and a report that names a serial takes it out of the bin that actually holds it
+  rather than the fullest one. A serial that somehow went out more times than it came in is flagged in red as
+  *more issued than received*, with the fix named, rather than shown as a negative quantity.
 - **Try it:** on a freshly seeded database, **Parts** → open a wire-rope line — the demo book flags rope, hooks and
   chain as traced and opens them as a batch — and the trace shows that batch and where it sits. On a database
   seeded before this slice, tick *Trace by serial or batch* on a part, receive some stock with a batch number,
   and the trace appears; the seed does not retrofit parts that already exist.
 - **Tests** — 4 unit tests for the whereabouts arithmetic (receive/issue, transfer counted once, negative issue,
-  three-decimal rounding), a 5-case integration suite (`traceability.test.ts`: whereabouts and issued jobs, the
-  transfer case, a fully issued batch, an untraced part, the permission split) and a report-submission case in
-  `reports.test.ts` refusing a traced part with no serial.
+  three-decimal rounding), a 7-case integration suite (`traceability.test.ts`: whereabouts and issued jobs, the
+  transfer case, a fully issued batch, a count that keeps its serial, an issue that follows its serial, an
+  untraced part, the permission split), a report-submission case in `reports.test.ts` refusing a traced part
+  with no serial, and `tests/e2e/parts.spec.ts`, which creates a traced part, receives a batch, transfers half
+  of it and reads the trace back as the store and as a dispatcher.
 
 ### Slice 23 — stock locations and transfers
 

@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { Role } from '@prisma/client'
 import type { AuthContext } from '@/server/auth/types'
-import { createPart, postStockEntry, tracePartSerials, transferStock } from '@/server/inventory/parts'
-import { postMovement } from '@/server/inventory/stock'
+import {
+  createPart,
+  getPart,
+  postStockEntry,
+  tracePartSerials,
+  transferStock,
+} from '@/server/inventory/parts'
+import { issueLocationFor, postMovement } from '@/server/inventory/stock'
 import { withAudit } from '@/server/audit/audit'
 import { craneFixtures, inRolledBackTx, jobFixture, testSuffix, type Tx } from './helpers'
 
@@ -185,6 +191,66 @@ describe('tracing a serial', () => {
       const [trace] = await tracePartSerials(storekeeper, part.id, tx)
       expect(trace?.held).toBe(0)
       expect(trace?.whereabouts).toEqual([])
+    })
+  })
+
+  it('keeps the serial on a count correction, so the trace and the shelf agree', async () => {
+    await inRolledBackTx(async (tx) => {
+      const storekeeper = contextFor(await makeUser(tx, 'STOREKEEPER'))
+      const part = await createPart(storekeeper, partInput(), tx)
+      const storeId = await store(tx)
+      const batch = `LOT-${testSuffix()}`
+
+      await postStockEntry(
+        storekeeper,
+        part.id,
+        { type: 'RECEIVE', quantity: '40', locationId: storeId, serialOrBatch: batch },
+        tx,
+      )
+      await postStockEntry(
+        storekeeper,
+        part.id,
+        { type: 'ADJUST', quantity: '37', locationId: storeId, serialOrBatch: batch },
+        tx,
+      )
+
+      const [trace] = await tracePartSerials(storekeeper, part.id, tx)
+      expect(trace?.held).toBe(37)
+
+      const detail = await getPart(storekeeper, part.id, tx)
+      expect(detail.onHand).toBe(37)
+      expect(detail.levels).toEqual([
+        expect.objectContaining({ locationId: storeId, quantity: 37 }),
+      ])
+    })
+  })
+
+  it('issues from the bin holding the serial, not the bin holding the most of the part', async () => {
+    await inRolledBackTx(async (tx) => {
+      const storekeeper = contextFor(await makeUser(tx, 'STOREKEEPER'))
+      const part = await createPart(storekeeper, partInput(), tx)
+      const storeId = await store(tx)
+      const vanId = await van(tx)
+      const batch = `LOT-${testSuffix()}`
+
+      // The store is fuller, but the named batch is in the van.
+      await postStockEntry(
+        storekeeper,
+        part.id,
+        { type: 'RECEIVE', quantity: '40', locationId: storeId },
+        tx,
+      )
+      await postStockEntry(
+        storekeeper,
+        part.id,
+        { type: 'RECEIVE', quantity: '2', locationId: vanId, serialOrBatch: batch },
+        tx,
+      )
+
+      expect(await issueLocationFor(tx, part.id, batch)).toBe(vanId)
+      // No serial, or one the ledger has never seen: the fullest bin is still the best guess.
+      expect(await issueLocationFor(tx, part.id, null)).toBe(storeId)
+      expect(await issueLocationFor(tx, part.id, 'NEVER-SEEN')).toBe(storeId)
     })
   })
 

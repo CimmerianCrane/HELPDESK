@@ -681,6 +681,12 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
 150. **The trace reads every serialled movement for one part.** It is unbounded on purpose: a serial's
     balance computed from part of its history would answer "where is it" wrongly, and that is the question the
     screen exists for. If a real catalogue line ever makes it slow, the window belongs on the serial.
+151. **A count correction carries the serial when the counter names one.** The trace and the level are two
+    renderings of one ledger, so an `ADJUST`/`WRITEOFF` that moved the shelf but not the batch would let them
+    disagree — the one thing slice 24 promised (item 147). A serial is not required to count, only kept.
+152. **An issue takes the location that holds the named serial.** When the report names one, the source is the
+    bin or van that serial is actually in, read from its movements; the fullest bin is the fallback for no
+    serial or one never received, and it stays a guess rather than a refusal (item 136).
 
 ## Not assumed — deliberately left to you
 
