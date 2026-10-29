@@ -26,10 +26,9 @@ as built (§7.13.3), slice 26 as built (§7.13.4), slice 27 as built (§7.13.5) 
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
 
-> **Slice 28 is built; its migration is not yet applied.** `20261028600000_slice28_job_on_hold_part`
-> must be deployed against the database before the integration suite can run — the agent cannot apply
-> it to shared Supabase without your approval. `npm run verify` (410 unit tests, typecheck, lint)
-> passes. Once migrated, run `npm run test:integration`, `npm run test:e2e` and `npm run build`.
+> **Slice 28 is done and verified.** `20261028600000_slice28_job_on_hold_part` is applied.
+> `npm run verify` (410 unit tests), `npm run test:integration` (335), `npm run test:e2e` (38 passed,
+> 2 offline-only skipped) and `npm run build` all pass.
 
 > **Slice 28 — back-orders linked to jobs on hold.** An on-hold job can now name the catalogue part it
 > is waiting for, and its amber banner says which part, how many are still owed, from whom, and when

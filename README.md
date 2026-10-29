@@ -13,8 +13,9 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 book and made the stock ledger the single writer of every quantity, slice 23 added stock locations
 and transfers, slice 24 traces every serial and batch to the crane it went on, slice 25 turns the
 below-reorder list into purchase orders, slice 26 settles the shelf against the books with a
-blind count and an approved variance, and slice 27 adds the supplier book the reorder list groups by.
-Next is slice 28 — back-orders linked to jobs on hold. See "What works today" below.
+blind count and an approved variance, slice 27 adds the supplier book the reorder list groups by,
+and slice 28 links a job on hold to the part it is waiting for. **Phase 3 is complete; Phase 4 — the
+customer portal and reporting — is next.** See "What works today" below.
 
 ---
 
@@ -176,6 +177,21 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 28 — back-orders linked to jobs on hold
+
+- **A parts hold now names the part.** Putting a job on hold with the *Awaiting parts* reason asks which
+  catalogue part it is waiting for. The amber banner then says which part, how many are still owed, from
+  whom and when — read from the open purchase order line, never stored as a flag of its own.
+- **Both directions.** The part's own page lists the jobs standing still for it, so the storekeeper can
+  order against a queue rather than a recollection.
+- **Cleared when it moves.** Leaving an awaiting-parts hold clears the link; a part that is not in the
+  catalogue is refused.
+- **Try it:** open a scheduled job → *On hold* → reason *Awaiting parts* → pick a part. Then **Parts** →
+  the part → the jobs waiting on it.
+- **Tests** — a 5-case integration suite (`back-orders.test.ts`: the link recorded and audited and shown
+  from both sides, an unknown part refused, the link cleared on leaving hold, the open lines that still
+  owe some, and nothing once fully received).
 
 ### Slice 27 — the supplier book
 
