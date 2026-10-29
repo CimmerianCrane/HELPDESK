@@ -31,6 +31,7 @@ export interface PartFormValues {
   reorderLevel: number | null
   reorderQty: number | null
   trackSerialOrBatch: boolean
+  preferredSupplierId: string | null
 }
 
 export interface LocationFormValues {
@@ -44,10 +45,13 @@ export interface LocationFormValues {
 export function PartForm({
   action,
   values,
+  suppliers = [],
   submitLabel,
 }: {
   action: ServerAction
   values: PartFormValues | null
+  /** Who the reorder screen groups it under. Empty for a role that cannot read the supplier book. */
+  suppliers?: Array<{ id: string; name: string }>
   submitLabel: string
 }) {
   const [state, formAction, pending] = useActionState(action, IDLE_FORM)
@@ -207,6 +211,29 @@ export function PartForm({
           />
           <FieldError state={state} name="reorderQty" />
         </div>
+      </div>
+
+      <div>
+        <label htmlFor={`${id}-supplier`} className={labelClass}>
+          Preferred supplier
+        </label>
+        <select
+          id={`${id}-supplier`}
+          name="preferredSupplierId"
+          defaultValue={values?.preferredSupplierId ?? ''}
+          className={inputClass}
+        >
+          <option value="">No preferred supplier</option>
+          {suppliers.map((supplier) => (
+            <option key={supplier.id} value={supplier.id}>
+              {supplier.name}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-slate-500">
+          The reorder list groups short parts by this. Without one, the part cannot be ordered.
+        </p>
+        <FieldError state={state} name="preferredSupplierId" />
       </div>
 
       <div className="flex items-start gap-2">

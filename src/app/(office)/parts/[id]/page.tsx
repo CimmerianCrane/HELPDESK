@@ -9,6 +9,7 @@ import { requireAuth } from '@/server/auth/context'
 import { can } from '@/server/auth/permissions'
 import { locationOptions } from '@/server/inventory/locations'
 import { getPart, tracePartSerials } from '@/server/inventory/parts'
+import { supplierOptions } from '@/server/inventory/suppliers'
 import { getSettings } from '@/server/settings/settings'
 import { isAppError } from '@/server/auth/errors'
 import type { MovementType } from '@prisma/client'
@@ -27,7 +28,9 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
   const context = await requireAuth()
   const { id } = await params
 
-  const [part, settings, locations, traces] = await Promise.all([
+  const mayWrite = can(context.role, 'part.write')
+
+  const [part, settings, locations, traces, suppliers] = await Promise.all([
     getPart(context, id).catch((error: unknown) => {
       if (isAppError(error) && error.status === 404) notFound()
       throw error
@@ -39,9 +42,9 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
     // Every serial and batch the ledger has seen for this part (slice 24). Empty for a part nobody
     // has ever typed a serial against, which is most of the catalogue.
     tracePartSerials(context, id),
+    mayWrite ? supplierOptions(context) : Promise.resolve([]),
   ])
 
-  const mayWrite = can(context.role, 'part.write')
   const mayMove = can(context.role, 'stock.move')
 
   return (
@@ -311,6 +314,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
             <PartForm
               action={updatePartAction.bind(null, part.id)}
               values={part}
+              suppliers={suppliers}
               submitLabel="Save changes"
             />
           </div>

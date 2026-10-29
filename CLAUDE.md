@@ -118,8 +118,8 @@ cimmerian-crane/
       documents/           # numbering, PDF render, email-on-close
       tech/                # the field phone's read layer and its one-call sync bundle
       reports/             # report queue, approval/return/amendment, issued-PDF lookup, email retry
-      inventory/           # the parts book, locations, the stock ledger, reorder groups and
-                           # purchase orders, and stock takes; postMovement is the only writer of
+      inventory/           # the parts book, locations, the supplier book, the stock ledger, reorder
+                           # groups and purchase orders, and stock takes; postMovement is the only writer of
                            # StockMovement and StockLevel, tracePartSerials derives a serial's
                            # whereabouts from those same movements, and adjustToCounted is the one
                            # place a count is reconciled to a shelf
@@ -168,6 +168,7 @@ check permission, call a service, return. Logic lives in the service, tests live
 | **ComplianceRule** | Editable configuration mapping crane type → interval + whether an AE is required. Never hard-coded |
 | **StockMovement** | One append-only row per change to stock. The only way a quantity changes, posted through `postMovement`, which moves the `StockLevel` in the same transaction |
 | **On hand** | A part's summed `StockLevel`, computed on read. May go negative when a part is issued that was never received — shown in red, corrected by a count |
+| **Preferred supplier** | The supplier a part names, which is the group the reorder list files it under. Retired suppliers are not offered; a supplier a part still prefers cannot be retired |
 
 ---
 

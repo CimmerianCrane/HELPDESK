@@ -200,6 +200,7 @@ export const AUDIT_ENTITIES = [
   'Part',
   'StockMovement',
   'PurchaseOrder',
+  'Supplier',
   'StockTake',
   'Technician',
   'OnCallShift',
@@ -232,6 +233,8 @@ const ENTITY_HREFS: Record<string, (id: string) => string> = {
   Invoice: (id) => `/invoices/${id}`,
   StockMovement: () => '/parts',
   PurchaseOrder: () => '/parts/reorder',
+  // The book lists them all, so the link need not name one.
+  Supplier: () => '/suppliers',
   StockTake: (id) => `/stock-takes/${id}`,
   User: (id) => `/admin/users/${id}`,
 }
@@ -267,6 +270,7 @@ export async function auditEntityLabels(
     invoices,
     parts,
     purchaseOrders,
+    suppliers,
     stockTakes,
   ] =
     await Promise.all([
@@ -343,6 +347,12 @@ export async function auditEntityLabels(
           select: { id: true, number: true },
         })
       : [],
+    present('Supplier')
+      ? client.supplier.findMany({
+          where: { id: { in: idsFor('Supplier') } },
+          select: { id: true, name: true },
+        })
+      : [],
     present('StockTake')
       ? client.stockTake.findMany({
           where: { id: { in: idsFor('StockTake') } },
@@ -373,6 +383,7 @@ export async function auditEntityLabels(
   for (const row of invoices) put('Invoice', row.id, row.number)
   for (const row of parts) put('Part', row.id, row.partNumber)
   for (const row of purchaseOrders) put('PurchaseOrder', row.id, row.number)
+  for (const row of suppliers) put('Supplier', row.id, row.name)
   for (const row of stockTakes) put('StockTake', row.id, row.reference)
   for (const row of findings) {
     labels.set(`Finding:${row.id}`, {

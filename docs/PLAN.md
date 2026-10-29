@@ -1923,7 +1923,7 @@ designed up front (§3.8) and is already migrated — **no migration is expected
 | **24** | **Serial and batch traceability** (**built** — see §7.13.2) | Record and trace a serial on `trackSerialOrBatch` parts: which crane received which rope or hook, and where the rest of the batch is. The issue path already stores `serialOrBatch`; this is the report and the lookup | `/parts/[id]`, the report form | §9 |
 | **25** | **Reorder alerts and a suggested purchase order** (**built** — see §7.13.3) | Group what is below reorder by preferred supplier, suggest the reorder quantity, and raise a `PurchaseOrder` from the group. Receiving a PO posts `RECEIVE` | `/parts/reorder` (new), `src/server/inventory/` | §9 |
 | 26 | Stock take (**built** — see §7.13.4) | Session → blind count → variance → recount → approve, posting one `ADJUST`/`WRITEOFF` per line difference, and flagging a part/location that keeps disagreeing | `/stock-takes` (new), `src/server/inventory/` | §9 |
-| 27 | Suppliers | The supplier book and its price history, behind `supplier.write`, with the PO screens | `/suppliers` (new) | §9 |
+| 27 | Suppliers (**built** — see §7.13.5) | `/suppliers`: every supplier with the parts that prefer it and the orders raised from it (the price history), add/edit behind `supplier.write`, retired rather than deleted and refused while a part still prefers it; the part form finally gains the preferred-supplier select, which the reorder grouping had and no screen could set | `/suppliers` (new), `src/server/inventory/suppliers.ts` (new), the part form | §9 |
 | 28 | Back-orders linked to jobs on hold | A part on order appears against the jobs held awaiting it, so "awaiting parts" says **which** part and when it lands | job page, `/parts` | §4.2, §9 |
 
 Slice 22 was taken first because a catalogue without a correct on-hand figure is a list of part numbers, and the
@@ -2173,6 +2173,49 @@ count, which is why approval reconciles to the live shelf (item 1) rather than r
 posted since. There is no repeat-discrepancy flag — the part page's negative lines and this list's
 `differences` count are the signal today. A cancel is refused once approved rather than being
 unwound by a reversing count.
+
+#### 7.13.5 Slice 27 — the supplier book (**built**)
+
+**Goal:** the reorder screen already grouped short parts by "the supplier the catalogue prefers", and
+nothing in the UI could set that preference — the seed was the only thing that ever filled it in.
+This slice gives the suppliers a screen and gives a part the field.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 167–173):
+
+1. **The price history is the purchase orders, not a new table.** A supplier's page shows the orders
+   raised from it with their totals and dates. A `SupplierPrice` table would be a second record of the
+   same number, free to disagree with the document the store actually sent.
+2. **A supplier is retired (`deletedAt`), never deleted**, the way a stock location is: the parts that
+   prefer it and the orders raised from it keep naming it. A retired supplier drops out of the part
+   form's choices and out of the reorder grouping, but reads on its own page and on its past orders.
+3. **Retiring a supplier that a part still prefers is refused, saying how many.** A part preferred by a
+   retired supplier lands in a reorder group nothing can order from — the exact state slice 25's
+   "no preferred supplier" group already warns about, arrived at invisibly.
+4. **A part may not prefer a retired supplier.** Checked in the service on both create and update, the
+   same way a movement's locations are checked to exist rather than trusting the form.
+5. **`preferredSupplierId` is added to the part form**, which is where the reorder grouping's input
+   comes from. The part form takes the active suppliers as an optional prop so a role holding
+   `part.write` without the book (none today) still renders.
+6. **`supplier.write` is the storekeeper's and Admin's** — already in the permission map since slice 22,
+   finally used. Reads ride on `part.read`, because the book is a view of the catalogue rather than a
+   separate register, and a write without that read would let a role edit what it cannot see.
+7. **Names are unique**, like locations: a dropdown with two "Sin Heng"s is a support call.
+
+**As built.** `src/lib/validation/suppliers.ts` holds the form schema; `src/server/inventory/
+suppliers.ts` holds `listSuppliers`, `supplierOptions`, `createSupplier`, `updateSupplier` and
+`assertSupplierActive`; `src/components/office/supplier-forms.tsx` is the add/edit form;
+`/suppliers` is the screen (each supplier's parts with their catalogue cost, and its recent orders).
+`PartSummary` gained `preferredSupplierId` and `preferredSupplierName`, and `PartForm` the select. The
+office nav gains **Suppliers** (after Stock takes), the parts page links to it, and the audit viewer
+labels a `Supplier` and links it to the book.
+
+**Migration:** none. `Supplier`, its relation to `Part` and `part.write`/`supplier.write` were designed
+in Phase 1 and already applied, and the seed has created three suppliers since slice 25.
+
+**Known limits.** There is no supplier-level price list beyond the orders actually raised — a quoted
+price that never became an order is not recorded anywhere. A part's supplier is set on the part form,
+one part at a time; there is no bulk re-pointing screen, which is what retiring a busy supplier would
+want. There is no browser test of `/suppliers`; the integration suite is what proves it.
 
 ### 7.14 Phase 4 (outline, not sliced yet)
 **Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;

@@ -16,6 +16,7 @@ import { assertCan } from '@/server/auth/permissions'
 import type { AuthContext } from '@/server/auth/types'
 import { assertLocationsExist } from './locations'
 import { defaultLocation, issueLocationFor, postMovement } from './stock'
+import { assertSupplierActive } from './suppliers'
 
 /**
  * The parts book (brief §9, slice 22).
@@ -42,6 +43,8 @@ export interface PartSummary {
   reorderQty: number | null
   trackSerialOrBatch: boolean
   isActive: boolean
+  preferredSupplierId: string | null
+  preferredSupplierName: string | null
   /** Across every location. Can go negative, and the screen says so — see `needsReorder`. */
   onHand: number
   belowReorder: boolean
@@ -84,6 +87,8 @@ const partSelect = {
   reorderQty: true,
   trackSerialOrBatch: true,
   isActive: true,
+  preferredSupplierId: true,
+  preferredSupplier: { select: { name: true } },
   stockLevels: { select: { quantity: true } },
 } satisfies Prisma.PartSelect
 
@@ -109,6 +114,8 @@ function toSummary(row: PartRow): PartSummary {
     reorderQty: row.reorderQty === null ? null : Number(row.reorderQty),
     trackSerialOrBatch: row.trackSerialOrBatch,
     isActive: row.isActive,
+    preferredSupplierId: row.preferredSupplierId,
+    preferredSupplierName: row.preferredSupplier?.name ?? null,
     onHand,
     belowReorder: needsReorder(onHand, reorderLevel),
   }
@@ -338,6 +345,7 @@ export async function createPart(
       ],
     })
   }
+  if (input.preferredSupplierId) await assertSupplierActive(client, input.preferredSupplierId)
 
   const created = await withAudit(
     context,
@@ -368,6 +376,7 @@ export async function updatePart(
   if (clash) {
     throw new ValidationError({ partNumber: ['That part number is already in the catalogue.'] })
   }
+  if (input.preferredSupplierId) await assertSupplierActive(client, input.preferredSupplierId)
 
   const updated = await withAudit(
     context,
@@ -604,5 +613,6 @@ function auditShape(row: PartRow) {
     reorderLevel: row.reorderLevel === null ? null : Number(row.reorderLevel),
     trackSerialOrBatch: row.trackSerialOrBatch,
     isActive: row.isActive,
+    preferredSupplierId: row.preferredSupplierId,
   }
 }

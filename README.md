@@ -12,8 +12,9 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 **Status:** Phases 1 and 2 are complete. Phase 3 (inventory) is under way: slice 22 built the parts
 book and made the stock ledger the single writer of every quantity, slice 23 added stock locations
 and transfers, slice 24 traces every serial and batch to the crane it went on, slice 25 turns the
-below-reorder list into purchase orders, and slice 26 settles the shelf against the books with a
-blind count and an approved variance. Next is slice 27 — suppliers. See "What works today" below.
+below-reorder list into purchase orders, slice 26 settles the shelf against the books with a
+blind count and an approved variance, and slice 27 adds the supplier book the reorder list groups by.
+Next is slice 28 — back-orders linked to jobs on hold. See "What works today" below.
 
 ---
 
@@ -175,6 +176,26 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 27 — the supplier book
+
+- **Who the store buys from.** `/suppliers` lists every supplier — contact, phone, email, lead time and
+  notes — with the parts that prefer it and its recent purchase orders. A part's supplier is chosen on the
+  part form, and that is the group the reorder list files it under.
+- **Price history is the orders themselves.** Each supplier shows the orders raised from it with their
+  totals and dates, read from the `PurchaseOrder` rows rather than a second price table. What was paid is
+  what the document says, so the two can never disagree.
+- **Retired, never deleted.** A supplier still named by a part cannot be retired until those parts are
+  pointed elsewhere — the form says how many and refuses. A retired supplier keeps its past orders and
+  drops out of the part form's choices and of the reorder grouping.
+- **Try it:** **Parts** → *Suppliers* → edit one of the three seeded suppliers and see the parts it
+  supplies and the orders raised from it. Point a part at it on the part page, or clear the field to see
+  the "no preferred supplier" group on *Reorder* grow.
+- **Tests** — 6 unit tests (blank fields read as absent, an absent *Active* box means retired, the lead
+  time as whole days, a bad email, and the storekeeper-only write) and a 5-case integration suite
+  (`suppliers.test.ts`: the audit-rowed create and its duplicate-name refusal, the dispatcher's refusal,
+  retiring a supplier a part still prefers and then allowing it once the part moves, a part pointed at a
+  retired supplier, and the price history read back from its purchase orders).
 
 ### Slice 26 — stock take
 

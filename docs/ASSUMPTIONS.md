@@ -732,6 +732,23 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
 166. **`stock.move` counts, `stocktake.approve` approves.** A technician counts a van but cannot write stock off;
     the storekeeper and Admin approve; finance reads the book and does neither. The capability was already in the
     map, unused, until this slice.
+167. **A supplier's price history is the purchase orders raised from it, not a separate price table.** What the
+     store paid is what the document it sent says; a `SupplierPrice` table would be a second record of the same
+     number, free to disagree with it.
+168. **A supplier is retired (`deletedAt`), never deleted.** The parts that prefer it and the orders raised from it
+     keep naming it. A retired supplier drops out of the part form's choices and the reorder grouping but stays on
+     its own page and on its past orders.
+169. **Retiring a supplier that a part still prefers is refused, saying how many.** A part whose preferred supplier
+     is retired lands in a reorder group nothing can order from — the state slice 25's unassigned group warns
+     about, reached invisibly.
+170. **A part may not prefer a retired supplier**, checked in the service on create and update, so a stale form
+     cannot make an orderless part.
+171. **`preferredSupplierId` lives on the part form.** The reorder grouping has always read it and no screen could
+     set it; the form takes the active suppliers as an optional prop.
+172. **Reads ride on `part.read`, writes on `supplier.write`.** The book is a view of the catalogue, not a separate
+     register, and a role that could write without reading would edit what it cannot see. `supplier.write` has been
+     in the permission map since slice 22 and is the storekeeper's and Admin's.
+173. **Supplier names are unique**, as location names are: two "Sin Heng"s in a dropdown is a support call.
 
 ## Not assumed — deliberately left to you
 

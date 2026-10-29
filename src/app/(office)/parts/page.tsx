@@ -6,6 +6,7 @@ import { formatMoney } from '@/lib/format'
 import { requireAuth } from '@/server/auth/context'
 import { can } from '@/server/auth/permissions'
 import { listParts } from '@/server/inventory/parts'
+import { supplierOptions } from '@/server/inventory/suppliers'
 import { getSettings } from '@/server/settings/settings'
 import { createPartAction } from './actions'
 
@@ -29,12 +30,14 @@ export default async function PartsPage({
   const params = await searchParams
   const filters = { q: params.q ?? '', brand: params.brand ?? '', level: params.level ?? '' }
 
-  const [{ parts, belowCount, brands }, settings] = await Promise.all([
+  const mayWrite = can(context.role, 'part.write')
+
+  const [{ parts, belowCount, brands }, settings, suppliers] = await Promise.all([
     listParts(context, filters),
     getSettings(),
+    mayWrite ? supplierOptions(context) : Promise.resolve([]),
   ])
 
-  const mayWrite = can(context.role, 'part.write')
   const filtered = Boolean(filters.q || filters.brand || filters.level === 'below')
 
   return (
@@ -75,6 +78,14 @@ export default async function PartsPage({
           </Link>{' '}
           <span className="text-slate-500">
             — what is below reorder, grouped by supplier, and the purchase orders on their way.
+          </span>
+        </p>
+        <p className="mt-1 text-sm">
+          <Link href="/suppliers" className="text-slate-700 underline hover:text-slate-900">
+            Suppliers
+          </Link>{' '}
+          <span className="text-slate-500">
+            — who the store buys from, and the price history behind each order.
           </span>
         </p>
         <p className="mt-1 text-sm">
@@ -225,7 +236,12 @@ export default async function PartsPage({
             Add a part to the catalogue
           </summary>
           <div className="mt-4">
-            <PartForm action={createPartAction} values={null} submitLabel="Add part" />
+            <PartForm
+              action={createPartAction}
+              values={null}
+              suppliers={suppliers}
+              submitLabel="Add part"
+            />
           </div>
         </details>
       ) : (

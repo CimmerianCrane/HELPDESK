@@ -161,6 +161,8 @@ export const partFields = {
   sellPrice: money('Sell price'),
   reorderLevel: optionalQty('The reorder level'),
   reorderQty: optionalQty('The reorder quantity'),
+  /** Who the reorder screen groups it under (slice 27). Checked active in the service. */
+  preferredSupplierId: optionalText(40),
   /** Critical items are traced by serial or batch (wire rope, hooks, brakes, electrical). */
   trackSerialOrBatch: z
     .union([z.literal('on'), z.literal('true'), z.literal(''), z.undefined()])
