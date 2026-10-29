@@ -710,6 +710,29 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     store types one, so a traced part received on a PO stays traceable. `purchaseorder.write` belongs to the
     storekeeper and Admin.
 
+160. **A stock take's system quantity is a snapshot; approval reconciles to the live shelf.** The session copies
+    what each line held when it opened, so the review shows the difference the counter worked against. Approving
+    re-reads the live level and posts the difference to what is actually there — so a delivery that arrived
+    during the count is reconciled, not reversed. A line that already matches at approval is skipped, not refused.
+161. **A variance is counted less system, from one function.** Positive means stock the books did not have. The
+    review table, the approved record and the posted movement all call `varianceFor`, so a sign cannot be flipped
+    in one of three places and silently double the error the count exists to fix.
+162. **A stock take posts through `adjustToCounted`, the same writer as the part page's count box.** Upward as
+    `ADJUST`, downward as `WRITEOFF`, each carrying `stockTakeId` (item 137, applied). There is no second
+    correction path.
+163. **A partial count cannot be approved, and a write-off needs a reason.** Approving with any line uncounted
+    would write off the lines nobody looked at. A downward difference with no reason anywhere on the session is
+    refused; a line that carries its own reason keeps it.
+164. **A stock take's status is derived from its lines.** `DRAFT` until something is counted, `COUNTING` while
+    lines remain, `REVIEW` once every line has a count (a zero counts), `APPROVED`/`CANCELLED` after that.
+    An approved count cannot be cancelled: it is the record the ledger was reconciled against.
+165. **One open session per location; an empty location still gets a session.** Two counts of one shelf produce
+    two answers and one argument. A location with nothing in it opens an empty session whose approval posts
+    nothing — "we counted the van and it was empty" is a result worth recording.
+166. **`stock.move` counts, `stocktake.approve` approves.** A technician counts a van but cannot write stock off;
+    the storekeeper and Admin approve; finance reads the book and does neither. The capability was already in the
+    map, unused, until this slice.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

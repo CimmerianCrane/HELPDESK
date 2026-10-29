@@ -11,8 +11,9 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 
 **Status:** Phases 1 and 2 are complete. Phase 3 (inventory) is under way: slice 22 built the parts
 book and made the stock ledger the single writer of every quantity, slice 23 added stock locations
-and transfers, slice 24 traces every serial and batch to the crane it went on, and slice 25 turns the
-below-reorder list into purchase orders. Next is slice 26 — stock take. See "What works today" below.
+and transfers, slice 24 traces every serial and batch to the crane it went on, slice 25 turns the
+below-reorder list into purchase orders, and slice 26 settles the shelf against the books with a
+blind count and an approved variance. Next is slice 27 — suppliers. See "What works today" below.
 
 ---
 
@@ -174,6 +175,27 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 26 — stock take
+
+- **Count a shelf, don't correct it by guesswork.** `/stock-takes` opens a session over one location — a
+  warehouse, a bin, a van or a customer site — and snapshots what the books say for every line in scope (optionally
+  narrowed to part numbers starting with a prefix). It is a **blind count** by default: the counter is not shown
+  the system figure, because a count that matches the books is worth less than an honest one.
+- **Count, review, recount.** `/stock-takes/[id]` lists every line with a counted field — blank means "not yet",
+  which is not the same as zero — and, on a non-blind session, the system quantity and the running variance.
+  Saving again is the recount. Once every line has a number the session moves to *Review* itself.
+- **Approving posts the difference.** One correction per line that disagrees, through the same `adjustToCounted`
+  the part page's count box uses: upward as an `ADJUST`, downward as a `WRITEOFF` with a reason, each carrying
+  the count's `ST-YYYY-NNNN` reference. A line that already matches is left alone, so a delivery that arrived
+  mid-count is reconciled rather than reversed. The page then becomes the read-only record of what was counted.
+- **Try it:** **Parts** → *Stock takes* → *Open a count* on the seeded store, count a few lines, approve. The
+  parts book's on-hand figures move and each part's movement list shows the adjustment with the reference.
+- **Tests** — 10 unit tests (the variance sign and its rounding, the derived status, blank vs zero, a negative
+  count) and an 8-case integration suite (`stock-takes.test.ts`: the opening snapshot, a downward correction
+  posted once and the matching lines left alone, an upward correction needing no reason, the refusal of a second
+  approval and of a half-counted session, one open session per location, a cancel posting nothing, the
+  technician-counts / storekeeper-approves split, and an empty location).
 
 ### Slice 25 — reorder alerts and purchase orders
 

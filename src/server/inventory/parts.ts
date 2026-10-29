@@ -520,8 +520,11 @@ export async function transferStock(
  *
  * The serial is carried through when the counter names one, so a correction on a traced part moves
  * the trace as well as the shelf — otherwise the batch would drift out of sight of the level.
+ *
+ * Exported because an approved stock take posts its differences through this exact function (slice
+ * 26): a count is a count, whether it was typed on the part page or approved from a session.
  */
-async function adjustToCounted(
+export async function adjustToCounted(
   tx: Tx,
   log: AuditLogger,
   context: AuthContext,
@@ -530,7 +533,10 @@ async function adjustToCounted(
   locationId: string,
   serialOrBatch: string | null,
   reasonCode: string | null,
-): Promise<void> {
+  stockTakeId: string | null = null,
+  /** The part page's count box says so out loud; an approval is reconciling to a count and is not. */
+  strict = true,
+): Promise<boolean> {
   const level = await tx.stockLevel.findUnique({
     where: { partId_locationId: { partId: part.id, locationId } },
     select: { quantity: true },
@@ -538,7 +544,8 @@ async function adjustToCounted(
   const delta = round3(counted - (level ? Number(level.quantity) : 0))
 
   if (delta === 0) {
-    throw new ValidationError({ quantity: ['That is already the quantity on hand.'] })
+    if (strict) throw new ValidationError({ quantity: ['That is already the quantity on hand.'] })
+    return false
   }
 
   await postMovement(tx, log, {
@@ -549,8 +556,10 @@ async function adjustToCounted(
     serialOrBatch,
     reasonCode,
     unitCost: Number(part.cost),
+    stockTakeId,
     movedById: context.userId,
   })
+  return true
 }
 
 /**

@@ -9,6 +9,7 @@ export const DOCUMENT_PREFIXES = {
   INVOICE: 'INV',
   QUOTE: 'QTE',
   PURCHASE_ORDER: 'PO',
+  STOCK_TAKE: 'ST',
 } as const
 
 export type DocumentKind = keyof typeof DOCUMENT_PREFIXES

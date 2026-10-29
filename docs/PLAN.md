@@ -1922,7 +1922,7 @@ designed up front (§3.8) and is already migrated — **no migration is expected
 | **23** | **Locations and transfers** (**built** — see §7.13.1) | `/parts/locations` (every location with what it holds; add and edit behind `part.write`; retired, never deleted), and a transfer form on the part page posting the `TRANSFER` the ledger always had a type for. The receiving form now offers **every active location**, not only the ones the part already sits in | `src/server/inventory/locations.ts` (new), `src/lib/validation/locations.ts` (new), `src/app/(office)/parts/locations/` (new), `/parts/[id]` | §9 |
 | **24** | **Serial and batch traceability** (**built** — see §7.13.2) | Record and trace a serial on `trackSerialOrBatch` parts: which crane received which rope or hook, and where the rest of the batch is. The issue path already stores `serialOrBatch`; this is the report and the lookup | `/parts/[id]`, the report form | §9 |
 | **25** | **Reorder alerts and a suggested purchase order** (**built** — see §7.13.3) | Group what is below reorder by preferred supplier, suggest the reorder quantity, and raise a `PurchaseOrder` from the group. Receiving a PO posts `RECEIVE` | `/parts/reorder` (new), `src/server/inventory/` | §9 |
-| 26 | Stock take | Session → blind count → variance → recount → approve, posting one `ADJUST`/`WRITEOFF` per line difference, and flagging a part/location that keeps disagreeing | `/stock-takes` (new), `src/server/inventory/` | §9 |
+| 26 | Stock take (**built** — see §7.13.4) | Session → blind count → variance → recount → approve, posting one `ADJUST`/`WRITEOFF` per line difference, and flagging a part/location that keeps disagreeing | `/stock-takes` (new), `src/server/inventory/` | §9 |
 | 27 | Suppliers | The supplier book and its price history, behind `supplier.write`, with the PO screens | `/suppliers` (new) | §9 |
 | 28 | Back-orders linked to jobs on hold | A part on order appears against the jobs held awaiting it, so "awaiting parts" says **which** part and when it lands | job page, `/parts` | §4.2, §9 |
 
@@ -2122,8 +2122,59 @@ it does today. A PO cannot be cancelled or edited once raised. Receiving does no
 matches the order (only that no line is over). There is no browser test of `/parts/reorder`; the integration suite
 is what proves it. Back-orders linked to jobs on hold are slice 28.
 
-### 7.14 Phase 4 (outline, not sliced yet)
+#### 7.13.4 Slice 26 — stock take (**built**)
 
+**Goal:** the store can settle the shelf-against-books argument — count a location, see the
+differences, and post them as ledger entries with a reason and a person on each.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 160–166):
+
+1. **The system quantity is a snapshot; approval reconciles to the live shelf.** A session copies
+   what each line held when it opened, so the review reads the difference the counter was working
+   against. Approving then re-reads the live level through `adjustToCounted` and posts the difference
+   to what is *actually* on the shelf, so a delivery that landed mid-count is counted rather than
+   reversed. A line that already matches at approval time is skipped, not refused.
+2. **A variance is counted less system, computed by one function.** Positive is stock the books did
+   not have. One definition, so the review table, the record after approval and the movement cannot
+   disagree about which way the sign goes.
+3. **A correction is the same `adjustToCounted` the part page uses**, an upward difference as
+   `ADJUST` and a downward one as `WRITEOFF`, each carrying `stockTakeId` so the ledger names the
+   count that posted it — the rule slice 22 set (item 137), applied rather than restated.
+4. **A partial count cannot be approved**, and a count that writes stock off needs a reason said
+   out loud. Approving half a shelf would write off the lines nobody looked at.
+5. **The status is derived, never posted.** `DRAFT` until something is counted, `COUNTING` while
+   lines remain, `REVIEW` once every line has a count (a zero is a count), `APPROVED`/`CANCELLED`
+   after that. `Cancel` posts nothing and an approved count cannot be cancelled — it is the record
+   the ledger was reconciled against.
+6. **One open session per location.** Two people counting one shelf produce two answers and one
+   argument, so a second session is refused by naming the open one. An empty location still opens a
+   session: "we counted the van and it was empty" is a result.
+7. **`stock.move` counts, `stocktake.approve` approves.** A technician can count a van but cannot
+   write stock off; finance reads the book and does neither. The capability was already in the map
+   and unused until this slice.
+
+**As built.** `src/lib/validation/stock-takes.ts` holds the pure rules — `varianceFor`,
+`stockTakeStatusFor`, the status labels, the reason codes and the three form schemas.
+`src/server/inventory/stock-takes.ts` holds `listStockTakes`, `getStockTake`, `createStockTake`,
+`recordCounts`, `approveStockTake` and `cancelStockTake`. `adjustToCounted` in `parts.ts` was made
+exportable and gained `stockTakeId` and a non-strict mode for approval; `postMovement` carries
+`stockTakeId`. `/stock-takes` is the list and the opening form; `/stock-takes/[id]` is the count, the
+review and the approval, and becomes a read-only record once approved. The parts page links to it,
+the office nav gains **Stock takes**, and the audit viewer labels a `StockTake` and links it.
+References come from the shared `DocumentSequence` under a new `ST` prefix.
+
+**Migration:** none. `StockTake`, `StockTakeLine`, `StockTakeStatus` and
+`StockMovement.stockTakeId` were designed in Phase 1 and already applied.
+
+**Known limits.** The count screen is office-first and table-shaped; the brief's "blind count on
+mobile/scanner" is not built — a phone holding `/stock-takes/[id]` works, but nothing drives it and
+there is no barcode entry. `movementsFrozenAt` is still unused: the scope is not frozen during a
+count, which is why approval reconciles to the live shelf (item 1) rather than reversing movements
+posted since. There is no repeat-discrepancy flag — the part page's negative lines and this list's
+`differences` count are the signal today. A cancel is refused once approved rather than being
+unwound by a reversing count.
+
+### 7.14 Phase 4 (outline, not sliced yet)
 **Phase 3 — Inventory.** Parts catalogue screens (`Part`, `Supplier` exist in the seed with 40 parts, no UI); locations;
 stock movements linked to jobs and DOs; serial/batch traceability; reorder alerts grouped by supplier; purchase orders
 and back-orders linked to jobs on hold awaiting parts; stock take workflow with blind counts, variance, recounts, reason

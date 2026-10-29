@@ -77,6 +77,14 @@ export default async function PartsPage({
             — what is below reorder, grouped by supplier, and the purchase orders on their way.
           </span>
         </p>
+        <p className="mt-1 text-sm">
+          <Link href="/stock-takes" className="text-slate-700 underline hover:text-slate-900">
+            Stock takes
+          </Link>{' '}
+          <span className="text-slate-500">
+            — count a shelf blind, review the difference, and post the correction.
+          </span>
+        </p>
       </div>
 
       <form method="get" className="flex flex-wrap items-end gap-3">

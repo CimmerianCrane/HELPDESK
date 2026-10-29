@@ -200,6 +200,7 @@ export const AUDIT_ENTITIES = [
   'Part',
   'StockMovement',
   'PurchaseOrder',
+  'StockTake',
   'Technician',
   'OnCallShift',
   'File',
@@ -231,6 +232,7 @@ const ENTITY_HREFS: Record<string, (id: string) => string> = {
   Invoice: (id) => `/invoices/${id}`,
   StockMovement: () => '/parts',
   PurchaseOrder: () => '/parts/reorder',
+  StockTake: (id) => `/stock-takes/${id}`,
   User: (id) => `/admin/users/${id}`,
 }
 
@@ -265,6 +267,7 @@ export async function auditEntityLabels(
     invoices,
     parts,
     purchaseOrders,
+    stockTakes,
   ] =
     await Promise.all([
     present('Job')
@@ -340,6 +343,12 @@ export async function auditEntityLabels(
           select: { id: true, number: true },
         })
       : [],
+    present('StockTake')
+      ? client.stockTake.findMany({
+          where: { id: { in: idsFor('StockTake') } },
+          select: { id: true, reference: true },
+        })
+      : [],
   ])
 
   const labels = new Map<string, AuditEntityLabel>()
@@ -364,6 +373,7 @@ export async function auditEntityLabels(
   for (const row of invoices) put('Invoice', row.id, row.number)
   for (const row of parts) put('Part', row.id, row.partNumber)
   for (const row of purchaseOrders) put('PurchaseOrder', row.id, row.number)
+  for (const row of stockTakes) put('StockTake', row.id, row.reference)
   for (const row of findings) {
     labels.set(`Finding:${row.id}`, {
       entity: 'Finding',

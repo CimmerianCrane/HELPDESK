@@ -30,6 +30,7 @@ export interface PostMovementInput {
   reportId?: string | null
   deliveryOrderId?: string | null
   purchaseOrderId?: string | null
+  stockTakeId?: string | null
   movedById?: string | null
   /** When it happened. Defaults to now; the seed uses it to date an opening balance. */
   movedAt?: Date
@@ -103,6 +104,7 @@ export async function postMovement(
       reportId: input.reportId ?? null,
       deliveryOrderId: input.deliveryOrderId ?? null,
       purchaseOrderId: input.purchaseOrderId ?? null,
+      stockTakeId: input.stockTakeId ?? null,
       movedById: input.movedById ?? null,
       ...(input.movedAt ? { movedAt: input.movedAt } : {}),
     },
@@ -129,6 +131,7 @@ export async function postMovement(
       jobId: input.jobId ?? null,
       reportId: input.reportId ?? null,
       purchaseOrderId: input.purchaseOrderId ?? null,
+      stockTakeId: input.stockTakeId ?? null,
     } as unknown as Record<string, unknown>,
   })
 
