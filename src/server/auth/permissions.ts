@@ -79,6 +79,8 @@ export const CAPABILITIES = [
   'stock.move',
   'stocktake.approve',
   'supplier.write',
+  /** Raising a purchase order from the reorder list, and receiving against it (slice 25). */
+  'purchaseorder.write',
   /** Raising and receiving a delivery order — paperwork for parts issued on a job (slice 18). */
   'deliveryorder.write',
 
@@ -165,6 +167,8 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
     'stock.move',
     'stocktake.approve',
     'supplier.write',
+    /** The storekeeper is who orders the parts and books them in when they arrive. */
+    'purchaseorder.write',
     'crane.read',
     'crane.register.read',
     'job.read.all',

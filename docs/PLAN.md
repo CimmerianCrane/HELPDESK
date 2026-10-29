@@ -1088,7 +1088,7 @@ export const CAPABILITIES = [
   'finding.write', 'finding.followUpJob',
   'certificate.read', 'certificate.write',
   'schedule.manage', 'compliancerule.manage', 'sla.manage',
-  'part.read', 'part.write', 'stock.move', 'stocktake.approve', 'supplier.write',
+  'part.read', 'part.write', 'stock.move', 'stocktake.approve', 'supplier.write', 'purchaseorder.write',
   'quote.write', 'invoice.read', 'invoice.write', 'pricing.approve', 'writeoff.approve',
   'report.financial', 'dashboard.office',
 ] as const
@@ -1921,7 +1921,7 @@ designed up front (§3.8) and is already migrated — **no migration is expected
 | **22** | **The parts book and the stock ledger** (**built** — see below) | `/parts` (search by number, description or crane model; brand filter; below-reorder filter and count) and `/parts/[id]` (on-hand, per-location levels, the part's own last 20 movements, add/edit behind `part.write`); a store form that posts `RECEIVE`, `RETURN` and `ADJUST`; **one writer** for `StockMovement` + `StockLevel`, which the report path now uses too, so issuing a part on a report finally moves the shelf | `src/server/inventory/` (new), `src/lib/validation/parts.ts` (new), `src/app/(office)/parts/` (new), `src/server/reports/reports.ts` (re-pointed) | §9 |
 | **23** | **Locations and transfers** (**built** — see §7.13.1) | `/parts/locations` (every location with what it holds; add and edit behind `part.write`; retired, never deleted), and a transfer form on the part page posting the `TRANSFER` the ledger always had a type for. The receiving form now offers **every active location**, not only the ones the part already sits in | `src/server/inventory/locations.ts` (new), `src/lib/validation/locations.ts` (new), `src/app/(office)/parts/locations/` (new), `/parts/[id]` | §9 |
 | **24** | **Serial and batch traceability** (**built** — see §7.13.2) | Record and trace a serial on `trackSerialOrBatch` parts: which crane received which rope or hook, and where the rest of the batch is. The issue path already stores `serialOrBatch`; this is the report and the lookup | `/parts/[id]`, the report form | §9 |
-| 25 | Reorder alerts and a suggested purchase order | Group what is below reorder by preferred supplier, suggest the reorder quantity, and raise a `PurchaseOrder` from the group. Receiving a PO posts `RECEIVE` | `/parts` (or `/inventory`), `src/server/inventory/` | §9 |
+| **25** | **Reorder alerts and a suggested purchase order** (**built** — see §7.13.3) | Group what is below reorder by preferred supplier, suggest the reorder quantity, and raise a `PurchaseOrder` from the group. Receiving a PO posts `RECEIVE` | `/parts/reorder` (new), `src/server/inventory/` | §9 |
 | 26 | Stock take | Session → blind count → variance → recount → approve, posting one `ADJUST`/`WRITEOFF` per line difference, and flagging a part/location that keeps disagreeing | `/stock-takes` (new), `src/server/inventory/` | §9 |
 | 27 | Suppliers | The supplier book and its price history, behind `supplier.write`, with the PO screens | `/suppliers` (new) | §9 |
 | 28 | Back-orders linked to jobs on hold | A part on order appears against the jobs held awaiting it, so "awaiting parts" says **which** part and when it lands | job page, `/parts` | §4.2, §9 |
@@ -2073,6 +2073,54 @@ normalises it, because normalising would rewrite what the store typed. A batch r
 serial and later issued with one shows the issue but not the receipt; the part page flags that
 serial in red ("more issued than received") and points at posting a count, rather than presenting a
 negative balance as fact.
+
+#### 7.13.3 Slice 25 — reorder alerts and purchase orders (**built**)
+
+**Goal:** turn the below-reorder count into the thing the store actually does with it — an order to a supplier,
+and a shelf that goes up when the order lands.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 153–159):
+
+1. **The suggested quantity is the store's, then the arithmetic.** `reorderQty` when the catalogue sets one;
+   otherwise enough to bring the shelf back to `reorderLevel`. `suggestedOrderQuantity` is pure and tested.
+2. **The list is grouped by preferred supplier, and the unassigned group is named, not merged.** A part with no
+   preferred supplier cannot be ordered — `PurchaseOrder.supplierId` is required — so that group is shown with
+   a link to the part, and the screen says what to fix.
+3. **The form posts part ids and quantities, never cost.** Description and cost are re-read from the catalogue
+   inside the raising transaction and snapshotted on the line, the way an invoice line is: a stale page cannot
+   price an order, and a later price change does not rewrite one already sent.
+4. **A line the store blanked is not on the order.** Every short part in the group is offered with its suggested
+   quantity; a blank or zero quantity leaves it off. Nothing is ever removed from the catalogue by ordering.
+5. **A delivery larger than the line still owes is refused, naming the remainder.** Unlike an issue (which is a
+   signed field document and may go negative, item 136), a receipt is a store action with the delivery in front
+   of the person. The extra goes in through the store's own receipt form, so the paperwork keeps saying what was
+   ordered.
+6. **The order's status is derived from its lines.** `DRAFT` until something arrives, `PARTIAL` while some lines
+   are short, `RECEIVED` when every line is whole — never posted by the form, the same rule delivery orders and
+   invoices follow. Nothing sends or cancels a PO yet, so `SENT` and `CANCELLED` are unused.
+7. **A receipt is one `RECEIVE` per line through `postMovement`, carrying `purchaseOrderId`.** The order's running
+   quantity and the shelf are the same arrival, so they cannot drift (rule 10). One receipt names one location;
+   a delivery split across two shelves is two receipts. A serial rides along when the store types one, so a
+   traced rope received on a PO is still traceable.
+8. **`purchaseorder.write` is the storekeeper's and Admin's.** Dispatch and finance read the catalogue but do not
+   buy stock; a technician holds `part.read` and sees the groups without the forms.
+
+**As built.** `src/lib/validation/purchase-orders.ts` holds the pure rules — `suggestedOrderQuantity`,
+`purchaseOrderStatusFor`, `remainingOnOrder`, the status labels, and the two form schemas. `src/server/inventory/
+purchase-orders.ts` holds `reorderGroups`, `listOpenPurchaseOrders`, `raisePurchaseOrder` and
+`receivePurchaseOrder`; `postMovement` gained `purchaseOrderId`. `/parts/reorder` is the screen: the groups with
+their raise forms, and the open orders with a receipt form each; **Parts** links to it. The audit viewer labels a
+`PurchaseOrder` and links it to the reorder screen. The seed creates three suppliers and points the demo parts at
+them (filling in only parts whose supplier is still unset, so a store choice is never overwritten).
+
+**Migration:** none. `PurchaseOrder`, `PurchaseOrderLine`, `PurchaseOrderStatus`, the `PO` sequence prefix and
+`StockMovement.purchaseOrderId` were designed in Phase 1 and already applied. `PurchaseOrderLine` has no relation
+to `Part`, so a part's number and unit are read in one batched lookup per screen rather than per line.
+
+**Known limits.** No purchase order PDF, email or "send" action — the office raises the order and sends it however
+it does today. A PO cannot be cancelled or edited once raised. Receiving does not check that a receipt's total
+matches the order (only that no line is over). There is no browser test of `/parts/reorder`; the integration suite
+is what proves it. Back-orders linked to jobs on hold are slice 28.
 
 ### 7.14 Phase 4 (outline, not sliced yet)
 

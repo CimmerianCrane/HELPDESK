@@ -1206,6 +1206,26 @@ async function seedDemoBook(): Promise<void> {
     })
   }
 
+  // Suppliers, so the reorder screen has real groups to raise an order from. Parts whose brand is not
+  // listed are left without a supplier on purpose: the "no preferred supplier" state is one the store
+  // has to see, and the screen says how to fix it.
+  const DEMO_SUPPLIER_BRANDS: Array<[string, string[]]> = [
+    ['Sin Heng Lifting Supplies', ['Bridon', 'Gunnebo', 'Crosby', 'Yale']],
+    ['Hoist & Crane Parts', ['Konecranes', 'Demag', 'SIBRE', 'Stromag', 'Tele Radio']],
+    ['Eastern Electrical & Bearings', ['Schneider', 'Telemecanique', 'SKF', 'Nexans', 'Shell', 'CRC']],
+  ]
+  const supplierIdForBrand = new Map<string, string>()
+  for (const [name, brands] of DEMO_SUPPLIER_BRANDS) {
+    let supplier = await db.supplier.findFirst({ where: { name }, select: { id: true } })
+    if (!supplier) {
+      supplier = await db.supplier.create({
+        data: { name, contactName: 'Trade counter', leadTimeDays: 10 },
+        select: { id: true },
+      })
+    }
+    for (const brand of brands) supplierIdForBrand.set(brand, supplier.id)
+  }
+
   const partsByNumber = new Map(
     (
       await db.part.findMany({
@@ -1226,7 +1246,16 @@ async function seedDemoBook(): Promise<void> {
   let partsAdded = 0
   let belowReorder = 0
   for (const [partNumber, description, brand, uom, cost, sellPrice, reorderLevel, quantity] of DEMO_PARTS) {
+    const supplierId = supplierIdForBrand.get(brand) ?? null
     let partId = partsByNumber.get(partNumber)
+    if (partId && supplierId) {
+      // A demo part no one has pointed at a supplier: fill it in so the reorder screen has a group to
+      // raise from. The null guard leaves a supplier the store has deliberately chosen alone.
+      await db.part.updateMany({
+        where: { id: partId, preferredSupplierId: null },
+        data: { preferredSupplierId: supplierId },
+      })
+    }
     if (!partId) {
       const part = await db.part.create({
         data: {
@@ -1239,6 +1268,7 @@ async function seedDemoBook(): Promise<void> {
           reorderLevel,
           reorderQty: reorderLevel * 2,
           leadTimeDays: 14,
+          preferredSupplierId: supplierId,
           // Rope, hooks and chain are the parts brief §9 names as traced, so the serial screen has
           // something to show on a fresh database.
           trackSerialOrBatch: /^(WR|HK|CHAIN)-/.test(partNumber),

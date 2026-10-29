@@ -11,8 +11,8 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 
 **Status:** Phases 1 and 2 are complete. Phase 3 (inventory) is under way: slice 22 built the parts
 book and made the stock ledger the single writer of every quantity, slice 23 added stock locations
-and transfers, and slice 24 traces every serial and batch to the crane it went on. Next is slice 25 —
-reorder alerts and a suggested purchase order. See "What works today" below.
+and transfers, slice 24 traces every serial and batch to the crane it went on, and slice 25 turns the
+below-reorder list into purchase orders. Next is slice 26 — stock take. See "What works today" below.
 
 ---
 
@@ -174,6 +174,28 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 25 — reorder alerts and purchase orders
+
+- **What to buy, from whom.** `/parts/reorder` takes everything below its reorder level and groups it by the
+  supplier the catalogue prefers. Each part shows what is held, what it reorders at and a suggested quantity —
+  the store's standing reorder quantity where it set one, otherwise enough to get back to the level. Parts with
+  no preferred supplier are grouped together and named, with a link to set one.
+- **Raising the order.** One button per supplier raises a numbered `PO-YYYY-NNNN` with those lines. Quantities
+  are editable and blanking one leaves that part off; the cost is copied from the catalogue at that moment, so a
+  later price change does not rewrite an order already sent.
+- **Receiving moves the shelf.** The *On order* list shows every draft, sent and part-received order. A receipt
+  posts one `RECEIVE` per line through `postMovement` — into one location, with an optional serial for a traced
+  part — and advances the line's received quantity. The order's status is derived from what its lines have
+  received: *Partly received* until every line is whole, then *Received*. More than a line still owes is
+  refused, naming the remainder.
+- **Try it:** **Parts** → *Reorder* — the seeded book has three suppliers and nine short parts. Raise an order
+  from one group, then enter the quantities that arrived and post the receipt; the part's on-hand figure goes up.
+- **Tests** — 17 unit tests (the suggested quantity, the status a receipt produces, what a line still owes, both
+  forms, the permission split) and a 10-case integration suite (`purchase-orders.test.ts`: grouping and the
+  exclusion of a restocked part, the numbered order with its cost snapshot and audit row, the refusal to order
+  another supplier's part, the dispatcher's refusal, a receipt moving the level and the status, the serial kept,
+  the over-receipt refusal writing nothing, no deliveries after the order is whole, and the open-order list).
 
 ### Slice 24 — serial and batch traceability
 

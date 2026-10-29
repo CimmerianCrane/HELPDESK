@@ -69,6 +69,14 @@ export default async function PartsPage({
             — the store, bins, vans and parts held on site, and what each one holds.
           </span>
         </p>
+        <p className="mt-1 text-sm">
+          <Link href="/parts/reorder" className="text-slate-700 underline hover:text-slate-900">
+            Reorder
+          </Link>{' '}
+          <span className="text-slate-500">
+            — what is below reorder, grouped by supplier, and the purchase orders on their way.
+          </span>
+        </p>
       </div>
 
       <form method="get" className="flex flex-wrap items-end gap-3">

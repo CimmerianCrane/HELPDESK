@@ -15,15 +15,27 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phases 1 and 2 are complete, and Phase 3 (Inventory) is under way.** Slices 0–24 are built; Phase 1's
+**Phases 1 and 2 are complete, and Phase 3 (Inventory) is under way.** Slices 0–25 are built; Phase 1's
 acceptance path still passes untouched. **`docs/PLAN.md` §7 is the canonical copy** — §7.2 is the
 Phase 2 slice table, §7.3–§7.12 each Phase 2 slice's fixed decisions as built, and **§7.13 is the
-Phase 3 slice table plus slices 22 and 23 as built (§7.13.1) and slice 24 as built (§7.13.2)**;
-§7.14 outlines Phase 4.
-**The Phase 3 slices are 22 → 28 (parts book → back-orders); slice 25 is next — read §7.13, then ask
-before starting the next slice.**
+Phase 3 slice table plus slices 22 and 23 as built (§7.13.1), slice 24 as built (§7.13.2) and slice 25
+as built (§7.13.3)**; §7.14 outlines Phase 4.
+**The Phase 3 slices are 22 → 28 (parts book → back-orders); slice 26 (stock take) is next — read
+§7.13, then ask before starting the next slice.**
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
+
+> **Slice 25 is done and verified.** No migration was needed. `npm run verify` (390 unit tests),
+> `npm run test:integration` (317), `npm run test:e2e` (38 passed, 2 offline-only skipped) and
+> `npm run build` all pass, and `tests/e2e/happy-path.spec.ts` passes **unmodified**.
+
+> **Slice 25 — reorder alerts and purchase orders.** `/parts/reorder` groups everything below its
+> reorder level by preferred supplier, with a suggested quantity (the store's reorder quantity, else
+> the shortfall to the level), and raises a numbered `PO-YYYY-NNNN` from a group with the catalogue's
+> cost snapshotted on each line. The open orders on the same screen take a receipt: one `RECEIVE` per
+> line through `postMovement`, carrying `purchaseOrderId`, into one location, with an optional serial;
+> the order's status is derived from what its lines have received. The seed now creates three
+> suppliers and points the demo parts at them. See `docs/PLAN.md` §7.13.3.
 
 > **Slice 24 is done and verified.** No migration was needed. `npm run verify` (373 unit tests),
 > `npm run test:integration` (307), `npm run test:e2e` (38 passed, 2 offline-only skipped) and
@@ -83,7 +95,8 @@ asked.**
 | 22 Parts book & stock ledger | done |
 | 23 Locations & transfers | done |
 | 24 Serial & batch traceability | done |
-| 25 Reorder alerts & suggested PO | next |
+| 25 Reorder alerts & purchase orders | done |
+| 26 Stock take | next |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -187,9 +200,8 @@ filters applied to the file. `AccountingExporter` is the seam a Xero/QuickBooks 
 `tests/e2e/phase2.spec.ts` walks the whole of Phase 2 in one browser run, starting with a compliance rule
 added on `/admin/compliance`, adopted on a crane, and ending with the invoice exported.
 
-**Not yet built:** the rest of Phase 3 (slices 25–28: reorder alerts and purchase orders, stock take,
-suppliers, back-orders) and all of Phase 4 (the customer portal and reporting). The Phase 3 slice table
-is `docs/PLAN.md` §7.13.
+**Not yet built:** the rest of Phase 3 (slices 26–28: stock take, suppliers, back-orders) and all of
+Phase 4 (the customer portal and reporting). The Phase 3 slice table is `docs/PLAN.md` §7.13.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 

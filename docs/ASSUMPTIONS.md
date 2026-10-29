@@ -688,6 +688,28 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
     bin or van that serial is actually in, read from its movements; the fullest bin is the fallback for no
     serial or one never received, and it stays a guess rather than a refusal (item 136).
 
+153. **The suggested order quantity is the store's, then the arithmetic.** A part with a `reorderQty` is suggested
+    that amount; without one, enough to bring the shelf back to the reorder level (which handles a negative shelf
+    correctly). The store's number wins because it knows about a supplier's pack size.
+154. **Below-reorder parts are grouped by preferred supplier, and the unassigned group is named.** A purchase order
+    requires a supplier, so a part with none is listed with a link to the part and no raise form — the screen says
+    what to fix rather than hiding the part or inventing a supplier.
+155. **The raising form posts quantities, never prices.** Description and cost are re-read from the catalogue inside
+    the transaction and snapshotted on the line, so a stale page cannot price an order and a later price change
+    does not rewrite an order already sent.
+156. **A blank quantity leaves a part off the order.** Every short part in a supplier's group is offered with its
+    suggested quantity; blanking or zeroing one is the store saying "not this one". Nothing is deleted.
+157. **A receipt larger than the line still owes is refused, naming the remainder.** An issue may take a level
+    negative because a signed field report must not be lost (item 136); a receipt is a store action with the
+    delivery in front of the person, and the extra belongs on the store's own receipt form.
+158. **A purchase order's status is derived from its lines.** `DRAFT` until something arrives, `PARTIAL` while
+    lines are short, `RECEIVED` when every line is whole. Nothing sends or cancels a PO yet, so `SENT` and
+    `CANCELLED` are unused.
+159. **A PO receipt is one `RECEIVE` per line through `postMovement`, carrying `purchaseOrderId`, into one
+    location.** The order's running quantity and the shelf are the same arrival. A serial is recorded when the
+    store types one, so a traced part received on a PO stays traceable. `purchaseorder.write` belongs to the
+    storekeeper and Admin.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in
