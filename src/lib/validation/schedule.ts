@@ -236,7 +236,14 @@ export const bookResourceSchema = z
     }
   })
 
+/** The round view (slice 35): one day, optionally one technician, as the board's filter reads it. */
+export const routeFilterSchema = z.object({
+  date: z.string().trim().max(10).optional().default(''),
+  technicianId: z.string().trim().max(40).optional().default(''),
+})
+
 export type BoardFilter = z.infer<typeof boardFilterSchema>
+export type RouteFilter = z.infer<typeof routeFilterSchema>
 export type RescheduleInput = z.infer<typeof rescheduleSchema>
 export type BumpInput = z.infer<typeof bumpSchema>
 export type UnavailabilityInput = z.infer<typeof unavailabilitySchema>

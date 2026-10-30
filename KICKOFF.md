@@ -15,22 +15,26 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phases 1, 2 and 3 are complete, and Phase 4 (Optimisation) is under way.** Slices 0–34 are built;
+**Phases 1, 2 and 3 are complete, and Phase 4 (Optimisation) is under way.** Slices 0–35 are built;
 Phase 1's acceptance path still passes untouched. **`docs/PLAN.md` §7 is the canonical copy** — §7.2 is
 the Phase 2 slice table, §7.3–§7.12 each Phase 2 slice's fixed decisions as built, **§7.13 is the
 Phase 3 slice table plus slices 22 and 23 as built (§7.13.1), slice 24 as built (§7.13.2), slice 25
 as built (§7.13.3), slice 26 as built (§7.13.4), slice 27 as built (§7.13.5) and slice 28 as built
 (§7.13.6)**, and **§7.14 is the Phase 4 slice table with slice 29 as built (§7.15), slice 30 as
-built (§7.16), slice 31 as built (§7.17), slice 32 as built (§7.18), slice 33 as built (§7.19) and
-slice 34 as built (§7.20)**.
-**Slice 34 (equipment calibration tracking) is done; slice 35 (route optimisation) is next —
-read `docs/PLAN.md` §7.14, then ask before starting it.**
+built (§7.16), slice 31 as built (§7.17), slice 32 as built (§7.18), slice 33 as built (§7.19),
+slice 34 as built (§7.20) and slice 35 as built (§7.21)**, **Slice 35 (route optimisation) is done;
+slice 36 (WhatsApp/SMS adapters) is next — read `docs/PLAN.md` §7.14, then ask before starting it.**
 
-> **Slice 34 — equipment calibration tracking.** `/calibrations` is a register of the equipment the schedule books —
-> test weights, load cells, vans and tools — with each item's calibration due date, the certificate from the lab, and
-> the same overdue/30/60/90 buckets the certificate register uses. No new model: `Resource.calibrationDueDate` and
-> `calibrationFileId` have been there since Phase 1. The storekeeper adds and edits (`resource.write`); dispatch books
-> but does not edit. Retiring is refused while the item is on an unfinished job. See `docs/PLAN.md` §7.20.
+> **Slice 35 — route optimisation.** `/schedule` gains a **Round for the day** section under the board: the day's
+> visits in the order to drive them, the kilometres from each stop to the next, and an estimated drive for the
+> total. The order starts at whichever visit is scheduled first and improves from there by 2-opt; the distance is a
+> great circle and the time assumes 30 km/h, both said on the screen. A read, not a write — nothing is rescheduled.
+> A site with no coordinates is listed in an amber block rather than dropped. No migration: `Site.latitude` and
+> `longitude` have existed since Phase 1 and were simply never read. See `docs/PLAN.md` §7.21.
+
+> **Slice 35 is done and verified.** No migration was needed. `npm run verify` (450 unit tests, 9 new in
+> `tests/unit/routes.test.ts`), `npm run test:integration` (376, 5 new in `tests/integration/routes.test.ts`),
+> `npm run test:e2e` (45 passed, 2 offline-only skipped) and `npm run build` all pass.
 
 > **Slice 34 is done and verified.** No migration was needed. `npm run verify` (441 unit tests, 1 new),
 > `npm run test:integration` (371, 6 new in `tests/integration/calibrations.test.ts`), `npm run test:e2e`
@@ -192,6 +196,7 @@ asked.**
 | 32 Profitability reporting | done |
 | 33 Technician utilisation | done |
 | 34 Equipment calibration tracking | done |
+| 35 Route optimisation | done |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -295,10 +300,11 @@ filters applied to the file. `AccountingExporter` is the seam a Xero/QuickBooks 
 `tests/e2e/phase2.spec.ts` walks the whole of Phase 2 in one browser run, starting with a compliance rule
 added on `/admin/compliance`, adopted on a crane, and ending with the invoice exported.
 
-**Not yet built:** the rest of Phase 4 — route optimisation, WhatsApp/SMS and the Xero/QuickBooks
+**Not yet built:** the rest of Phase 4 — WhatsApp/SMS and the Xero/QuickBooks
 driver. Phase 3 is complete (§7.13); Phase 4's slice table is §7.14, with slice 29 as built in
 §7.15, slice 30 in §7.16, slice 31 (the customer portal) in §7.17, slice 32 (profitability) in
-§7.18, slice 33 (utilisation) in §7.19 and slice 34 (calibration) in §7.20.
+§7.18, slice 33 (utilisation) in §7.19, slice 34 (calibration) in §7.20 and slice 35 (route
+optimisation) in §7.21.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 

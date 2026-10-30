@@ -20,8 +20,9 @@ against parts cost per customer, contract and job type at `/reports/profitabilit
 **technician utilisation** at `/reports/utilisation` — hours on the tools and on the road against the
 working hours available, from the job status history; and slice 34 adds the **calibration register** at
 `/calibrations` — the test weights, load cells, vans and tools the schedule books, with the date each
-one's calibration runs out and the certificate from the lab. **Phase 4 continues with route
-optimisation.** See "What works today" below.
+one's calibration runs out and the certificate from the lab; and slice 35 orders the day's visits into a
+**round** on `/schedule` — which site is on the way to which. **Phase 4 continues with the WhatsApp and SMS
+adapters.** See "What works today" below.
 
 ---
 
@@ -186,6 +187,25 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 35 — route optimisation
+
+- **The day's round, in driving order.** Under the schedule board, `/schedule` lists the day's visits in the order to
+  drive them: position, job, site, customer, address, and the kilometres from the stop before. A total and an estimated
+  drive sit above the list. The technician filter at the top of the page narrows the round to one person's day.
+- **The order starts at the first booked visit.** There is no depot in the system, so the earliest-scheduled visit keeps
+  its slot and the rest are ordered from there. It is a **read**: nothing is rescheduled, and the dispatcher acts on it
+  by dragging cards on the board.
+- **The distances are honest about what they are.** Great-circle kilometres, not road distance, and the drive time
+  assumes 30 km/h. Both are said on the screen — the round is a guide for the order, not a mileage claim.
+- **A site with no coordinates is listed, never dropped.** Visits whose site has no latitude/longitude appear in an
+  amber block naming the job; adding the coordinates on the site puts them on the round.
+- **The demo sites now have coordinates**, so the round is populated after `npm run seed`.
+- **Try it:** sign in as `dispatcher@cimmeriancrane.example`, open `/schedule`, and read the **Round** section under the
+  board. Pick a day and a technician to see one person's day.
+- **Tests** — 9 unit tests in `tests/unit/routes.test.ts` (the geometry, the pinned start, 2-opt never making it worse,
+  determinism) and 5 integration tests in `tests/integration/routes.test.ts` (the ordering, the day window, the
+  technician filter, the unlocated block, the role refusal). No browser test walks the section. **No migration.**
 
 ### Slice 34 — equipment calibration tracking
 

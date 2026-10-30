@@ -5,7 +5,9 @@ import { cardClass } from '@/components/office/ui'
 import { addDays, isoDay } from '@/server/schedule/board'
 import { requireAuth } from '@/server/auth/context'
 import { listTechnicians } from '@/server/schedule/roster'
+import { dayRoute } from '@/server/schedule/routes-service'
 import { scheduleBoard } from '@/server/schedule/scheduling'
+import { formatDuration, formatDateTime } from '@/lib/format'
 import { moveJobCardAction } from './actions'
 
 export const metadata: Metadata = { title: 'Schedule — Cimmerian Crane Services' }
@@ -26,13 +28,17 @@ export default async function SchedulePage({
   const context = await requireAuth()
   const params = await searchParams
 
-  const [board, technicians] = await Promise.all([
+  const [board, technicians, route] = await Promise.all([
     scheduleBoard(context, {
       view: params.view ?? '',
       date: params.date ?? '',
       technicianId: params.technicianId ?? '',
     }),
     listTechnicians(context),
+    dayRoute(context, {
+      date: params.date ?? '',
+      technicianId: params.technicianId ?? '',
+    }),
   ])
 
   const day = new Date(`${board.day}T00:00:00.000Z`)
@@ -140,6 +146,69 @@ export default async function SchedulePage({
       </div>
 
       <ScheduleBoardView board={board} reassign={moveJobCardAction} />
+
+      <section className={cardClass}>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold text-slate-900">Round for {route.dayLabel}</h2>
+          {route.stops.length > 1 ? (
+            <p className="text-sm text-slate-600">
+              {route.totalKm.toFixed(1)} km in a line · about{' '}
+              {formatDuration(route.driveMinutes * 60_000)} driving
+            </p>
+          ) : null}
+        </div>
+        <p className="mt-1 text-sm text-slate-600">
+          The order to drive them in, from whichever visit is scheduled first. Distances are
+          straight-line and the time assumes {route.averageSpeedKmh} km/h — a guide for the order,
+          not a mileage claim.
+        </p>
+
+        {route.stops.length === 0 && route.unlocated.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-500">No visits are booked on this day.</p>
+        ) : (
+          <ol className="mt-4 space-y-2">
+            {route.stops.map((stop) => (
+              <li key={stop.jobId} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-1">
+                <span className="w-5 text-sm font-semibold text-slate-500">{stop.position}</span>
+                <Link href={`/jobs/${stop.jobId}`} className="text-sm font-medium text-slate-900 underline">
+                  {stop.jobNumber}
+                </Link>
+                <span className="text-sm text-slate-700">
+                  {stop.siteName} · {stop.customerName}
+                </span>
+                {stop.address ? <span className="text-xs text-slate-500">{stop.address}</span> : null}
+                <span className="text-xs text-slate-500">
+                  {stop.position === 1
+                    ? formatDateTime(stop.scheduledStart, route.timezone)
+                    : `+${stop.legKm.toFixed(1)} km from the stop before`}
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        {route.unlocated.length > 0 ? (
+          <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm font-medium text-amber-900">
+              {route.unlocated.length} visit{route.unlocated.length === 1 ? '' : 's'} cannot be placed
+              on the round: the site has no coordinates.
+            </p>
+            <ul className="mt-1 space-y-0.5 text-sm text-amber-900">
+              {route.unlocated.map((stop) => (
+                <li key={stop.jobId}>
+                  <Link href={`/jobs/${stop.jobId}`} className="underline">
+                    {stop.jobNumber}
+                  </Link>{' '}
+                  — {stop.siteName}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-xs text-amber-800">
+              Add latitude and longitude on the site and the visit joins the round.
+            </p>
+          </div>
+        ) : null}
+      </section>
 
       <section className={cardClass}>
         <h2 className="font-semibold text-slate-900">Resources</h2>

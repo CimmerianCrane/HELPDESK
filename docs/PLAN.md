@@ -2271,7 +2271,7 @@ been migrated since Phase 1 — **no migration is expected for the first slices.
 | **32** | **Profitability reporting** (**built** — see §7.18) | Revenue against the parts cost of the jobs behind it, per customer, contract and job type, from invoices and the stock ledger. Labour is not costed, and the screen says so | `src/server/reports/profitability.ts` (new), `/reports/profitability` | §11 |
 | **33** | **Technician utilisation** (**built** — see §7.19) | Hours on the tools and on the road against the working hours available, from the job status history, less booked leave | `src/server/reports/utilisation.ts` (new), `/reports/utilisation` | §11 |
 | **34** | **Equipment calibration tracking** (**built** — see §7.20) | A calibration register beside certificates, with its own due/overdue queue | `src/server/calibrations/` (new), `/calibrations` | §4.5 |
-| 35 | Route optimisation | An ordered round from the day's jobs, using the site addresses already held | `/schedule` | §4.4 |
+| 35 | Route optimisation (**built** — see §7.21) | An ordered round from the day's jobs, using the site addresses already held | `/schedule` | §4.4 |
 | 36 | WhatsApp and SMS adapters | A third and fourth `notify` channel, behind the adapter seam that already exists | `src/server/notify/` | §10 |
 | 37 | Xero/QuickBooks integration | Push issued invoices through the accounting adapter slice 21 left in place | `src/server/accounting/` | §10 |
 
@@ -2557,6 +2557,47 @@ already there.
 audit trail is the record of what was there before. No browser test walks the screen;
 `tests/integration/calibrations.test.ts` is what proves the audit rows, the file-ownership refusal, the retirement
 guard, the bucket counts and the role refusal.
+
+---
+
+### 7.21 Slice 35 — route optimisation (**built**)
+
+**Goal:** the board answers "who is going where, and when", but not "in what order". A dispatcher with four visits
+on one side of the island and one on the other had no way to see the drive.
+
+**The finding that shaped it:** the coordinates were already there. `Site.latitude`/`longitude` have existed since
+Phase 1, the site form edits them, and nothing read them. No migration, no new model.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 214–218):
+
+1. **The round starts at whichever visit is scheduled first.** There is no depot in the system, and reorder the first
+   stop would be a reschedule dressed as a suggestion. The rest are ordered from there; the dispatcher moves cards to
+   act on it.
+2. **It is a read, and writes nothing.** No `Job` row is touched, no audit entry is written. The order is advice; the
+   board's drag is the action.
+3. **Nearest neighbour, then 2-opt.** Exact TSP is brute force; a working day is under a dozen stops and this lands
+   within a few per cent instantly. Ties break on the caller's order so the same day always plans the same round.
+4. **Straight-line distance and one average speed (30 km/h).** Nothing knows road distance or traffic. The screen says
+   both rather than presenting a guess as a measurement, and the time is labelled an estimate.
+5. **A site with no coordinates is set aside, not silently dropped.** It is listed in an amber block naming the job and
+   the fix — add latitude and longitude on the site — so a missing map pin cannot make a visit invisible.
+
+**As built.** `src/server/schedule/routes.ts` is the pure half: `distanceKm` (haversine, IUGG mean radius) and
+`planRoute` (nearest neighbour, then 2-opt with the start point pinned, returning the order, each leg and the total).
+`src/server/schedule/routes-service.ts` reads the day's jobs under `jobReadWhere` and `job.schedule`, drops the ones
+whose site has no coordinates into `unlocated`, and plans the rest — a technician filter narrows it to one person's day.
+`/schedule` gains a **Round for &lt;day&gt;** section under the board: the ordered list with position, job, site, customer,
+address, the kilometres from the stop before, and the first stop's time, plus a total and an estimated drive. The seed
+now gives every demo site approximate coordinates, so the round is populated in the demo book.
+
+**No migration.** Both columns have existed since Phase 1; the seed writes them on sites it creates.
+
+**Known limits.** No map view — the brief's map is still unbuilt, and this is a list. No mileage claim: the distance is
+a straight line, so it under-reads the road by however much the streets bend. The average speed is a constant, not a
+setting. The round is one day; a week's tour is not planned. No browser test walks the section;
+`tests/integration/routes.test.ts` proves the ordering, the day window, the technician filter, the unlocated block and
+the role refusal, and `tests/unit/routes.test.ts` proves the geometry and that the plan is never worse than the order it
+was given.
 
 ---
 

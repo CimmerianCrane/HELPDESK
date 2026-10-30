@@ -865,6 +865,24 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
      booked on an unfinished job and naming those jobs; the row is kept, because jobs, bookings and the audit trail
      name the equipment forever.
 
+214. **The round starts at whichever visit is scheduled first, not at a depot.** No depot, base or workshop address
+     exists in the system, and moving the first visit to shorten the drive would be a reschedule dressed as a
+     suggestion. The rest are ordered from the fixed first stop. *If wrong:* a starting point becomes one more input to
+     `planRoute`, not a rewrite.
+215. **Route optimisation is a read and writes nothing.** The order is advice the dispatcher acts on by dragging cards;
+     there is no `Route` row, no audit entry, and no visit is moved. *If wrong:* saving a round is a new table, not a
+     change to this one.
+216. **Nearest neighbour followed by 2-opt, with the start pinned.** Exact shortest-path is factorial; a working day is
+     under a dozen stops and this is within a few per cent, instantly and deterministically. Ties break on the order the
+     caller supplied, so the same day always plans the same round.
+217. **Distance is a great-circle line and drive time assumes 30 km/h.** Nothing records road distance, traffic or a
+     travel-time matrix, and adding a mapping provider is a dependency and an API key the brief never asked for. Both
+     caveats are on the screen. *If wrong:* road distance replaces one function, `distanceKm`, and the rest of the
+     ordering is unchanged.
+218. **A site with no coordinates is set aside, not dropped.** The round lists those visits in an amber block naming the
+     job and the fix. Silently omitting a visit because its map pin is missing would make work invisible, which is worse
+     than an incomplete round.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

@@ -336,6 +336,8 @@ async function seedWork(): Promise<void> {
       site: {
         name: 'Jurong Pier Works',
         address: { line1: '31 Jurong Pier Road', city: 'Singapore', postalCode: '619195' },
+        latitude: 1.3119,
+        longitude: 103.7086,
         accessNotes: 'Report to the guardhouse on the left of the gate. Bring photo ID.',
         inductionRequirements: 'Site induction (15 min) before the first visit.',
         operatingHours: '07:00–18:00, Monday to Saturday',
@@ -373,6 +375,8 @@ async function seedWork(): Promise<void> {
       site: {
         name: 'Tuas Yard',
         address: { line1: '8 Tuas Avenue 12', city: 'Singapore', postalCode: '639601' },
+        latitude: 1.319,
+        longitude: 103.647,
         accessNotes: 'Hard hat and safety boots required past the barrier.',
         inductionRequirements: null,
         operatingHours: '24 hours',
@@ -416,6 +420,8 @@ async function seedWork(): Promise<void> {
         accessNotes: customer.site.accessNotes,
         inductionRequirements: customer.site.inductionRequirements,
         operatingHours: customer.site.operatingHours,
+        latitude: customer.site.latitude ?? null,
+        longitude: customer.site.longitude ?? null,
       },
     })
 
@@ -584,6 +590,9 @@ interface DemoCrane {
 interface DemoSite {
   name: string
   address: Record<string, string>
+  /** Approximate coordinates (slice 35's round). Demo data — not a survey. */
+  latitude?: number
+  longitude?: number
   accessNotes: string
   operatingHours: string
   cranes: DemoCrane[]
@@ -614,6 +623,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Pioneer Yard',
         address: { line1: '45 Pioneer Sector 2', city: 'Singapore', postalCode: '628386' },
+        latitude: 1.316,
+        longitude: 103.659,
         accessNotes: 'Security pass required. Collect at the main gate with photo ID.',
         operatingHours: '08:00–17:00, Monday to Friday',
         cranes: [
@@ -633,6 +644,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Tuas Offshore Yard',
         address: { line1: '22 Tuas Crescent', city: 'Singapore', postalCode: '638732' },
+        latitude: 1.3185,
+        longitude: 103.639,
         accessNotes: 'Hard hat, boots and life vest past the barrier.',
         operatingHours: '24 hours',
         cranes: [
@@ -652,6 +665,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Sembawang North Yard',
         address: { line1: '3 Admiralty Road West', city: 'Singapore', postalCode: '759945' },
+        latitude: 1.449,
+        longitude: 103.82,
         accessNotes: 'Induction at the yard office before the first visit.',
         operatingHours: '07:00–19:00, Monday to Saturday',
         cranes: [
@@ -662,6 +677,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Sembawang Dry Dock',
         address: { line1: '5 Admiralty Road West', city: 'Singapore', postalCode: '759946' },
+        latitude: 1.4494,
+        longitude: 103.8215,
         accessNotes: 'Dock master must be told before entering the dock floor.',
         operatingHours: '24 hours during docking',
         cranes: [
@@ -680,6 +697,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Keppel Distribution Centre',
         address: { line1: '12 Keppel Road', city: 'Singapore', postalCode: '089057' },
+        latitude: 1.274,
+        longitude: 103.828,
         accessNotes: 'Sign in at the warehouse office; high-visibility vest provided.',
         operatingHours: '06:00–22:00 daily',
         cranes: [
@@ -690,6 +709,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Keppel Container Yard',
         address: { line1: '18 Keppel Road', city: 'Singapore', postalCode: '089058' },
+        latitude: 1.2746,
+        longitude: 103.829,
         accessNotes: 'Report to the yard control room. No entry during yard moves.',
         operatingHours: '24 hours',
         cranes: [
@@ -717,6 +738,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Pioneer Works',
         address: { line1: '67 Pioneer Road', city: 'Singapore', postalCode: '639569' },
+        latitude: 1.314,
+        longitude: 103.665,
         accessNotes: 'Gate code changes monthly; call the contact before travelling.',
         operatingHours: '08:00–17:00, Monday to Friday',
         cranes: [
@@ -727,6 +750,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Pioneer Storage',
         address: { line1: '71 Pioneer Road', city: 'Singapore', postalCode: '639570' },
+        latitude: 1.3145,
+        longitude: 103.6656,
         accessNotes: 'No site office; the storeman signs for attendance.',
         operatingHours: '08:00–17:00, Monday to Friday',
         cranes: [{ assetTag: 'PNF-003', type: 'HOIST', swlKg: 1000, brand: 'Demag', locationOnSite: 'Racking bay' }],
@@ -743,6 +768,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Changi Apron 3',
         address: { line1: '60 Airport Boulevard', city: 'Singapore', postalCode: '819643' },
+        latitude: 1.3574,
+        longitude: 103.9876,
         accessNotes: 'Airside pass and escort required. No vehicles past the red line.',
         operatingHours: '05:00–01:00 daily',
         cranes: [
@@ -753,6 +780,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Changi Cargo Terminal',
         address: { line1: '72 Airport Boulevard', city: 'Singapore', postalCode: '819644' },
+        latitude: 1.3581,
+        longitude: 103.989,
         accessNotes: 'Sign in at the cargo office for an airside escort.',
         operatingHours: '24 hours',
         cranes: [{ assetTag: 'CGS-003', type: 'TOWER', swlKg: 6000, brand: 'Liebherr', locationOnSite: 'Cargo bay 2' }],
@@ -769,6 +798,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Benoi Yard 1',
         address: { line1: '9 Benoi Road', city: 'Singapore', postalCode: '629886' },
+        latitude: 1.318,
+        longitude: 103.672,
         accessNotes: 'Induction card needed at the gate.',
         operatingHours: '07:00–18:00, Monday to Saturday',
         cranes: [
@@ -779,6 +810,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Benoi Yard 2',
         address: { line1: '11 Benoi Road', city: 'Singapore', postalCode: '629887' },
+        latitude: 1.3186,
+        longitude: 103.6726,
         accessNotes: 'Shared gate with Benoi Yard 1.',
         operatingHours: '07:00–18:00, Monday to Saturday',
         cranes: [{ assetTag: 'BNO-003', type: 'JIB', swlKg: 5000, brand: 'Demag', locationOnSite: 'Laydown area' }],
@@ -786,6 +819,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Benoi Warehouse',
         address: { line1: '15 Benoi Road', city: 'Singapore', postalCode: '629888' },
+        latitude: 1.3192,
+        longitude: 103.6732,
         accessNotes: 'Forklift traffic; report to the store supervisor.',
         operatingHours: '08:00–17:00, Monday to Friday',
         cranes: [{ assetTag: 'BNO-004', type: 'HOIST', swlKg: 2000, brand: 'Demag', locationOnSite: 'Mezzanine' }],
@@ -802,6 +837,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Woodlands Plant',
         address: { line1: '2 Woodlands Industrial Park E1', city: 'Singapore', postalCode: '757719' },
+        latitude: 1.445,
+        longitude: 103.786,
         accessNotes: 'Prospect visit booked through the sales team.',
         operatingHours: '08:00–17:30, Monday to Friday',
         cranes: [{ assetTag: 'WPW-001', type: 'OVERHEAD', swlKg: 3200, brand: 'Konecranes', locationOnSite: 'Bay 1' }],
@@ -809,6 +846,8 @@ const DEMO_CUSTOMERS: DemoCustomer[] = [
       {
         name: 'Woodlands Annexe',
         address: { line1: '4 Woodlands Industrial Park E1', city: 'Singapore', postalCode: '757720' },
+        latitude: 1.4456,
+        longitude: 103.7866,
         accessNotes: 'Same contact as the plant.',
         operatingHours: '08:00–17:30, Monday to Friday',
         cranes: [{ assetTag: 'WPW-002', type: 'JIB', swlKg: 1000, brand: 'Demag', locationOnSite: 'Tool room' }],
@@ -950,6 +989,8 @@ async function seedDemoBook(): Promise<void> {
             address: siteDemo.address,
             accessNotes: siteDemo.accessNotes,
             operatingHours: siteDemo.operatingHours,
+            latitude: siteDemo.latitude ?? null,
+            longitude: siteDemo.longitude ?? null,
           },
           select: { id: true },
         })
