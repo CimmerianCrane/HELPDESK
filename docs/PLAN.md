@@ -2269,7 +2269,7 @@ been migrated since Phase 1 — **no migration is expected for the first slices.
 | **30** | **SLA management and the renewal board** (**built** — see §7.16) | Company-wide targets editable on a screen (they are seed-only today), and every contract renewing or overdue in one queue | `/admin/sla` (new), `/customers` | §4.3, §8 |
 | **31** | **The customer portal** (**built** — see §7.17) | The `CUSTOMER` role finally signs in: their jobs and their cranes' certificates and reports, read-only, scoped by `customerId` | `src/app/(portal)/`, `src/server/portal/`, `src/server/auth/scope.ts` | §4.1 |
 | **32** | **Profitability reporting** (**built** — see §7.18) | Revenue against the parts cost of the jobs behind it, per customer, contract and job type, from invoices and the stock ledger. Labour is not costed, and the screen says so | `src/server/reports/profitability.ts` (new), `/reports/profitability` | §11 |
-| 33 | Technician utilisation | Hours on the road and on the tools against the roster, from job status history | `src/server/reports/utilisation.ts` (new) | §11 |
+| **33** | **Technician utilisation** (**built** — see §7.19) | Hours on the tools and on the road against the working hours available, from the job status history, less booked leave | `src/server/reports/utilisation.ts` (new), `/reports/utilisation` | §11 |
 | 34 | Equipment calibration tracking | A calibration register beside certificates, with its own due/overdue queue | `/calibrations` | §4.5 |
 | 35 | Route optimisation | An ordered round from the day's jobs, using the site addresses already held | `/schedule` | §4.4 |
 | 36 | WhatsApp and SMS adapters | A third and fourth `notify` channel, behind the adapter seam that already exists | `src/server/notify/` | §10 |
@@ -2476,6 +2476,43 @@ revenue to take a percentage of. The nav gains **Profitability**, shown only to 
 browser test of the screen; the integration suite (`tests/integration/profitability.test.ts`) is what proves the grouping,
 the ex-GST revenue, the single booking of a job's material, the exclusion of drafts, the unattributed line, and the role
 refusal. Purchase orders are deliberately not read: an order is not a cost of a job until a part is issued from it.
+
+### 7.19 Slice 33 — technician utilisation (**built**)
+
+**Goal:** the hours the business has already recorded — every job's status history — turned into the question a
+dispatcher actually asks, "who is busy and who is idle", against the time they had to be busy with.
+
+**The finding that shaped it:** there is no hours table and no shift pattern. `JobStatusHistory` is append-only and
+timestamps every move (rule 7), so a visit's duration is already in the data; what is not in the data is what a
+technician's *available* time was. Nothing in the brief asked for a roster, so the denominator is a fixed weekday.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 205–209):
+
+1. **On the tools is `IN_PROGRESS` to the next change, summed over visits.** A job held overnight counts the afternoon
+   before the hold and the morning after it, not the night. That is what makes the report useful for a job that was
+   parked awaiting parts.
+2. **On the road is `DISPATCHED` to `COMPLETED`**, so travel either side of the visit is included. A job that was
+   never dispatched falls back to the on-site span, understating travel rather than inventing it.
+3. **A crew shares a job's hours.** Two technicians on one visit get half each; crediting both would double-count the
+   work. The job total counts the job once.
+4. **Hours count on the day the job completed.** A job still in progress has hours but no known total, and billing it
+   to a period it may leave is how a report starts disagreeing with itself. The screen says the recent days read low.
+5. **The denominator is Monday–Friday 09:00–17:00 in the operating timezone, less leave booked inside those hours.**
+   A fortnight off is 80 hours, not 336 — leave measured on the same clock as the days it removes.
+
+**The shape.** `src/server/reports/utilisation.ts` is one service, `utilisationReport(context, filters)`, gated on
+`report.financial` and scoped with `jobReadWhere`. `jobClock` and the working-calendar helpers are exported and pure,
+so `tests/unit/utilisation.test.ts` pins the hold arithmetic, weekend skipping and leave clipping without a database.
+`/reports/utilisation` is the screen: a from/to pair defaulting to the last 30 days, a totals line, and one table —
+jobs, on the tools, on the road, leave, available, utilisation % — busiest first. The nav gains **Utilisation** next to
+Profitability, gated the same way.
+
+**No migration.** Everything read is a column that has existed since Phase 1 (`JobStatusHistory`, `Unavailability`,
+the job's own stamps).
+
+**Known limits.** The working calendar is fixed in code (a `shortcut:` comment names where to move it), there is no
+public-holiday table, and no CSV export. No browser test walks the screen; `tests/integration/utilisation.test.ts` is
+what proves the spans, the crew split, the leave subtraction, the exclusion of unfinished jobs and the role refusal.
 
 ---
 

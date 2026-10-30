@@ -834,6 +834,21 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
 204. **The report is a read behind `report.financial` (finance and admin).** It is not audited and exports nothing yet; the
      slice is the report, and a CSV of it can reuse the accounting export's seam if asked.
 
+205. **A technician's time on the tools is the `IN_PROGRESS` span from `JobStatusHistory`, not a new hours table.** The
+     history is append-only and timestamps every move, so a visit's duration is already recorded; a second table of
+     typed hours would be a second opinion about the same fact. A job that was held and resumed sums the segments,
+     excluding the hold.
+206. **Time on the road runs dispatch to completion**, so it carries the travel either side of the visit and any hold in
+     between. A job with no `DISPATCHED` row falls back to the on-site span rather than inventing travel.
+207. **A job's hours are shared between the technicians on it**, not credited to each in full. The report counts the job
+     once in its total.
+208. **Hours are booked to the day the job completed.** A job still in progress has no known total, so it contributes
+     nothing until it finishes — which makes the most recent days read low, and the screen says so.
+209. **Available hours are Monday–Friday, 09:00–17:00, less leave that overlaps those hours.** No shift pattern and no
+     public-holiday table exist in the system, and the brief never asked for one. The working calendar is a code
+     constant with a `shortcut:` comment naming where to move it if the office works shifts. *If wrong:* the denominator
+     is the only thing that changes; the worked hours are unaffected.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

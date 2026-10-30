@@ -122,7 +122,9 @@ cimmerian-crane/
       certificates/        # the certificate register and the expiring/overdue queue
       documents/           # numbering, PDF render, email-on-close
       tech/                # the field phone's read layer and its one-call sync bundle
-      reports/             # report queue, approval/return/amendment, issued-PDF lookup, email retry
+      reports/             # report queue, approval/return/amendment, issued-PDF lookup, email retry;
+                           # profitability (invoices against parts cost) and utilisation (job status
+                           # history against working hours)
       inventory/           # the parts book, locations, the supplier book, the stock ledger, reorder
                            # groups and purchase orders, the back-orders on them, stock takes; postMovement is the only writer of
                            # StockMovement and StockLevel, tracePartSerials derives a serial's

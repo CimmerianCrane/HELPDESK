@@ -16,8 +16,10 @@ resolves; slice 30 makes the **company-wide SLA targets** editable at `/admin/sl
 contract renewing or overdue in a board on `/customers`; slice 31 opens the **customer portal** —
 a `CUSTOMER` login saw nothing before it, and now sees its own jobs, cranes, certificates and issued
 reports at `/portal`, read-only; and slice 32 puts **profitability** side by side with the invoices — revenue
-against parts cost per customer, contract and job type at `/reports/profitability`. **Phase 4 continues
-with technician utilisation.** See "What works today" below.
+against parts cost per customer, contract and job type at `/reports/profitability`; and slice 33 adds
+**technician utilisation** at `/reports/utilisation` — hours on the tools and on the road against the
+working hours available, from the job status history. **Phase 4 continues with equipment calibration
+tracking.** See "What works today" below.
 
 ---
 
@@ -182,6 +184,26 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 33 — technician utilisation
+
+- **Hours against the hours that were available.** `/reports/utilisation` (Finance and Admin, via `report.financial`)
+  lists every technician with their completed jobs, hours on the tools, hours on the road, leave taken, hours available
+  and a utilisation percentage, busiest first. A from/to pair of completion dates narrows it; with neither it opens on
+  the **last 30 days**.
+- **Where the hours come from.** The job status history: **on the tools** is `IN_PROGRESS` until the job next moves,
+  summed over however many visits it took, so a job parked awaiting parts counts the time worked and not the wait;
+  **on the road** runs from dispatch to completion, so it carries the travel either side. A job with two technicians
+  on it splits its hours between them.
+- **Available time is Monday–Friday, 09:00–17:00, less leave booked inside those hours.** There is no shift pattern and
+  no public-holiday calendar, and the screen says so. Hours count on the day a job completed, so a job still in
+  progress contributes nothing yet and the most recent days read low.
+- **Try it:** sign in as `finance@cimmeriancrane.example` and open `/reports/utilisation`; narrow the dates to reach the
+  demo history jobs.
+- **Tests** — 10 unit tests (`utilisation.test.ts`, the hold arithmetic, weekend skipping and leave clipping) and 5
+  integration tests (`utilisation.test.ts`: the in-progress span excluding a hold, a crew splitting one job's hours,
+  leave removed in working hours only, an unfinished job excluded with unassigned completions named, and the role
+  refusal). No browser test walks the screen. **No migration.**
 
 ### Slice 32 — profitability reporting
 
