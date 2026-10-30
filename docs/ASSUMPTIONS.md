@@ -883,6 +883,23 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
      job and the fix. Silently omitting a visit because its map pin is missing would make work invisible, which is worse
      than an incomplete round.
 
+219. **SMS and WhatsApp carry P1 alerts only.** The brief names them for P1 alerting (§4.3) and nowhere else. Dispatch,
+     obligation reminders and the rest stay in-app and by email: a dispatch to a technician is already a push to the app
+     they work in, and a reminder that rings a dispatcher's phone about a service due in 60 days would train them to
+     ignore the channel before the P1 that matters arrives. *If wrong:* `fanOut` already takes the switch —
+     `phoneChannels: true` on another caller is one line, and `dispatch` (which builds its own rows) would need the same
+     treatment.
+220. **A phone alert is one line and a link, not the notification body.** SMS is billed per 160-character segment and a
+     dispatcher reads it on a lock screen. The row stores the short text, so the log of what was sent matches what was
+     sent. *If wrong:* the length is `phoneText` in `notify.ts`, not a schema change.
+221. **No phone number, no phone row.** A recipient with a blank `User.phone` gets no SMS or WhatsApp row, rather than a
+     row that can never be sent. A dispatcher who has not been given a mobile has one to enter at `/admin/users`; this is
+     not a broken channel and does not read as one.
+222. **The drivers are declared and not built.** `SMS_DRIVER` accepts `twilio` and `WHATSAPP_DRIVER` accepts `meta`,
+     and both fall back to the console driver with a warning — the same shape `EmailAdapter` took with SMTP in Phase 1.
+     The seam is the deliverable; choosing a gateway is a purchasing decision and needs credentials nobody has supplied.
+     *If wrong:* one file, `src/server/notify/message.ts`, gains a real `send`; nothing else changes.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

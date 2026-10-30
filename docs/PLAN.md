@@ -2272,7 +2272,7 @@ been migrated since Phase 1 — **no migration is expected for the first slices.
 | **33** | **Technician utilisation** (**built** — see §7.19) | Hours on the tools and on the road against the working hours available, from the job status history, less booked leave | `src/server/reports/utilisation.ts` (new), `/reports/utilisation` | §11 |
 | **34** | **Equipment calibration tracking** (**built** — see §7.20) | A calibration register beside certificates, with its own due/overdue queue | `src/server/calibrations/` (new), `/calibrations` | §4.5 |
 | 35 | Route optimisation (**built** — see §7.21) | An ordered round from the day's jobs, using the site addresses already held | `/schedule` | §4.4 |
-| 36 | WhatsApp and SMS adapters | A third and fourth `notify` channel, behind the adapter seam that already exists | `src/server/notify/` | §10 |
+| 36 | WhatsApp and SMS adapters (**built** — see §7.22) | A third and fourth `notify` channel, behind the adapter seam that already exists | `src/server/notify/` | §10 |
 | 37 | Xero/QuickBooks integration | Push issued invoices through the accounting adapter slice 21 left in place | `src/server/accounting/` | §10 |
 
 Slice 29 was taken first because the contract is the one record the app has been *shaped* around and could not enter:
@@ -2598,6 +2598,50 @@ setting. The round is one day; a week's tour is not planned. No browser test wal
 `tests/integration/routes.test.ts` proves the ordering, the day window, the technician filter, the unlocated block and
 the role refusal, and `tests/unit/routes.test.ts` proves the geometry and that the plan is never worse than the order it
 was given.
+
+---
+
+### 7.22 Slice 36 — WhatsApp and SMS adapters (**built**)
+
+**Goal:** brief §4.3 promises that a P1 reaches a dispatcher "in-app + email in Phase 1; SMS/WhatsApp via adapter later".
+The `NotificationChannel` enum has carried `SMS` and `WHATSAPP` since Phase 1 and nothing ever wrote one. A dispatcher
+taking a crane-down call is standing on a site, not at a desk, and email is what they read on Monday.
+
+**The finding that shaped it:** there was nothing to build but the seam. `src/server/notify/notify.ts` already had one
+fan-out, one row per channel, and an adapter-shaped hole where the gateway goes — `EmailAdapter` with a console driver
+and SMTP named but unbuilt is the pattern the whole app follows.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 219–222):
+
+1. **P1 alerts only.** That is the one place the brief names the channels. Dispatch and obligation reminders stay
+   in-app and by email; ringing a phone about a service due in 60 days would train the office to ignore the channel.
+2. **One short line and a link, not the notification body.** SMS is billed per 160-character segment and read on a lock
+   screen, so the row stores what was actually sent rather than the email text it was abbreviated from.
+3. **No phone number, no phone row.** A recipient with a blank `User.phone` gets no row at all, so the fan-out never
+   records a send that cannot happen. `User.phone` has existed since Phase 1 and is editable at `/admin/users`; this is
+   the first code to read it.
+4. **The drivers are declared, not built.** `SMS_DRIVER=twilio` and `WHATSAPP_DRIVER=meta` are accepted and fall back to
+   console with a warning, exactly as `EMAIL_DRIVER=smtp` does. The seam is the deliverable; picking a gateway needs
+   credentials and a purchasing decision that does not exist yet.
+5. **A send returns a result and never throws.** A dead gateway must not roll back the ticket that raised the alert —
+   the row records `failedAt` and the error, and the in-app copy still reaches the dispatcher.
+
+**As built.** `src/server/notify/message.ts` is the new seam: `MessageAdapter`, `consoleMessageAdapter`, and
+`messageAdapter(channel)` resolving `SMS` and `WHATSAPP` separately so one can be wired before the other. `fanOut` in
+`notify.ts` gained a `phoneChannels` switch, a `phoneText`, and per-channel sending that records each outcome
+separately; `alertRecipients` now selects `phone`. `notifyDispatchers` turns the switch on with a one-line body; the
+reminder fan-out leaves it off. `src/lib/env.ts` gains `SMS_DRIVER`/`WHATSAPP_DRIVER` (both `console` by default) and
+`.env.example` documents them. The seed gives the two demo accounts a P1 alerts reach (Admin and Dispatcher) a phone
+number, and backfills a blank one on an existing demo account without ever overwriting a number the office entered.
+
+**No migration.** `NotificationChannel` already had both values and `User.phone` already existed.
+
+**Known limits.** A number is stored as typed — nothing validates E.164 or normalises whitespace, so a gateway will
+need a `to` normaliser in the same file. There is still no notification inbox screen (`ASSUMPTIONS.md` 100), so the
+in-app rows these sends sit beside remain visible only through the audit trail; that gap is unchanged and still worth
+closing before the channels multiply. `tests/unit/message-adapters.test.ts` pins the fallback and the never-throws rule;
+`tests/integration/tickets.test.ts` proves the row set (in-app + email for everyone, SMS + WhatsApp only for the holder
+of a number), that every row is stamped sent, and that the phone body is the short alert; no browser test walks it.
 
 ---
 

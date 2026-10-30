@@ -934,8 +934,13 @@ Next: **slice 7 — the technician PWA.**
   state. The minutes are seeded in `SlaPolicy` and are placeholders for the real contractual ones;
   contract overrides are already resolved preferentially.
 - **P1 alerts** go to every dispatcher and administrator in the same transaction that creates the
-  ticket: an in-app notification and an email through the adapter (console implementation in Phase
-  1). The two channels are separate rows, so a failed send is visible rather than swallowed.
+  ticket: an in-app notification, an email through the adapter (console implementation in Phase 1),
+  and — slice 36 — an SMS and a WhatsApp message where that user has a phone number recorded at
+  `/admin/users`. Each channel is its own row, so a failed send is visible rather than swallowed, and
+  the phone channels carry one line and a link rather than the full text. `SMS_DRIVER` and
+  `WHATSAPP_DRIVER` default to `console`, which logs the message and records the row as sent; the
+  named production drivers (`twilio`, `meta`) are declared and not yet implemented, and fall back to
+  console with a warning so an alert is never silently lost.
 - **Close, cancel and reopen**: both outcomes stamp `closedAt` and append the note to the ticket
   rather than replacing the triage decision. Reopening returns it to NEW with the clock running
   again — raising a duplicate instead would split the history.
@@ -1096,7 +1101,7 @@ Environment variables to set in Vercel (Project → Settings → Environment Var
 DATABASE_URL, DIRECT_URL, AUTH_SECRET, APP_BASE_URL (your https URL),
 STORAGE_DRIVER=supabase, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 SUPABASE_STORAGE_BUCKET=cimmerian-files, CRON_SECRET, EMAIL_DRIVER, EMAIL_FROM,
-DEFAULT_TIMEZONE, DEFAULT_CURRENCY, DEFAULT_GST_RATE
+SMS_DRIVER, WHATSAPP_DRIVER, DEFAULT_TIMEZONE, DEFAULT_CURRENCY, DEFAULT_GST_RATE
 ```
 
 Then:

@@ -47,13 +47,14 @@ function contextFor(
   }
 }
 
-async function makeUser(tx: Tx, role: Role) {
+async function makeUser(tx: Tx, role: Role, overrides: { phone?: string } = {}) {
   const suffix = testSuffix()
   return tx.user.create({
     data: {
       email: `${role.toLowerCase()}-${suffix}@example.test`,
       name: `${role} ${suffix}`,
       role,
+      phone: overrides.phone ?? null,
       passwordHash: 'placeholder-not-a-real-hash',
     },
   })
@@ -154,9 +155,11 @@ describe('recording a ticket', () => {
 })
 
 describe('P1 alerting', () => {
-  it('writes an in-app and an email notification for every dispatcher and administrator', async () => {
+  it('writes in-app and email for every dispatcher and administrator, and SMS and WhatsApp where a phone is held', async () => {
     await inRolledBackTx(async (tx) => {
-      const dispatcher = await makeUser(tx, 'DISPATCHER')
+      // Only the dispatcher has a mobile, which is the case the fan-out has to get right: no number
+      // means no phone row, not a row that can never be sent.
+      const dispatcher = await makeUser(tx, 'DISPATCHER', { phone: '+65 9000 0002' })
       const admin = await makeUser(tx, 'ADMIN')
       const base = await craneFixtures(tx)
 
@@ -170,13 +173,23 @@ describe('P1 alerting', () => {
         where: { userId: { in: [dispatcher.id, admin.id] } },
         orderBy: [{ userId: 'asc' }, { channel: 'asc' }],
       })
-      expect(notifications).toHaveLength(4)
-      expect(notifications.filter((row) => row.channel === 'IN_APP')).toHaveLength(2)
-      expect(notifications.filter((row) => row.channel === 'EMAIL')).toHaveLength(2)
+      expect(notifications).toHaveLength(6)
+      for (const channel of ['IN_APP', 'EMAIL', 'SMS', 'WHATSAPP'] as const) {
+        expect(notifications.filter((row) => row.channel === channel)).toHaveLength(
+          channel === 'SMS' || channel === 'WHATSAPP' ? 1 : 2,
+        )
+      }
       for (const row of notifications) {
         expect(row.title).toContain(ticket.number)
         expect(row.link).toBe(`/tickets/${ticket.id}`)
+        // The console adapters send, so nothing is left unsent or failed.
+        expect(row.sentAt).not.toBeNull()
+        expect(row.failedAt).toBeNull()
       }
+      // The phone body is the short alert, not the whole description.
+      const sms = notifications.find((row) => row.channel === 'SMS')
+      expect(sms?.body).toContain(ticket.number)
+      expect(sms?.body).not.toContain('Hoist will not raise')
     })
   })
 

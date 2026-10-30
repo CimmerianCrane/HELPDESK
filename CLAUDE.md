@@ -50,8 +50,9 @@ the gate for finishing a slice, since it is the only version that exercises the 
 `.env.example` is the source of truth for required variables; `.env` is gitignored. Key ones:
 `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `APP_BASE_URL`, `STORAGE_DRIVER` (`disk` | `supabase`),
 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`, `EMAIL_DRIVER`
-(`console` | `smtp`), `CRON_SECRET`, `DEFAULT_TIMEZONE`, `DEFAULT_CURRENCY`, `DEFAULT_GST_RATE`,
-`SEED_PASSWORD` (optional — overrides the demo password `npm run seed` uses).
+(`console` | `smtp`), `SMS_DRIVER` and `WHATSAPP_DRIVER` (`console`, or the named drivers `twilio` / `meta` which are
+declared but not yet built and fall back to console), `CRON_SECRET`, `DEFAULT_TIMEZONE`, `DEFAULT_CURRENCY`,
+`DEFAULT_GST_RATE`, `SEED_PASSWORD` (optional — overrides the demo password `npm run seed` uses).
 
 **Deployment: Vercel + Supabase.** Use the Node runtime for anything that touches Prisma — never Edge.
 There is no long-running worker and no durable local disk. Scheduled work goes in `vercel.json` and

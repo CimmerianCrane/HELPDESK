@@ -24,6 +24,12 @@ const schema = z.object({
   EMAIL_DRIVER: z.enum(['console', 'smtp']).default('console'),
   EMAIL_FROM: z.string().default('helpdesk@cimmeriancrane.example'),
 
+  // SMS and WhatsApp (slice 36). Like `smtp` above, the named production drivers are declared and
+  // not yet implemented: naming one falls back to console with a warning rather than refusing to
+  // send the alert.
+  SMS_DRIVER: z.enum(['console', 'twilio']).default('console'),
+  WHATSAPP_DRIVER: z.enum(['console', 'meta']).default('console'),
+
   // Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. Required in production; see
   // src/app/api/cron/daily/route.ts.
   CRON_SECRET: z.string().min(1).optional(),

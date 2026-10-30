@@ -31,6 +31,8 @@ interface DemoUser {
   name: string
   role: Role
   employeeNo?: string
+  /** Set for the two roles a P1 alerts, so the demo has a number to send to (slice 36). */
+  phone?: string
 }
 
 /**
@@ -40,8 +42,8 @@ interface DemoUser {
  * `.example` is a reserved TLD, so these can never accidentally reach a real mailbox.
  */
 const DEMO_USERS: DemoUser[] = [
-  { email: 'admin@cimmeriancrane.example', name: 'Alice Tan', role: 'ADMIN' },
-  { email: 'dispatch@cimmeriancrane.example', name: 'Bernard Lim', role: 'DISPATCHER' },
+  { email: 'admin@cimmeriancrane.example', name: 'Alice Tan', role: 'ADMIN', phone: '+65 9000 0001' },
+  { email: 'dispatch@cimmeriancrane.example', name: 'Bernard Lim', role: 'DISPATCHER', phone: '+65 9000 0002' },
   { email: 'ahmad@cimmeriancrane.example', name: 'Ahmad Ismail', role: 'TECHNICIAN', employeeNo: 'T-001' },
   { email: 'raj@cimmeriancrane.example', name: 'Raj Kumar', role: 'TECHNICIAN', employeeNo: 'T-002' },
   { email: 'store@cimmeriancrane.example', name: 'Siti Rahman', role: 'STOREKEEPER' },
@@ -102,15 +104,23 @@ async function seedUsers(): Promise<number> {
   for (const demo of DEMO_USERS) {
     const existing = await db.user.findUnique({
       where: { email: demo.email },
-      select: { id: true },
+      select: { id: true, phone: true },
     })
-    if (existing) continue
+    if (existing) {
+      // The demo accounts predate the phone field (slice 36). Fill a blank one so the P1 fan-out has
+      // somewhere to send; never overwrite a number the office has since entered.
+      if (demo.phone && !existing.phone) {
+        await db.user.update({ where: { id: existing.id }, data: { phone: demo.phone } })
+      }
+      continue
+    }
 
     const user = await db.user.create({
       data: {
         email: demo.email,
         name: demo.name,
         role: demo.role,
+        phone: demo.phone ?? null,
         passwordHash: await hashPassword(DEMO_PASSWORD),
       },
     })

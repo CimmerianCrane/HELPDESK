@@ -2,15 +2,18 @@ import type { Tx } from '@/lib/db'
 import { env } from '@/lib/env'
 import { errorMessage, logger } from '@/lib/logger'
 import { emailAdapter } from '@/server/email/email'
+import { messageAdapter, type MessageChannel } from '@/server/notify/message'
 
 /**
- * Notification fan-out (brief §4.3): a P1 alerts every dispatcher, in-app and by email.
+ * Notification fan-out (brief §4.3): a P1 alerts every dispatcher, in-app and by email — and, since
+ * slice 36, by SMS and WhatsApp too.
  *
- * Two rows are written per recipient, one per channel, because they succeed and fail independently.
- * The in-app row is the one a dispatcher actually sees; the email is the one that reaches them when
- * they are nowhere near the screen. Recording them separately means a dead mail server does not hide
- * the alert from the app, and a failed send is visible as a row with `failedAt` set rather than
- * disappearing into a log.
+ * One row is written per recipient per channel, because they succeed and fail independently. The
+ * in-app row is the one a dispatcher actually sees; email reaches them when they are away from the
+ * screen; the two phone channels reach them when they are away from the desk entirely, which is
+ * where a dispatcher taking a P1 call actually is. Recording them separately means a dead mail server
+ * does not hide the alert from the app, and a failed send is visible as a row with `failedAt` set
+ * rather than disappearing into a log.
  *
  * Called inside the caller's transaction, so the alert cannot survive a rollback of the ticket or job
  * it is about — and so a test can roll the whole thing back. The email itself is sent after the rows
@@ -30,7 +33,7 @@ export interface P1AlertInput {
 async function alertRecipients(tx: Tx) {
   return tx.user.findMany({
     where: { isActive: true, deletedAt: null, role: { in: ['DISPATCHER', 'ADMIN'] } },
-    select: { id: true, email: true, name: true },
+    select: { id: true, email: true, name: true, phone: true },
   })
 }
 
@@ -54,7 +57,17 @@ async function notifyDispatchers(
   const appUrl = env().APP_BASE_URL.replace(/\/$/, '')
   const subject = `P1 crane down — ${input.number} ${input.customerName}`
   const text = alertBody(input, link, appUrl)
-  await fanOut(tx, { subject, text, link, jobId: jobId ?? null, logKey })
+  await fanOut(tx, {
+    subject,
+    text,
+    // A phone alert is billed per segment, so it carries the first line and the link, not the whole
+    // description. The detail is one tap away and the urgent part is in the first nine words.
+    phoneText: `P1 ${input.number} ${input.customerName}${input.assetTag ? ` ${input.assetTag}` : ''} ${appUrl}${link}`,
+    link,
+    jobId: jobId ?? null,
+    logKey,
+    phoneChannels: true,
+  })
 }
 
 export interface OfficeMessage {
@@ -64,9 +77,9 @@ export interface OfficeMessage {
 }
 
 /**
- * A recurring-obligation reminder (slice 15). Same recipients and the same two-channel fan-out as a
- * P1, because "the monthly service on JPE-001 is due" is also a dispatcher's problem to book — it is
- * simply not urgent enough to raise a job by itself.
+ * A recurring-obligation reminder (slice 15). Same recipients and the same in-app + email fan-out as
+ * a P1 — a due service is also a dispatcher's problem to book — but not its phone channels: it is not
+ * urgent enough to ring somebody, and the office asked for SMS and WhatsApp on P1s only.
  */
 export async function notifyOfficeOfReminder(tx: Tx, message: OfficeMessage): Promise<void> {
   await fanOut(tx, {
@@ -75,20 +88,48 @@ export async function notifyOfficeOfReminder(tx: Tx, message: OfficeMessage): Pr
     link: message.link,
     jobId: null,
     logKey: 'notify.schedule',
+    phoneChannels: false,
   })
 }
 
-/** Writes one row per recipient per channel, sends the emails, records each outcome separately. */
+/**
+ * Writes one row per recipient per channel, sends each, records each outcome separately.
+ *
+ * A recipient with no phone gets no phone row: a row against a number nobody holds is a row that can
+ * never be sent, and a dispatcher who has not been given a mobile is not a broken channel.
+ */
 async function fanOut(
   tx: Tx,
-  options: { subject: string; text: string; link: string; jobId: string | null; logKey: string },
+  options: {
+    subject: string
+    text: string
+    /** The body the phone channels send. Required when `phoneChannels` is true. */
+    phoneText?: string
+    link: string
+    jobId: string | null
+    logKey: string
+    phoneChannels: boolean
+  },
 ): Promise<void> {
-  const { subject, text, link, jobId, logKey } = options
+  const { subject, text, phoneText, link, jobId, logKey, phoneChannels } = options
   const recipients = await alertRecipients(tx)
   if (recipients.length === 0) {
     logger.warn(`${logKey}.no-recipients`, { link })
     return
   }
+
+  const phoneRowsFor = (recipient: (typeof recipients)[number]) =>
+    phoneChannels && recipient.phone
+      ? (['SMS', 'WHATSAPP'] as const).map((channel) => ({
+          userId: recipient.id,
+          channel,
+          title: subject,
+          body: phoneText ?? text,
+          jobId: jobId ?? null,
+          link,
+          sentAt: null,
+        }))
+      : []
 
   const notifications = await tx.notification.createManyAndReturn({
     data: recipients.flatMap((recipient) => [
@@ -110,33 +151,53 @@ async function fanOut(
         link,
         sentAt: null,
       },
+      ...phoneRowsFor(recipient),
     ]),
     select: { id: true, userId: true, channel: true },
   })
 
-  const adapter = emailAdapter()
-  // `createManyAndReturn` promises the created rows, not their order. Match by user rather than by
-  // position so a recipient can never be sent another recipient's failure.
-  const emailRowFor = new Map(
-    notifications.filter((row) => row.channel === 'EMAIL').map((row) => [row.userId, row]),
+  // `createManyAndReturn` promises the created rows, not their order. Match by user and channel
+  // rather than by position so a recipient can never be sent another recipient's failure.
+  const rowFor = new Map(
+    notifications.map((row) => [`${row.userId}:${row.channel}`, row.id] as const),
   )
+  const email = emailAdapter()
 
   for (const recipient of recipients) {
-    const row = emailRowFor.get(recipient.id)
-    if (!row) continue
-
-    let failure: string | null = null
-    try {
-      const result = await adapter.send({ to: recipient.email, subject, text })
-      if (!result.ok) failure = result.error ?? 'send failed'
-    } catch (error) {
-      failure = errorMessage(error)
+    const armed: Array<{ channel: MessageChannel | 'EMAIL'; send: () => Promise<{ ok: boolean; error?: string }> }> = [
+      {
+        channel: 'EMAIL',
+        send: () => email.send({ to: recipient.email, subject, text }),
+      },
+    ]
+    if (phoneChannels && recipient.phone) {
+      const to = recipient.phone
+      for (const channel of ['SMS', 'WHATSAPP'] as const) {
+        const adapter = messageAdapter(channel)
+        armed.push({
+          channel,
+          send: () => adapter.send({ to, text: phoneText ?? text }),
+        })
+      }
     }
 
-    await tx.notification.update({
-      where: { id: row.id },
-      data: failure ? { failedAt: new Date(), error: failure } : { sentAt: new Date() },
-    })
+    for (const { channel, send } of armed) {
+      const rowId = rowFor.get(`${recipient.id}:${channel}`)
+      if (!rowId) continue
+
+      let failure: string | null = null
+      try {
+        const result = await send()
+        if (!result.ok) failure = result.error ?? 'send failed'
+      } catch (error) {
+        failure = errorMessage(error)
+      }
+
+      await tx.notification.update({
+        where: { id: rowId },
+        data: failure ? { failedAt: new Date(), error: failure } : { sentAt: new Date() },
+      })
+    }
   }
 }
 
