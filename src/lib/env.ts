@@ -30,6 +30,18 @@ const schema = z.object({
   SMS_DRIVER: z.enum(['console', 'twilio']).default('console'),
   WHATSAPP_DRIVER: z.enum(['console', 'meta']).default('console'),
 
+  // Accounting push (slice 37). `none` leaves the CSV export as the only way money leaves the app.
+  // Xero uses a custom connection: client-credentials grant, so there is no refresh token to store
+  // and no tenant id — the org is the one that authorised the connection.
+  ACCOUNTING_DRIVER: z.enum(['none', 'xero']).default('none'),
+  XERO_CLIENT_ID: z.string().min(1).optional(),
+  XERO_CLIENT_SECRET: z.string().min(1).optional(),
+  XERO_API_BASE: z.string().url().default('https://api.xero.com'),
+  /** Singapore standard-rated. Xero's codes are regional (AU orgs use OUTPUT2), so this is an env. */
+  XERO_TAX_TYPE: z.string().min(1).default('SR'),
+  /** Sent as the line's AccountCode. Some orgs require one; most have a default. */
+  XERO_SALES_ACCOUNT_CODE: z.string().optional(),
+
   // Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. Required in production; see
   // src/app/api/cron/daily/route.ts.
   CRON_SECRET: z.string().min(1).optional(),

@@ -13,7 +13,7 @@ import {
   transitionInvoice,
   updateInvoice,
 } from '@/server/invoices/invoices'
-import { exportAccounting } from '@/server/accounting/accounting'
+import { exportAccounting, pushInvoicesToAccounting } from '@/server/accounting/accounting'
 import { craneFixtures, inRolledBackTx, jobFixture, technicianFixture, testSuffix, type Tx } from './helpers'
 
 /**
@@ -475,6 +475,112 @@ describe('the accounting export (slice 21)', () => {
       // The screen's filter travels into the file, so a narrowed export cannot silently widen.
       const none = await exportAccounting(finance, { q: 'no-such-invoice' }, tx)
       expect(none.rows).toBe(0)
+    })
+  })
+})
+
+describe('pushing to the accounting system', () => {
+  /** A driver that records what it was asked to send and answers with whatever the test wants. */
+  function recordingDriver(answer: (row: { number: string }) => { ok: boolean; externalRef?: string; error?: string }) {
+    const sent: string[] = []
+    return {
+      sent,
+      name: 'recording',
+      async pushInvoice(row: { number: string }) {
+        sent.push(row.number)
+        return answer(row)
+      },
+    }
+  }
+
+  it('marks a billed invoice pushed only once the driver returns its reference', async () => {
+    await inRolledBackTx(async (tx) => {
+      const finance = contextFor(await makeUser(tx, 'FINANCE'))
+      const { job } = await invoiceFixture(tx)
+      const issued = await issuedInvoice(tx, finance, job.id)
+      // A second job: issuing the first moved it REVIEWED → INVOICED, and only a reviewed job can be
+      // invoiced — so the draft needs its own.
+      const { job: draftJob } = await invoiceFixture(tx)
+      const draft = await createInvoice(finance, { jobId: draftJob.id, lines: [line()] }, tx)
+
+      const driver = recordingDriver((row) => ({ ok: true, externalRef: `xero-${row.number}` }))
+      const summary = await pushInvoicesToAccounting(finance, tx, driver)
+
+      // The draft was not sent — a draft is not a bill.
+      expect(driver.sent).toEqual([issued.number])
+      expect(summary.pushed).toBe(1)
+      expect(summary.failures).toEqual([])
+
+      const stored = await tx.invoice.findUniqueOrThrow({ where: { id: issued.id } })
+      expect(stored.externalRef).toBe(`xero-${issued.number}`)
+      expect(stored.externalPushedAt).not.toBeNull()
+      expect((await tx.invoice.findUniqueOrThrow({ where: { id: draft.id } })).externalRef).toBeNull()
+
+      const audit = await tx.auditLog.findFirst({
+        where: { entity: 'Invoice', entityId: issued.id, action: 'UPDATE' },
+        orderBy: { createdAt: 'desc' },
+      })
+      expect(audit?.after).toMatchObject({ externalRef: `xero-${issued.number}` })
+    })
+  })
+
+  it('sends nothing twice, and keeps a refused bill unpushed with its reason', async () => {
+    await inRolledBackTx(async (tx) => {
+      const finance = contextFor(await makeUser(tx, 'FINANCE'))
+      const { job: acceptedJob } = await invoiceFixture(tx)
+      // Two bills need two jobs: issuing the first moves it out of REVIEWED.
+      const { job: refusedJob } = await invoiceFixture(tx)
+      const accepted = await issuedInvoice(tx, finance, acceptedJob.id)
+      const refused = await issuedInvoice(tx, finance, refusedJob.id)
+
+      const driver = recordingDriver((row) =>
+        row.number === refused.number
+          ? { ok: false, error: 'Tax rate not found' }
+          : { ok: true, externalRef: `xero-${row.number}` },
+      )
+
+      const first = await pushInvoicesToAccounting(finance, tx, driver)
+      expect(first.pushed).toBe(1)
+      expect(first.failures).toEqual([
+        { number: refused.number, ok: false, error: 'Tax rate not found' },
+      ])
+
+      // The second press retries only the one that failed.
+      driver.sent.length = 0
+      const second = await pushInvoicesToAccounting(finance, tx, driver)
+      expect(driver.sent).toEqual([refused.number])
+      expect(second.alreadyPushed).toBe(1)
+
+      expect((await tx.invoice.findUniqueOrThrow({ where: { id: refused.id } })).externalRef).toBeNull()
+      expect((await tx.invoice.findUniqueOrThrow({ where: { id: accepted.id } })).externalRef).not.toBeNull()
+    })
+  })
+
+  it('is refused to everyone who does not hold invoice.write', async () => {
+    await inRolledBackTx(async (tx) => {
+      const driver = recordingDriver(() => ({ ok: true, externalRef: 'x' }))
+      for (const role of ['DISPATCHER', 'STOREKEEPER', 'TECHNICIAN'] as Role[]) {
+        const context = contextFor(await makeUser(tx, role))
+        await expect(pushInvoicesToAccounting(context, tx, driver)).rejects.toBeInstanceOf(
+          ForbiddenError,
+        )
+      }
+      expect(driver.sent).toEqual([])
+    })
+  })
+
+  it('counts billed-and-unpushed on the invoice book, whatever the list is filtered to', async () => {
+    await inRolledBackTx(async (tx) => {
+      const finance = contextFor(await makeUser(tx, 'FINANCE'))
+      const { job } = await invoiceFixture(tx)
+      const issued = await issuedInvoice(tx, finance, job.id)
+
+      const before = await listInvoices(finance, { q: issued.number }, tx)
+      expect(before.unpushed).toBe(1)
+
+      await pushInvoicesToAccounting(finance, tx, recordingDriver((row) => ({ ok: true, externalRef: `xero-${row.number}` })))
+      const after = await listInvoices(finance, {}, tx)
+      expect(after.unpushed).toBe(0)
     })
   })
 })

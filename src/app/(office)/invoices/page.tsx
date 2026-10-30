@@ -1,12 +1,16 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { InvoiceStatusBadge, OverdueBadge } from '@/components/office/invoice-badges'
+import { PushInvoicesForm } from '@/components/office/invoice-forms'
 import { cardClass } from '@/components/office/ui'
 import { formatDate, formatMoney } from '@/lib/format'
 import { INVOICE_STATUSES, INVOICE_STATUS_LABELS } from '@/lib/validation/invoices'
+import { accountingPushEnabled } from '@/server/accounting/push'
 import { requireAuth } from '@/server/auth/context'
+import { can } from '@/server/auth/permissions'
 import { listInvoices } from '@/server/invoices/invoices'
 import { getSettings } from '@/server/settings/settings'
+import { pushInvoicesAction } from './actions'
 
 export const metadata: Metadata = { title: 'Invoices — Cimmerian Crane Services' }
 export const dynamic = 'force-dynamic'
@@ -26,10 +30,12 @@ export default async function InvoicesPage({
   const params = await searchParams
   const filters = { q: params.q ?? '', status: params.status ?? '' }
 
-  const [{ invoices, counts, outstanding }, settings] = await Promise.all([
+  const [{ invoices, counts, outstanding, unpushed }, settings] = await Promise.all([
     listInvoices(context, filters),
     getSettings(),
   ])
+  const mayWrite = can(context.role, 'invoice.write')
+  const pushEnabled = accountingPushEnabled()
 
   const filtered = Boolean(filters.q || filters.status)
   // The same filters, as the export route reads them (it ignores `what` for the invoices file).
@@ -122,6 +128,23 @@ export default async function InvoicesPage({
           Export payments CSV
         </a>
       </div>
+
+      {/* A push is a write against someone else's books, so it is offered only where it can work. */}
+      {mayWrite && pushEnabled ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-sm">
+          <div className="flex-1">
+            <p className="font-medium text-slate-900">Accounting system</p>
+            <p className="mt-1 text-slate-600">
+              {unpushed === 0
+                ? 'Every billed invoice is already there.'
+                : `${unpushed} billed invoice${unpushed === 1 ? '' : 's'} not yet in the accounting system.`}{' '}
+              Only issued, partly paid and paid invoices are sent; a bill is marked sent only once the
+              system accepts it, so pressing again sends nothing twice.
+            </p>
+          </div>
+          <PushInvoicesForm action={pushInvoicesAction} />
+        </div>
+      ) : null}
 
       {invoices.length === 0 ? (
         <div className={`${cardClass} text-center`}>

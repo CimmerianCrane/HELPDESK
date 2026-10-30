@@ -293,3 +293,17 @@ export function RecordPaymentForm({
     </form>
   )
 }
+
+/** Sends every billed invoice not yet in the accounting system (slice 37). One press, one run. */
+export function PushInvoicesForm({ action }: { action: ServerAction }) {
+  const [state, formAction, pending] = useActionState(action, IDLE_FORM)
+
+  return (
+    <form action={formAction} className="space-y-2">
+      <FormMessage state={state} />
+      <button type="submit" className={secondaryButtonClass} disabled={pending}>
+        {pending ? 'Pushing…' : 'Push to the accounting system'}
+      </button>
+    </form>
+  )
+}

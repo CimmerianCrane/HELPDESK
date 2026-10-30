@@ -89,6 +89,15 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             : `raised ${formatDate(invoice.createdAt, settings.timezone)}`}
         </p>
         <p className="mt-1 text-sm text-slate-600">{dueLabel(invoice, settings.timezone)}</p>
+        {invoice.externalRef ? (
+          <p className="mt-1 text-sm text-slate-600">
+            In the accounting system as {invoice.externalRef}
+            {invoice.externalPushedAt
+              ? `, pushed ${formatDate(invoice.externalPushedAt, settings.timezone)}`
+              : ''}
+            .
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

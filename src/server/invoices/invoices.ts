@@ -82,6 +82,9 @@ export interface InvoiceSummary {
   balance: number
   editable: boolean
   payable: boolean
+  /** Set only once a push to the accounting system succeeded (slice 37). */
+  externalRef: string | null
+  externalPushedAt: Date | null
   createdAt: Date
   customer: { id: string; name: string }
   job: { id: string; number: string; status: string } | null
@@ -94,7 +97,15 @@ export interface InvoiceList {
   counts: Record<InvoiceStatusName, number>
   /** Total outstanding across every issued and partly paid invoice, in the list's currency. */
   outstanding: number
+  /**
+   * Billed but not yet in the accounting system — what a push would send. Counted across the whole
+   * book, not the filtered list, so a filter cannot hide a bill the books are missing.
+   */
+  unpushed: number
 }
+
+/** Money the business has actually billed — the same set the accounting export sends. */
+const BILLED: ReadonlySet<string> = new Set(['ISSUED', 'PART_PAID', 'PAID'])
 
 const invoiceSelect = {
   id: true,
@@ -107,6 +118,8 @@ const invoiceSelect = {
   gstAmount: true,
   total: true,
   amountPaid: true,
+  externalRef: true,
+  externalPushedAt: true,
   createdAt: true,
   customerId: true,
   customer: { select: { id: true, legalName: true, tradingName: true } },
@@ -174,6 +187,8 @@ async function toSummaries(
       balance: Math.max(0, total - amountPaid),
       editable: isInvoiceEditable(status),
       payable: isInvoicePayable(status),
+      externalRef: row.externalRef,
+      externalPushedAt: row.externalPushedAt,
       createdAt: row.createdAt,
       customer: {
         id: row.customer.id,
@@ -261,6 +276,7 @@ export async function listInvoices(
     outstanding: all
       .filter((invoice) => invoice.payable)
       .reduce((sum, invoice) => sum + invoice.balance, 0),
+    unpushed: all.filter((invoice) => BILLED.has(invoice.status) && !invoice.externalRef).length,
   }
 }
 

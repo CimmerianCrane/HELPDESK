@@ -34,6 +34,8 @@ function invoice(overrides: Partial<InvoiceSummary> = {}): InvoiceSummary {
     balance: 327,
     editable: false,
     payable: true,
+    externalRef: null,
+    externalPushedAt: null,
     createdAt: new Date('2026-10-28T01:00:00Z'),
     customer: { id: 'c1', name: 'Acme Cranes' },
     job: { id: 'j1', number: 'JOB-2026-0007', status: 'INVOICED' },

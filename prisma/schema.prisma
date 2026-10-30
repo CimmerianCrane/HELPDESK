@@ -1113,6 +1113,9 @@ model Invoice {
   gstAmount  Decimal       @default(0) @db.Decimal(12, 2)
   total      Decimal       @default(0) @db.Decimal(12, 2)
   amountPaid Decimal       @default(0) @db.Decimal(12, 2)
+  /// The accounting system's id, written only after a push succeeded (slice 37).
+  externalRef      String?
+  externalPushedAt DateTime?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
   deletedAt  DateTime?

@@ -7,6 +7,8 @@ import { assertCan } from '@/server/auth/permissions'
 import type { AuthContext } from '@/server/auth/types'
 import { listInvoices, type InvoiceSummary } from '@/server/invoices/invoices'
 import { getSettings } from '@/server/settings/settings'
+import { withAudit } from '@/server/audit/audit'
+import { accountingPushDriver, type AccountingPushDriver } from './push'
 
 /**
  * The accounting export (brief §5, §12, §14, slice 21).
@@ -45,6 +47,8 @@ export interface InvoiceExportRow {
   balance: number
   jobNumber: string | null
   description: string
+  /** The charge lines, as the invoice states them — what a push sends, not a re-derivation. */
+  lines: Array<{ description: string; quantity: number; unitAmount: number }>
 }
 
 export interface PaymentExportRow {
@@ -178,6 +182,11 @@ export function invoiceExportRows(invoices: readonly InvoiceSummary[]): InvoiceE
       balance: invoice.balance,
       jobNumber: invoice.job?.number ?? null,
       description: invoice.lines.map((line) => line.description).join('; '),
+      lines: invoice.lines.map((line) => ({
+        description: line.description,
+        quantity: line.quantity,
+        unitAmount: line.unitPrice,
+      })),
     }))
 }
 
@@ -208,6 +217,88 @@ export interface AccountingExport {
   filename: string
   csv: string
   rows: number
+}
+
+export interface PushOutcome {
+  number: string
+  ok: boolean
+  error?: string
+}
+
+export interface PushSummary {
+  driver: string
+  /** How many were sent and accepted, with the bill recorded as pushed. */
+  pushed: number
+  /** Bills already in the accounting system, skipped — a second press sends nothing twice. */
+  alreadyPushed: number
+  /** Bills the accounting system refused, each with the reason it gave. */
+  failures: PushOutcome[]
+}
+
+/**
+ * Sends every billed invoice that is not yet in the accounting system, one at a time.
+ *
+ * **A bill is marked pushed only after the driver says so**, and the mark and its audit row are
+ * written together. Two presses in quick succession could in principle both send the same bill; the
+ * driver's idempotency key makes the second a no-op at the accounting system, and the second write
+ * finds the same reference and records nothing new.
+ *
+ * **The failure list is the return value, not an exception.** One refused bill must not undo the
+ * fifteen that went through — that is the whole reason the live calls happen before the writes.
+ */
+export async function pushInvoicesToAccounting(
+  context: AuthContext,
+  client: Tx = db,
+  driver: AccountingPushDriver = accountingPushDriver(),
+): Promise<PushSummary> {
+  assertCan(context, 'invoice.write')
+
+  const settings = await getSettings(client)
+  const { invoices } = await listInvoices(context, {}, client)
+  const billed = invoices.filter((invoice) => BILLED.has(invoice.status))
+  const pending = billed.filter((invoice) => !invoice.externalRef)
+  let alreadyPushed = billed.length - pending.length
+  const failures: PushOutcome[] = []
+  let pushed = 0
+
+  for (const entry of invoiceExportRows(pending)) {
+    const result = await driver.pushInvoice(entry, {
+      currency: settings.currency,
+      sourceRef: `cimmerian-${entry.number}`,
+    })
+    if (!result.ok || !result.externalRef) {
+      failures.push({ number: entry.number, ok: false, error: result.error ?? 'No reference returned.' })
+      continue
+    }
+
+    const invoice = pending.find((candidate) => candidate.number === entry.number)!
+    const written = await withAudit(
+      context,
+      async (tx, log) => {
+        // `updateMany` with a null guard: if another press already wrote the reference, this writes
+        // nothing rather than overwriting it with a second id for the same bill.
+        const { count } = await tx.invoice.updateMany({
+          where: { id: invoice.id, externalRef: null },
+          data: { externalRef: result.externalRef, externalPushedAt: new Date() },
+        })
+        if (count === 0) return false
+        await log({
+          entity: 'Invoice',
+          entityId: invoice.id,
+          action: 'UPDATE',
+          before: { externalRef: null },
+          after: { externalRef: result.externalRef, driver: driver.name },
+        })
+        return true
+      },
+      client,
+    )
+
+    if (written) pushed += 1
+    else alreadyPushed += 1
+  }
+
+  return { driver: driver.name, pushed, alreadyPushed, failures }
 }
 
 /**
