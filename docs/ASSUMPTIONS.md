@@ -900,6 +900,44 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
      The seam is the deliverable; choosing a gateway is a purchasing decision and needs credentials nobody has supplied.
      *If wrong:* one file, `src/server/notify/message.ts`, gains a real `send`; nothing else changes.
 
+223. **Xero first, via a custom connection, and nothing else until asked.** The brief names "Xero/QuickBooks" as one
+     item. Xero's custom connection is a client-credentials grant: one org, no consent screen in the app, no refresh
+     token to store — which is what makes it possible on Vercel without an OAuth callback nobody has built. QuickBooks
+     is a second driver behind the same interface when asked. *If wrong:* `createXeroDriver` is the file; the seam and
+     the `Invoice.externalRef` record do not change.
+224. **The accounting system computes the GST; the bill's total is the check.** Lines go to Xero at their unit prices
+     with the org's tax type (`XERO_TAX_TYPE`, env), so GST lands in the right box for filing rather than as a
+     description line. The invoice was priced at a rate snapshotted on its issue date, so the push compares Xero's
+     returned total against the stored one and reports a mismatch instead of marking it pushed — a bill in Xero for a
+     different amount is worse than a bill not in Xero. *If wrong:* both GST arrangements are wrong for filing anyway,
+     and a manual fix is one invoice in Xero's UI.
+225. **A bill is marked pushed only after the system returns its id, and pushing twice sends nothing twice.** The
+     `externalRef` write is guarded on `null`, and the request carries `Idempotency-Key: cimmerian-<invoice number>`,
+     so a retried press returns the same Xero invoice rather than creating a second. `externalRef` and
+     `externalPushedAt` on `Invoice` are the record. *If wrong:* a failed write leaves the bill unpushed and the next
+     press retries it — the safe direction.
+226. **A failed push is a report, not a rollback.** The live calls happen outside the transaction; each success is
+     written in its own, so one refused bill cannot undo the fifteen that went through. The screen lists what was
+     pushed, what was already there, and the first reason anything was refused. Payments are not pushed — invoices
+     only — so a bill's balance in Xero is whatever Xero computes from its own payments.
+
+227. **A notification is addressed to one person, and the inbox is read through that id.** `notificationReadWhere`
+     returns the caller's `userId` and there is no capability that widens it — an inbox is not a book. An Admin opening
+     a dispatcher's alerts would see the same P1 twice and lose track of their own badge. *If wrong:* the filter is one
+     branch in `scope.ts`; a support screen that reads another person's inbox is a deliberate addition, not a fix.
+228. **Marking somebody else's notification read is `NotFound`, not `Forbidden`.** The caller is not meant to know that
+     the row exists at all; a 403 confirms it does. This is the same choice `my-jobs.ts` makes for another technician's
+     job (slice 7).
+229. **The inbox lists in-app rows and failed deliveries only.** A sent email or SMS carries the same text as an in-app
+     row already on the screen, so listing it would say everything twice. A failed one *is* listed, with its reason,
+     because a dead mail server visible only in a log is what the inbox was built to stop.
+230. **The unread and failed counts are of the whole inbox, not the filtered list.** A badge that shrank when the reader
+     switched to the Unread tab would be counting the tab, not the work.
+231. **The badge counts the rows the inbox actually shows.** An email row is written beside every in-app row and its
+     `readAt` is never set, so counting every null would make one P1 read as "2 unread" beside one visible row. The list,
+     the badge and Mark all read share one `VISIBLE`/`VISIBLE_UNREAD` condition — in-app, or a failed delivery. An
+     integration test pins it.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

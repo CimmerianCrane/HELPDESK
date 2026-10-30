@@ -15,16 +15,40 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phases 1, 2 and 3 are complete, and Phase 4 (Optimisation) is under way.** Slices 0–36 are built;
+**All four phases are complete, and slice 38 closes the last gap the plan had recorded twice.** Slices 0–38 are built;
 Phase 1's acceptance path still passes untouched. **`docs/PLAN.md` §7 is the canonical copy** — §7.2 is
 the Phase 2 slice table, §7.3–§7.12 each Phase 2 slice's fixed decisions as built, **§7.13 is the
 Phase 3 slice table plus slices 22 and 23 as built (§7.13.1), slice 24 as built (§7.13.2), slice 25
 as built (§7.13.3), slice 26 as built (§7.13.4), slice 27 as built (§7.13.5) and slice 28 as built
 (§7.13.6)**, and **§7.14 is the Phase 4 slice table with slice 29 as built (§7.15), slice 30 as
 built (§7.16), slice 31 as built (§7.17), slice 32 as built (§7.18), slice 33 as built (§7.19),
-slice 34 as built (§7.20), slice 35 as built (§7.21) and slice 36 as built (§7.22)**, **Slice 36
-(WhatsApp/SMS adapters) is done; slice 37 (Xero/QuickBooks) is next — read `docs/PLAN.md` §7.14,
-then ask before starting it.**
+slice 34 as built (§7.20), slice 35 as built (§7.21), slice 36 as built (§7.22) and slice 37 as
+built (§7.23), and slice 38 (the notification inbox) as built (§7.24)**.
+
+> **Slice 38 — the notification inbox.** `/inbox` is where the alerts have been going all along: every
+> P1, due-service reminder and dispatch pack has written an `IN_APP` row since Phase 1, and nothing
+> could read one back — the gap recorded at `ASSUMPTIONS.md` 96 and 100 and in PLAN §7.5 and §7.22.
+> It is a read of those rows plus marking one read, behind a new `notification.read` capability and a
+> `notificationReadWhere` that returns the caller's own id and nothing else. A failed
+> email/SMS/WhatsApp delivery is listed with its reason beside the
+> in-app copy that arrived. No table, no column, no migration and no new writer: `notify.ts` still
+> writes every notification. The nav gains **Inbox** with an unread badge. See `docs/PLAN.md` §7.24.
+
+> **Slice 37 — Xero push.** See below. **Its migration was NOT applied when the plan said it was** — a
+> verification run found `Invoice.externalRef` missing from the database. It is now applied, and doing so
+> exposed two faults in slice 37's own integration tests (both raised a second invoice on a job that
+> issuing the first had moved out of `REVIEWED`); each now uses its own job. All four gates are green.
+
+> **Slice 37 — Xero push.** Billed invoices leave `/invoices` for Xero through a second adapter seam
+> beside slice 21's exporter: `AccountingPushDriver` in `src/server/accounting/push.ts`, resolved from
+> `ACCOUNTING_DRIVER` (default `none`). A Xero custom connection takes the place of an OAuth flow —
+> no callback, no refresh token. Only issued, partly paid and paid bills are sent; a bill is marked
+> pushed (`Invoice.externalRef`) only once Xero returns its id, the write is guarded on NULL, and the
+> request carries an idempotency key, so pressing twice never bills twice. A refused bill stays
+> unpushed with its reason. **No live Xero call has been made** — no credentials exist in this
+> repository, so the payload is pinned by unit tests and the first real push is the real verification.
+> Migration `20261030200000_slice37_accounting_push` (additive, **applied 31/10/2026** — see the gates
+> note above). See `docs/PLAN.md` §7.23.
 
 > **Slice 36 — WhatsApp and SMS adapters.** A P1 alert now writes a fourth and fifth row beside the in-app and
 > email ones: `SMS` and `WHATSAPP`, sent through `src/server/notify/message.ts`. Both drivers are the console one
@@ -212,6 +236,8 @@ asked.**
 | 34 Equipment calibration tracking | done |
 | 35 Route optimisation | done |
 | 36 WhatsApp and SMS adapters | done |
+| 37 Xero/QuickBooks integration | done |
+| 38 The notification inbox | done |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -315,11 +341,12 @@ filters applied to the file. `AccountingExporter` is the seam a Xero/QuickBooks 
 `tests/e2e/phase2.spec.ts` walks the whole of Phase 2 in one browser run, starting with a compliance rule
 added on `/admin/compliance`, adopted on a crane, and ending with the invoice exported.
 
-**Not yet built:** the last Phase 4 slice — the Xero/QuickBooks driver. Phase 3 is complete (§7.13);
-Phase 4's slice table is §7.14, with slice 29 as built in §7.15, slice 30 in §7.16, slice 31 (the
-customer portal) in §7.17, slice 32 (profitability) in §7.18, slice 33 (utilisation) in §7.19,
-slice 34 (calibration) in §7.20, slice 35 (route optimisation) in §7.21 and slice 36 (WhatsApp/SMS)
-in §7.22.
+**Every slice in the plan is built.** Phase 3 is complete (§7.13); Phase 4's slice table is §7.14,
+with slice 29 as built in §7.15, slice 30 in §7.16, slice 31 (the customer portal) in §7.17,
+slice 32 (profitability) in §7.18, slice 33 (utilisation) in §7.19, slice 34 (calibration) in
+§7.20, slice 35 (route optimisation) in §7.21, slice 36 (WhatsApp/SMS) in §7.22 and slice 37
+(Xero push) in §7.23. Phase 4's acceptance is not written as a browser test the way Phase 1's and
+Phase 2's are — the portal, the reports and the push are proven by their integration suites.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 

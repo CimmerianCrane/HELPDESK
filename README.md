@@ -188,6 +188,55 @@ development and keeping Supabase for deployment; the app does not care which one
 
 ## What works today
 
+### Slice 38 — the notification inbox
+
+- **`/inbox` is where the alerts have always been going.** A P1 to every dispatcher, a due-service reminder, a dispatch
+  pack to the technician on the job — every one of them has written an in-app row since Phase 1, and until now nothing
+  could read one back. The nav gains **Inbox** with an unread badge; the screen lists the signed-in person's own alerts,
+  newest first, with **All** and **Unread** tabs and a **Mark all read** button.
+- **A failed delivery is visible, with its reason.** If the email, SMS or WhatsApp copy of an alert did not go, the row
+  says which channel failed and why, beside the in-app copy that did reach you. A dead mail server is no longer only in
+  the log.
+- **The inbox is yours.** A notification is addressed to one person and the server reads it through that id, so signing
+  in as the dispatcher and as the admin shows each their own: an alert addressed to one does not appear on the other's
+  badge or list.
+- **It adds no schema and no writer.** No migration; `src/server/notifications/inbox.ts` reads the rows `notify.ts`
+  already writes, and marking one read is the only write, audit-logged like every other mutation.
+- **Tests** — 4 unit tests in `tests/unit/scope.test.ts` (own rows for every role, never an unfiltered query, two users
+  never seeing each other, denied for the portal role) and 10 integration tests in
+  `tests/integration/notifications.test.ts` (scoping, newest first, counts over the whole inbox, an email twin not
+  counting as a second unread alert, marking read audited, another user's row refused as `NotFound`, the role refusal,
+  mark-all leaving read rows and other people's alone). `tests/e2e/inbox.spec.ts` walks the badge, the list, the other
+  account's empty inbox, marking read, and the failed-delivery notice.
+- **Known limit** — the phone shell has no inbox tab yet: `/inbox` renders the office layout, so a technician reaches it
+  from a browser but not from the app's own nav. The list is the last 100 and has no search. Nothing is ever deleted.
+
+### Slice 37 — pushing invoices into Xero
+
+- **Billed invoices go into Xero from `/invoices`.** Above the list, an **Accounting system** panel says how many bills
+  are not yet there and offers one press. Issued, partly paid and paid invoices are sent; a draft is still being edited
+  and a void is not a bill. Pressing again sends nothing twice.
+- **A bill is marked sent only once Xero accepts it.** The invoice page then says which Xero invoice it went under. A
+  refused bill keeps the reason on screen, stays unpushed, and the next press retries only that one — a partial run does
+  not undo the bills that went through.
+- **Xero's total is checked against ours.** Lines go at their unit prices so the org computes and files the GST; if the
+  returned total differs from the bill the customer was sent, the push reports it rather than recording it as sent.
+- **It is off until configured.** `ACCOUNTING_DRIVER=none` by default and the CSV export remains the only way money
+  leaves the app. To turn it on: create a **Custom connection** at developer.xero.com, authorise it against the org,
+  and set `ACCOUNTING_DRIVER=xero`, `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET` (and `XERO_TAX_TYPE` if the org's standard
+  rate is not `SR`) in `.env`. **No live call has been made from this repository** — no credentials were available, so
+  the first push against a real org is the real test.
+- **Tests** — 6 unit tests in `tests/unit/accounting-push.test.ts` (the ACCREC body, cent rounding, the account code,
+  the `none` driver reporting rather than pretending, resolving `xero` from env) and 4 integration tests in
+  `tests/integration/invoices.test.ts` using a recording driver (sent only once the reference returns, the draft never
+  sent, a refused bill retried alone, the null guard, the role refusal, the book's unpushed count). No browser test
+  walks the panel. **Migration `20261030200000_slice37_accounting_push`** adds `Invoice.externalRef` and
+  `Invoice.externalPushedAt`.
+- **Migration status** — it is applied. Note for anyone reading an older copy of this file: it was once recorded as
+  applied when it was not, so `Invoice.externalRef` was missing and every suite touching an invoice failed. That is
+  now corrected, and two of the slice's own tests (which raised a second invoice on a job already moved to `INVOICED`)
+  were fixed with it. `npx prisma migrate status` should read "Database schema is up to date!".
+
 ### Slice 35 — route optimisation
 
 - **The day's round, in driving order.** Under the schedule board, `/schedule` lists the day's visits in the order to

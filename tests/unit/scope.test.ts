@@ -3,6 +3,7 @@ import {
   craneReadWhere,
   customerReadWhere,
   jobReadWhere,
+  notificationReadWhere,
   reportReadWhere,
 } from '@/server/auth/scope'
 import type { AuthContext, Role } from '@/server/auth/types'
@@ -125,6 +126,37 @@ describe('customer scope', () => {
 
   it('gives a storekeeper nothing, since they hold no customer.read', () => {
     expect(customerReadWhere(ctx('STOREKEEPER'))).toEqual(DENY)
+  })
+})
+
+/**
+ * Slice 38. A notification is addressed to one person, and the inbox is read through that id. This is
+ * the rule that stops a P1 appearing twice on somebody else's screen, and the reason there is no
+ * "all notifications" capability to widen it.
+ */
+describe('notification scope', () => {
+  it('narrows to the caller’s own rows for every role that holds notification.read', () => {
+    for (const role of ['ADMIN', 'DISPATCHER', 'TECHNICIAN', 'STOREKEEPER', 'FINANCE'] as Role[]) {
+      expect(notificationReadWhere(ctx(role))).toEqual({ userId: 'user-1' })
+    }
+  })
+
+  it('never returns an unfiltered query, whatever the role', () => {
+    const admin = notificationReadWhere(ctx('ADMIN'))
+    expect(admin).not.toEqual({})
+    expect(admin).toEqual({ userId: 'user-1' })
+  })
+
+  it('points two users at their own rows, never each other’s', () => {
+    const a = notificationReadWhere(ctx('ADMIN', { userId: 'user-a' }))
+    const b = notificationReadWhere(ctx('TECHNICIAN', { userId: 'user-b' }))
+    expect(JSON.stringify(a)).toContain('user-a')
+    expect(JSON.stringify(a)).not.toContain('user-b')
+    expect(JSON.stringify(b)).not.toContain('user-a')
+  })
+
+  it('denies a role without the capability', () => {
+    expect(notificationReadWhere(ctx('CUSTOMER'))).toEqual(DENY)
   })
 })
 

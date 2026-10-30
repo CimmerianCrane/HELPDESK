@@ -15,6 +15,8 @@ export const CAPABILITIES = [
   'user.manage',
   'settings.manage',
   'audit.read',
+  /** Reading and marking read the notifications addressed to you (slice 38). Every role holds it. */
+  'notification.read',
 
   // Customers and sites
   'customer.read',
@@ -146,6 +148,7 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
     'quote.read',
     'quote.write',
     'dashboard.office',
+    'notification.read',
   ],
 
   /** Field technicians. `job.read.own` is additionally scoped at the row level — see scope.ts. */
@@ -165,6 +168,8 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
      * in on a customer's behalf needs to see that it was received; they do not get the intake board.
      */
     'ticket.read',
+    /** A dispatch pack reaches the phone as an in-app row; this is how they re-open it. */
+    'notification.read',
   ],
 
   STOREKEEPER: [
@@ -184,6 +189,7 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
     'certificate.read',
     /** The storekeeper is who hands the parts over, so the receipt is theirs to record too. */
     'deliveryorder.write',
+    'notification.read',
   ],
 
   FINANCE: [
@@ -202,6 +208,7 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
     'dashboard.office',
     /** Finance reads the book for the value of what it holds; the store maintains it. */
     'part.read',
+    'notification.read',
   ],
 
   /**

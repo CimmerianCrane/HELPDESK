@@ -226,6 +226,16 @@ export function onCallShiftReadWhere(ctx: AuthContext): Prisma.OnCallShiftWhereI
 }
 
 /**
+ * Filter for `Notification` (slice 38). A notification is addressed to one person, and the inbox is
+ * read through that id. There is no "all notifications" capability to widen this to, which is also
+ * why the inbox has no office/own split: unlike jobs, the row already names its reader.
+ */
+export function notificationReadWhere(ctx: AuthContext): Prisma.NotificationWhereInput {
+  if (!can(ctx.role, 'notification.read')) return DENY
+  return { userId: ctx.userId }
+}
+
+/**
  * Filter for `Resource` — vehicles, test weights and load cells (brief §4.4).
  *
  * `resource.read` is the store's and dispatch's: they are the people who know a test weight is out

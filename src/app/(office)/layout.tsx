@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import type { Capability } from '@/server/auth/permissions'
 import { getAuthContext } from '@/server/auth/context'
 import { can } from '@/server/auth/permissions'
+import { unreadNotificationCount } from '@/server/notifications/inbox'
 import { ROLE_LABELS } from '@/server/users/labels'
 import { signOutAction } from '@/app/actions'
 
@@ -28,6 +29,7 @@ const NAV: readonly {
   match?: string
 }[] = [
   { href: '/dashboard', label: 'Dashboard', capability: null },
+  { href: '/inbox', label: 'Inbox', capability: 'notification.read' },
   { href: '/customers', label: 'Customers', capability: 'customer.read' },
   { href: '/cranes', label: 'Cranes', capability: 'crane.register.read' },
   { href: '/tickets', label: 'Tickets', capability: 'ticket.read' },
@@ -57,6 +59,11 @@ export default async function OfficeLayout({ children }: { children: ReactNode }
   if (!can(context.role, 'dashboard.office') && can(context.role, 'portal.read')) redirect('/portal')
 
   const links = NAV.filter((item) => !item.capability || can(context.role, item.capability))
+  // The badge is the only reason the inbox is not a screen nobody opens. One extra count per office
+  // render; the `(userId, readAt)` index makes it a lookup, not a scan.
+  const unread = can(context.role, 'notification.read')
+    ? await unreadNotificationCount(context)
+    : 0
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -81,6 +88,11 @@ export default async function OfficeLayout({ children }: { children: ReactNode }
                 className="shrink-0 rounded-md px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900"
               >
                 {item.label}
+                {item.href === '/inbox' && unread > 0 ? (
+                  <span className="ml-1.5 rounded-full bg-slate-900 px-1.5 py-0.5 text-xs font-medium text-white">
+                    {unread > 99 ? '99+' : unread}
+                  </span>
+                ) : null}
               </Link>
             ))}
           </nav>

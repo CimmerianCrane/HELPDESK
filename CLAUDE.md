@@ -51,7 +51,8 @@ the gate for finishing a slice, since it is the only version that exercises the 
 `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `APP_BASE_URL`, `STORAGE_DRIVER` (`disk` | `supabase`),
 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`, `EMAIL_DRIVER`
 (`console` | `smtp`), `SMS_DRIVER` and `WHATSAPP_DRIVER` (`console`, or the named drivers `twilio` / `meta` which are
-declared but not yet built and fall back to console), `CRON_SECRET`, `DEFAULT_TIMEZONE`, `DEFAULT_CURRENCY`,
+declared but not yet built and fall back to console), `ACCOUNTING_DRIVER` (`none` | `xero`) with
+`XERO_CLIENT_ID` / `XERO_CLIENT_SECRET` / `XERO_TAX_TYPE` for the invoice push, `CRON_SECRET`, `DEFAULT_TIMEZONE`, `DEFAULT_CURRENCY`,
 `DEFAULT_GST_RATE`, `SEED_PASSWORD` (optional — overrides the demo password `npm run seed` uses).
 
 **Deployment: Vercel + Supabase.** Use the Node runtime for anything that touches Prisma — never Edge.
@@ -98,7 +99,7 @@ cimmerian-crane/
   src/
     app/
       (auth)/login/        # unauthenticated
-      (office)/            # desktop-first: dashboard, customers, cranes, tickets, jobs (+ /jobs/export),
+      (office)/            # desktop-first: dashboard, inbox, customers, cranes, tickets, jobs (+ /jobs/export),
                            # schedule, schedules, certificates, reports, admin (users, compliance rules, audit log)
       (tech)/m/            # mobile-first technician PWA: my jobs, job detail, report form (slice 8)
       (portal)/portal/     # customer portal (slice 31): own jobs, cranes, certificates, issued reports — read-only
@@ -112,6 +113,8 @@ cimmerian-crane/
                            # renewal queue
       portal/              # the customer portal's read layer — its own jobs, and its reports via
                            # the office services, narrowed by the customerId scope filter
+      notifications/       # the inbox (slice 38): the in-app rows notify.ts writes, read through the
+                           # caller's own userId, plus marking one read
       audit/               # audit(context, ...) — the only way to write business data; the viewer's
                            # cross-entity search and record labels
       dashboard/           # the office board's morning counts, derived from jobSla

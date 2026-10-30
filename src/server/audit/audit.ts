@@ -210,6 +210,8 @@ export const AUDIT_ENTITIES = [
   'OnCallShift',
   'File',
   'User',
+  /** Only ever an `UPDATE` — the inbox marks one read (slice 38). Nothing writes a notification here. */
+  'Notification',
 ] as const
 
 export type AuditLogRow = Awaited<ReturnType<typeof searchAuditLog>>['rows'][number]
@@ -244,6 +246,7 @@ const ENTITY_HREFS: Record<string, (id: string) => string> = {
   Resource: () => '/calibrations',
   StockTake: (id) => `/stock-takes/${id}`,
   User: (id) => `/admin/users/${id}`,
+  Notification: () => '/inbox',
 }
 
 /**
@@ -391,6 +394,16 @@ export async function auditEntityLabels(
       : [],
   ])
 
+  // A notification is not fetched: its label is its title, which is the thing the reader recognises,
+  // and nothing else worth labelling hangs off it.
+  const notifications =
+    present('Notification')
+      ? await client.notification.findMany({
+          where: { id: { in: idsFor('Notification') } },
+          select: { id: true, title: true },
+        })
+      : []
+
   const labels = new Map<string, AuditEntityLabel>()
   const put = (entity: string, id: string, label: string) =>
     labels.set(`${entity}:${id}`, {
@@ -419,6 +432,7 @@ export async function auditEntityLabels(
     put('Resource', row.id, row.serialNumber ? `${row.name} (${row.serialNumber})` : row.name)
   }
   for (const row of slaPolicies) put('SlaPolicy', row.id, `Company-wide ${row.priority} target`)
+  for (const row of notifications) put('Notification', row.id, row.title)
   for (const row of contracts) {
     labels.set(`Contract:${row.id}`, {
       entity: 'Contract',

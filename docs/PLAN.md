@@ -2273,7 +2273,8 @@ been migrated since Phase 1 — **no migration is expected for the first slices.
 | **34** | **Equipment calibration tracking** (**built** — see §7.20) | A calibration register beside certificates, with its own due/overdue queue | `src/server/calibrations/` (new), `/calibrations` | §4.5 |
 | 35 | Route optimisation (**built** — see §7.21) | An ordered round from the day's jobs, using the site addresses already held | `/schedule` | §4.4 |
 | 36 | WhatsApp and SMS adapters (**built** — see §7.22) | A third and fourth `notify` channel, behind the adapter seam that already exists | `src/server/notify/` | §10 |
-| 37 | Xero/QuickBooks integration | Push issued invoices through the accounting adapter slice 21 left in place | `src/server/accounting/` | §10 |
+| **37** | **Xero/QuickBooks integration** (**built** — see §7.23) | Push billed invoices into Xero through the accounting adapter slice 21 left in place: a driver behind `AccountingExporter`'s sibling seam, `Invoice.externalRef` as the record of what went, and a press that never sends the same bill twice | `src/server/accounting/push.ts` (new), `/invoices` | §10 |
+| **38** | **The notification inbox** (**built** — see §7.24) | The `IN_APP` rows every alert has written since Phase 1 finally have a screen: a person's own P1s, due-service reminders and dispatch packs, unread-first, with a failed delivery shown and its reason. Adds no table and no writer — it reads what `notify.ts` already wrote | `src/server/notifications/` (new), `/inbox` | §4.3, §8 |
 
 Slice 29 was taken first because the contract is the one record the app has been *shaped* around and could not enter:
 `Contract` and contract-scoped `SlaPolicy` rows existed, `createJob` already resolved them, and the customer page
@@ -2642,6 +2643,114 @@ in-app rows these sends sit beside remain visible only through the audit trail; 
 closing before the channels multiply. `tests/unit/message-adapters.test.ts` pins the fallback and the never-throws rule;
 `tests/integration/tickets.test.ts` proves the row set (in-app + email for everyone, SMS + WhatsApp only for the holder
 of a number), that every row is stamped sent, and that the phone body is the short alert; no browser test walks it.
+
+---
+
+### 7.23 Slice 37 — Xero/QuickBooks integration (**built**)
+
+**Goal:** the brief asks for "an accounting-export adapter (CSV first; Xero/QuickBooks later)" (§5). Slice 21 built the
+CSV, and left `AccountingExporter` as the seam — but it rendered *files*, and the office still copied a spreadsheet into
+Xero by hand.
+
+**The shape it took:** a second seam beside the exporter, `AccountingPushDriver`, with the same contract every adapter in
+this app follows (`EmailAdapter`, `MessageAdapter`): a send **returns** a result and never throws. The exporter renders
+the rows; the driver posts them. Neither knows the other's format.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 223–226):
+
+1. **Xero first, through a custom connection.** A client-credentials grant against one authorised org, so there is no
+   OAuth callback and no refresh token to store on Vercel. `ACCOUNTING_DRIVER=none` by default: the CSV remains the only
+   way money leaves an unconfigured app, and the screen offers the press only where it can work.
+2. **Xero's total is checked against the bill's.** Lines go at their unit prices with the org's `XERO_TAX_TYPE`, so GST
+   is computed where it is filed. The invoice was priced at the rate snapshotted on its issue date, so a returned total
+   a cent away is reported as a failure to check, not recorded as pushed.
+3. **`Invoice.externalRef` is written only after the system returns an id.** `externalPushedAt` sits beside it. The write
+   is guarded on `NULL`, so a second press cannot replace the reference with a second id.
+4. **`Idempotency-Key: cimmerian-<number>`.** A retry is the same request, so the dropped-response case — Xero created
+   the bill, the reply was lost — returns the existing invoice rather than billing twice.
+5. **Failures are the return value, not an exception.** Live calls happen before any write; each success is written in
+   its own transaction with its own audit row. One refused bill cannot undo the fifteen that went through.
+
+**As built.** `src/server/accounting/push.ts` holds `AccountingPushDriver`, `nonePushDriver`, `createXeroDriver` and
+`xeroInvoiceBody` (pure, unit-tested). Token and tenant are fetched once per run and cached for the process.
+`pushInvoicesToAccounting` lives in `accounting.ts` beside the export: it reads the same `listInvoices` rows, filters to
+`ISSUED`/`PART_PAID`/`PAID` with no `externalRef`, pushes each and records the outcome — behind `invoice.write`, since it
+writes into someone else's books. `invoiceExportRows` gained the charge lines (a push sends them; the CSV keeps its one
+description cell). `InvoiceSummary` carries `externalRef`/`externalPushedAt`, `InvoiceList` a count of billed-and-unpushed
+which the screen shows above the button. `/invoices` gains the **Accounting system** panel, `/invoices/[id]` says which
+reference it went under, and `.env.example` documents the six variables.
+
+**Migration:** `20261030200000_slice37_accounting_push` adds `Invoice.externalRef TEXT` and
+`Invoice.externalPushedAt TIMESTAMP(3)`. Additive only — **applied with `npx prisma migrate deploy`**, which the
+auto-mode classifier refuses; it was run with approval.
+
+**Known limits.** No live Xero call was made — no credentials were available, so the payload is pinned by unit tests and
+the driver is unverified against a real tenant. Only invoices are pushed: payments are not, so a bill's balance in Xero
+is what Xero computes from its own payments. Nothing is ever *pulled* back — a change made in Xero (credit note,
+write-off) is invisible here. The custom connection covers one organisation; a business with several Xero orgs needs
+the OAuth flow this deliberately avoids. `XERO_TAX_TYPE` defaults to `SR` and an AU org uses `OUTPUT2`, which the total
+check turns from a silent misposting into a visible refusal. No browser test walks the push; the integration suite
+proves the skip-twice rule, the partial-failure retry, the null guard and the role refusal with a recording driver.
+
+**Verification note.** This slice was recorded as built but was **not actually verified**: the migration had never been
+applied, so `Invoice.externalRef` did not exist and 22 integration tests and the `phase2` e2e failed the moment anyone
+ran the suite. Applying it exposed two further faults in the slice's own tests — both raised a second invoice on a job
+that issuing the first had moved out of `REVIEWED`, which the service correctly refuses. Each now uses its own job. All
+four gates are green as of slice 38: 463 unit, 390 integration, 53 e2e (2 offline-only skipped), build.
+
+---
+
+### 7.24 Slice 38 — the notification inbox (**built**)
+
+**Goal:** close the gap recorded twice — `ASSUMPTIONS.md` 96 and 100, and PLAN §7.5 and §7.22 — that the `IN_APP` rows
+the fan-out has written since Phase 1 were invisible. A P1 wrote a row, a reminder wrote a row, a dispatch wrote a row,
+and nothing read one back; email was the only channel that reached anybody, and the SMS and WhatsApp rows slice 36 added
+sat beside rows nobody could see either.
+
+**The shape it took:** a read service and one screen. No table, no column, no migration, and no new writer — `notify.ts`
+remains the only thing that creates a notification, and this shows what it wrote.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` 227–230):
+
+1. **A notification is addressed to one person and the inbox is read through that id.** `notificationReadWhere` returns
+   `{ userId: ctx.userId }` and spreads nothing else, because there is no "all notifications" capability to widen it to.
+   An Admin opening a dispatcher's inbox would see the same P1 twice and lose track of their own count.
+2. **Cross-user marking is `NotFound`, not `Forbidden`.** A 403 confirms the row exists and that its id is real; a
+   person has no reason to know a stranger's alert exists.
+3. **The list shows in-app rows and failed deliveries, nothing else.** A sent email or SMS repeats the text of an in-app
+   row already on the screen. A *failed* one is shown with its reason, because a dead mail server that only appears in a
+   log is the failure this gap was about.
+4. **The counts are the whole inbox, not the filtered list.** The badge must not change size depending on which tab the
+   reader happens to be on.
+5. **The badge counts the rows the screen shows, not every row with a null `readAt`.** `fanOut` writes an email twin
+   beside every in-app row, and an email row's `readAt` never changes — so counting nulls naively would show "2 unread"
+   beside one visible alert. The list, the count and Mark all read share one `VISIBLE` condition.
+
+**As built.** `src/server/notifications/inbox.ts` holds `VISIBLE`/`VISIBLE_UNREAD` (the one condition the list, the badge and
+Mark all read share), `listInbox` (newest first, last 100, optional unread-only), `markNotificationRead`,
+`markAllNotificationsRead` and `unreadNotificationCount`. `notification.read` is a new
+capability held by Admin, Dispatcher, Technician, Storekeeper and Finance — every role a notification can be addressed
+to; the customer portal role does not hold it. `notificationReadWhere` joins the scope filters, returning
+`{ userId }` and widening to nothing. Marking read goes through `withAudit` like every other mutation, so each row has
+an `UPDATE` audit entry; `Notification` joins the viewer's entity list and label map (labelled by its title, linking to
+`/inbox`). `/inbox` is the screen, its page and one shared `InboxList` component; the office nav gains **Inbox** with an
+unread badge.
+
+**On auditing a read flag.** A notification row itself is not audited — `notify.ts` writes it without one, because it is
+an operational record, not a business one. Marking one read *is* audited, since CLAUDE.md rule 6 says every mutation
+goes through `withAudit` and a reader's view state is still a write. The cost is real: **Mark all read** writes one
+audit row per row it clears, so a backlog of fifty alerts is fifty audit entries. That is the honest reading of the rule
+and it is what was built; if the audit log gets noisy, excluding this one UI-state write is the change, and it should be
+made deliberately rather than by quiet omission.
+
+**No migration.** `Notification`, its channel enum and the `(userId, readAt)` index have existed since Phase 1.
+
+**Known limits.** A technician holds `notification.read` but the phone shell has no inbox tab, and `/inbox` renders the
+office layout — a phone-shaped inbox is a later screen, not a second page to drift from this one. The list is capped at
+the last 100 and has no search. There is no "mark read on open", so a P1 read in the inbox stays unread until a button is
+pressed; the alert is also delivered by email and (for a P1) phone, so the badge is a reminder rather than the
+notification itself. Nothing is ever deleted from the inbox. **Mark all read writes one audit row per cleared
+notification**, which is the rule-6 reading but noisy on a large backlog (see above).
 
 ---
 
