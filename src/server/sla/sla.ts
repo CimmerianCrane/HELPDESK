@@ -1,5 +1,10 @@
 import type { Priority, Prisma } from '@prisma/client'
 import { db, type Tx } from '@/lib/db'
+import { companySlaSchema, companyTargetsFrom, type CompanyTarget } from '@/lib/validation/sla'
+import { parseInput } from '@/lib/validation/parse'
+import { withAudit } from '@/server/audit/audit'
+import { assertCan } from '@/server/auth/permissions'
+import type { AuthContext } from '@/server/auth/types'
 
 /**
  * Response and resolution targets, per priority (brief §4.3).
@@ -183,4 +188,140 @@ export function slaPolicyRows(
     resolutionMinutes: policy.resolutionMinutes,
     isActive: true,
   }))
+}
+
+// ---------------------------------------------------------------------------
+// The company-wide targets (slice 30)
+// ---------------------------------------------------------------------------
+
+export interface CompanySlaRow extends CompanyTarget {
+  /** The `SlaPolicy` row's id, or null when no row exists yet and the fallback is being shown. */
+  id: string | null
+  /** True when this number is the code fallback rather than a row anybody configured. */
+  isFallback: boolean
+}
+
+/**
+ * The four company-wide targets, one per priority, in priority order.
+ *
+ * The read deliberately unions the rows with `DEFAULT_SLA_POLICIES` rather than calling
+ * `resolveSlaTargets`: the screen has to *show* the fallback the app is actually using and say so,
+ * or an administrator would edit a number while a different one was in force. `resolveSlaTargets`
+ * answers "what applies"; this answers "what is configured, and what would apply if nothing were".
+ *
+ * Only `contractId: null` rows are read. Contract targets are the customer page's and are edited
+ * there — showing them here would invite editing one customer's terms from the company screen.
+ */
+export async function getCompanySlaTargets(
+  context: AuthContext,
+  client: Tx = db,
+): Promise<CompanySlaRow[]> {
+  assertCan(context, 'sla.manage')
+
+  const rows = await client.slaPolicy.findMany({
+    where: { contractId: null, isActive: true },
+    select: { id: true, priority: true, responseMinutes: true, resolutionMinutes: true },
+  })
+  const byPriority = new Map(rows.map((row) => [row.priority, row]))
+
+  return PRIORITIES.map((priority) => {
+    const row = byPriority.get(priority)
+    const fallback = DEFAULT_SLA_POLICIES.find((policy) => policy.priority === priority)!
+    return {
+      priority,
+      id: row?.id ?? null,
+      isFallback: !row,
+      responseMinutes: row?.responseMinutes ?? fallback.responseMinutes,
+      resolutionMinutes: row?.resolutionMinutes ?? fallback.resolutionMinutes,
+    }
+  })
+}
+
+/**
+ * Writes all four company-wide targets at once, inside one transaction with one audit row per
+ * priority that actually changed.
+ *
+ * `upsert` on `[priority, contractId]` looks like the obvious write and is not: Postgres treats every
+ * NULL `contractId` as distinct, so the unique key would let a second company-wide P1 row in and
+ * `resolveSlaTargets` would then have two answers to pick between. The rows are therefore matched by
+ * `findFirst` — the same reason the seed does — and updated by id, created only when missing.
+ *
+ * A priority's row is never deleted and never zeroed: `isActive` is not the switch here, because
+ * deactivating the only company-wide P1 row silently moves every job on that priority onto the code
+ * fallback. Editing the number is the switch.
+ */
+export async function updateCompanySlaTargets(
+  context: AuthContext,
+  raw: unknown,
+  client: Tx = db,
+): Promise<CompanySlaRow[]> {
+  assertCan(context, 'sla.manage')
+  const targets = companyTargetsFrom(parseInput(companySlaSchema, raw))
+
+  await withAudit(
+    context,
+    async (tx, log) => {
+      const existing = await tx.slaPolicy.findMany({
+        where: { contractId: null },
+        select: {
+          id: true,
+          priority: true,
+          responseMinutes: true,
+          resolutionMinutes: true,
+          isActive: true,
+        },
+      })
+      const byPriority = new Map(existing.map((row) => [row.priority, row]))
+
+      for (const target of targets) {
+        const before = byPriority.get(target.priority)
+
+        if (!before) {
+          const row = await tx.slaPolicy.create({
+            data: { ...target, contractId: null, isActive: true },
+            select: { id: true },
+          })
+          await log({
+            entity: 'SlaPolicy',
+            entityId: row.id,
+            action: 'CREATE',
+            after: { ...target },
+          })
+          continue
+        }
+
+        const row = await tx.slaPolicy.update({
+          where: { id: before.id },
+          data: {
+            responseMinutes: target.responseMinutes,
+            resolutionMinutes: target.resolutionMinutes,
+            // A deactivated row is brought back into force by an edit rather than left dark while
+            // the screen shows a number that is not the one applying.
+            isActive: true,
+          },
+          select: { id: true },
+        })
+        await log({
+          entity: 'SlaPolicy',
+          entityId: row.id,
+          action: 'UPDATE',
+          before: {
+            priority: before.priority,
+            responseMinutes: before.responseMinutes,
+            resolutionMinutes: before.resolutionMinutes,
+            isActive: before.isActive,
+          },
+          after: {
+            priority: target.priority,
+            responseMinutes: target.responseMinutes,
+            resolutionMinutes: target.resolutionMinutes,
+            isActive: true,
+          },
+        })
+      }
+    },
+    client,
+  )
+
+  return getCompanySlaTargets(context, client)
 }

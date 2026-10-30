@@ -3,10 +3,14 @@ import Link from 'next/link'
 import { cardClass } from '@/components/office/ui'
 import { CreateCustomerForm } from '@/components/office/customer-forms'
 import { CUSTOMER_STATUSES } from '@/lib/validation/customers'
+import { CONTRACT_TYPE_LABELS } from '@/lib/validation/contracts'
+import { formatDate } from '@/lib/format'
 import { requireAuth } from '@/server/auth/context'
 import { can } from '@/server/auth/permissions'
+import { listUpcomingRenewals } from '@/server/contracts/contracts'
 import { listCustomers } from '@/server/customers/customers'
 import { CUSTOMER_STATUS_LABELS } from '@/server/customers/labels'
+import { getSettings } from '@/server/settings/settings'
 import { createCustomerAction } from './actions'
 
 export const metadata: Metadata = { title: 'Customers — Cimmerian Crane Services' }
@@ -35,6 +39,10 @@ export default async function CustomersPage({
 
   // The service validates these again; parsing here only decides what the form shows back.
   const customers = await listCustomers(context, { q: q ?? '', status: status ?? '' })
+  // Deliberately ignores the customer filters below: a renewal is a deadline, and hiding an overdue
+  // one because the list is filtered to "prospect" would be the one thing this board must not do.
+  const renewals = await listUpcomingRenewals(context)
+  const settings = await getSettings()
   const mayWrite = can(context.role, 'customer.write')
   const mayImport = can(context.role, 'customer.import')
 
@@ -78,6 +86,62 @@ export default async function CustomersPage({
             Dismiss
           </Link>
         </div>
+      ) : null}
+
+      {/* The renewal board (slice 30). Above the filters and the list on purpose: what is about to
+          lapse is the thing an office reads this page for, and it is the one block unaffected by
+          what the customer list is filtered to. */}
+      {renewals.length > 0 ? (
+        <section className={cardClass} aria-labelledby="renewals-heading">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="renewals-heading" className="font-semibold text-slate-900">
+              Contracts renewing
+            </h2>
+            <p className="text-sm text-slate-500">
+              {renewals.filter((row) => row.state === 'overdue').length} overdue,{' '}
+              {renewals.filter((row) => row.state === 'due').length} within 90 days.
+            </p>
+          </div>
+
+          <ul className="mt-4 divide-y divide-slate-100">
+            {renewals.map((row) => (
+              <li
+                key={row.id}
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2 text-sm"
+              >
+                <span>
+                  <Link
+                    href={`/customers/${row.customer.id}#contracts`}
+                    className="font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                  >
+                    {row.customer.legalName}
+                  </Link>
+                  <span className="text-slate-600">
+                    {' · '}
+                    {CONTRACT_TYPE_LABELS[row.type]}
+                    {row.reference ? ` · ${row.reference}` : ''}
+                  </span>
+                </span>
+                <span className="flex items-baseline gap-2">
+                  <span className="text-slate-600">
+                    {formatDate(row.renewalDate, settings.timezone)}
+                  </span>
+                  <span
+                    className={
+                      row.state === 'overdue'
+                        ? 'rounded border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-800'
+                        : 'rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900'
+                    }
+                  >
+                    {row.state === 'overdue'
+                      ? `${Math.abs(row.daysUntil)} ${Math.abs(row.daysUntil) === 1 ? 'day' : 'days'} overdue`
+                      : `in ${row.daysUntil} ${row.daysUntil === 1 ? 'day' : 'days'}`}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       {/* A GET form: filtering is a page state, so the result is a URL that can be bookmarked and

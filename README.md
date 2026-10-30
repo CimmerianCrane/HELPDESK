@@ -12,8 +12,9 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 **Status:** Phases 1–3 are complete. Phase 4 (optimisation) is under way: slice 29 gives a customer's
 **contracts** a screen on its customer page — type, reference, term, renewal, covered cranes and the
 response/resolution targets agreed — written as the contract-scoped SLA rows a new job already
-resolves. **Phase 4 continues with SLA management and the customer portal.** See "What works today"
-below.
+resolves; slice 30 makes the **company-wide SLA targets** editable at `/admin/sla` and puts every
+contract renewing or overdue in a board on `/customers`. **Phase 4 continues with the customer
+portal.** See "What works today" below.
 
 ---
 
@@ -175,6 +176,25 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 30 — SLA management and the renewal board
+
+- **The company-wide targets are editable.** `/admin/sla` (Admin, via `sla.manage`) shows all four priorities with
+  their response and resolution minutes in one form. Saving changes what `resolveSlaTargets` hands every **new** job;
+  jobs already raised keep the deadline they snapshotted.
+- **Nothing configured is stated, not hidden.** A priority with no stored row shows the built-in default with a
+  *"Nothing configured — the built-in default is in force"* badge, so the screen never pretends an empty field is a
+  zero-minute target. Every save is audit-logged per priority and labelled `Company-wide P1 target` in the viewer.
+- **A renewal board, not a hidden date.** `/customers` now carries a **Contracts renewing** section above its filters,
+  unaffected by the search and status filters: every live contract overdue or renewing within 90 days, soonest first,
+  each with a date and a red *"N days overdue"* or amber *"in N days"* badge, linking to that customer's contracts.
+- **Try it:** `/admin/sla` → change P1's resolution to 60 → save → raise a P1 ticket/job and watch the due time. Then
+  open `/customers` to see the renewal queue (the seed has contracts dated around the demo period).
+- **Tests** — 5 unit tests (`sla-targets.test.ts`: string coercion, resolution-not-quicker-than-response naming its
+  field, fractional/zero/missing priorities refused, one target per priority in order) and a 6-case integration suite
+  (`sla-management.test.ts`: the four-row write inside a rolled-back transaction with its audit rows and the resolver
+  following, the fallback when a row is missing, four roles refused, the renewal window and ordering, retired contracts
+  excluded, and the board readable by Dispatcher and Finance but not a technician).
 
 ### Slice 29 — contracts on the customer page
 

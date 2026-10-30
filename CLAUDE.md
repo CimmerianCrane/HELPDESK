@@ -106,11 +106,12 @@ cimmerian-crane/
     server/
       auth/                # session, password hashing, permission map, row-level scope
       users/               # user administration service
-      contracts/           # a customer's contracts and the SLA targets agreed on them
+      contracts/           # a customer's contracts, the SLA targets agreed on them, and the
+                           # renewal queue
       audit/               # audit(context, ...) — the only way to write business data; the viewer's
                            # cross-entity search and record labels
       dashboard/           # the office board's morning counts, derived from jobSla
-      sla/                 # SLA computation
+      sla/                 # SLA computation, and the company-wide targets screen writes them
       schedule/            # crane next-due recomputation
       schedules/           # a crane's recurring obligations, and rolling them forward on completion
       compliance/          # ComplianceRule — the rulebook, its adoption check and the admin screen

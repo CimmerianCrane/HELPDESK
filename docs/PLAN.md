@@ -2266,7 +2266,7 @@ been migrated since Phase 1 — **no migration is expected for the first slices.
 | # | Slice | Delivers | Where the work lands | Brief § |
 |---|---|---|---|---|
 | **29** | **Contracts on the customer page** (**built** — see §7.15) | A customer's contracts: type, reference, term, renewal, included visits, scope notes and covered cranes, with the negotiated response/resolution targets written as `SlaPolicy` rows for that contract — the rows `createJob` already reads. Retired, never deleted | `src/server/contracts/` (new), `src/lib/validation/contracts.ts` (new), the customer page's Contracts tab | §5, §8 |
-| 30 | SLA management and the renewal board | Company-wide targets editable on a screen (they are seed-only today), and every contract renewing or overdue in one queue | `/admin/sla` (new), `/customers` | §4.3, §8 |
+| **30** | **SLA management and the renewal board** (**built** — see §7.16) | Company-wide targets editable on a screen (they are seed-only today), and every contract renewing or overdue in one queue | `/admin/sla` (new), `/customers` | §4.3, §8 |
 | 31 | The customer portal | The `CUSTOMER` role finally signs in: their jobs and their cranes' certificates and reports, read-only, scoped by `customerId` | `src/app/(portal)/`, `src/server/auth/scope.ts` | §4.1 |
 | 32 | Profitability reporting | Revenue against cost per customer, contract and job type, from the invoices and purchase orders already recorded | `src/server/reports/profitability.ts` (new), office reports | §11 |
 | 33 | Technician utilisation | Hours on the road and on the tools against the roster, from job status history | `src/server/reports/utilisation.ts` (new) | §11 |
@@ -2321,10 +2321,57 @@ in Phase 1 and already applied.
 **Known limits.** `insertJob` now picks the latest-starting live contract that covers the job's cranes (an
 account-wide contract covers everything), but where two candidates cover the same job the later start still wins
 outright — there is no precedence between an AMC and a warranty arranged on the same crane. There is no company-wide
-`/contracts` list and no renewal dashboard (slice 30), and the ticket
+`/contracts` list; the renewal queue of slice 30 sits on the customer list (§7.16), and the ticket
 SLA board still reads company-wide rows only — a ticket has no contract. `priceSchedule` and included visits are stored
 and shown but not yet used by quoting or invoicing. No browser test of the Contracts panel; the integration suite proves
 the SLA rows, the job snapshot, the cross-customer crane refusal, the retire and the permissions.
+
+---
+
+### 7.16 Slice 30 — SLA management and the renewal board (**built**)
+
+**Goal:** the company-wide targets the app counts every job's clock from were seed-only — no screen could change them —
+and a contract's renewal date was visible only on that customer's own page, so nothing answered "what runs out next".
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 186–192):
+
+1. **The company-wide targets are one screen, `/admin/sla`, holding all four priorities.** Response and resolution side
+   by side, the same two numbers `resolveSlaTargets` reads when a job is created. One form because the four rows are one
+   policy, and saving them one at a time invites a half-applied pair.
+2. **The write is `findFirst` then update-or-create, never `upsert`.** Company-wide rows have `contractId = NULL`, and
+   Postgres treats NULLs as distinct in a unique key, so `upsert`'s `where` cannot name the row. An inactive row edited
+   here is brought back rather than duplicated.
+3. **No company row is deleted and no number zeroed.** A priority with no row falls back to `DEFAULT_SLA_POLICIES` in
+   code; the screen shows the built-in number with a badge saying so, rather than an empty field. The form refuses a
+   number below one.
+4. **Resolution may not be quicker than response, checked per priority in the schema.** The one property that makes an
+   SLA mean anything, refused on the field it belongs to.
+5. **Each priority that changed writes its own audit entry**, in the same transaction as the write, and the audit viewer
+   labels it `Company-wide P1 target` and links to `/admin/sla`.
+6. **The renewal board sits on `/customers`, where PLAN §7.14 put it, and ignores the list's filters.** An overdue
+   renewal hidden because the list happens to be filtered to "prospect" is the one failure this board must not have.
+   It lists live contracts overdue or renewing within the same 90-day window, soonest first, each linking to the
+   customer's `#contracts` section.
+7. **The window is applied in the query and again by slice 29's `renewalState`**, so the board and the customer page
+   cannot disagree about the same contract. Days are whole UTC days; overdue is negative.
+
+**As built.** `src/lib/validation/sla.ts` holds `companySlaSchema` and `companyTargetsFrom`. `src/server/sla/sla.ts`
+gains `getCompanySlaTargets` (seeded rows merged with the code fallback, so the screen never shows a blank) and
+`updateCompanySlaTargets`; `src/server/contracts/contracts.ts` gains `listUpcomingRenewals`. The `/admin/sla` page and
+its `CompanySlaForm` client component are new, the nav gains **Service levels** behind `sla.manage`, and `/customers`
+gains the renewals section above its filters. The audit viewer learns the `SlaPolicy` entity.
+
+**Migration:** none. `SlaPolicy` and its `@@unique([priority, contractId])` were designed in Phase 1 and already
+applied.
+
+**Known limits.** The board is a queue, not a workflow: no acknowledge, snooze or reminder email, and a contract with no
+renewal date is absent from it entirely. Editing a target changes what **new** jobs count down from; jobs already raised
+keep the deadline they snapshotted, by design, so a correction is invisible on them. Reads ride on `customer.read`, so
+the board is reachable by Admin, Dispatcher and Finance and not by a technician — no separate capability was added. The
+screen also sits under the admin layout, which refuses any role without `user.manage`; both capabilities are Admin-only
+today so the two gates agree, but a future role holding `sla.manage` alone would see the nav link and the refusal panel.
+No browser test of `/admin/sla` or the board; the integration suite proves the four-row write and its audit, the fallback,
+the role refusals, the window and ordering, and the exclusion of retired contracts.
 
 ---
 

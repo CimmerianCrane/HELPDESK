@@ -193,6 +193,7 @@ export const AUDIT_ENTITIES = [
   'Crane',
   'CraneSchedule',
   'ComplianceRule',
+  'SlaPolicy',
   'Ticket',
   'Job',
   'Report',
@@ -225,6 +226,8 @@ const ENTITY_HREFS: Record<string, (id: string) => string> = {
   CraneSchedule: () => '/schedules',
   // Rules have one screen; it lists them all, so the id need not appear in the link.
   ComplianceRule: () => '/admin/compliance',
+  // The SLA screen edits the company-wide rows; a contract's targets are read on its customer page.
+  SlaPolicy: () => '/admin/sla',
   Job: (id) => `/jobs/${id}`,
   Crane: (id) => `/cranes/${id}`,
   Customer: (id) => `/customers/${id}`,
@@ -275,6 +278,7 @@ export async function auditEntityLabels(
     suppliers,
     stockTakes,
     contracts,
+    slaPolicies,
   ] =
     await Promise.all([
     present('Job')
@@ -369,6 +373,13 @@ export async function auditEntityLabels(
           select: { id: true, type: true, reference: true, customerId: true },
         })
       : [],
+    // An SLA panel has no page of its own; a row is named by the priority it holds.
+    present('SlaPolicy')
+      ? client.slaPolicy.findMany({
+          where: { id: { in: idsFor('SlaPolicy') } },
+          select: { id: true, priority: true },
+        })
+      : [],
   ])
 
   const labels = new Map<string, AuditEntityLabel>()
@@ -395,6 +406,7 @@ export async function auditEntityLabels(
   for (const row of purchaseOrders) put('PurchaseOrder', row.id, row.number)
   for (const row of suppliers) put('Supplier', row.id, row.name)
   for (const row of stockTakes) put('StockTake', row.id, row.reference)
+  for (const row of slaPolicies) put('SlaPolicy', row.id, `Company-wide ${row.priority} target`)
   for (const row of contracts) {
     labels.set(`Contract:${row.id}`, {
       entity: 'Contract',

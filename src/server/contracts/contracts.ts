@@ -3,6 +3,7 @@ import { db, type Tx } from '@/lib/db'
 import {
   createContractSchema,
   renewalState,
+  RENEWAL_WINDOW_DAYS,
   slaOverridesFrom,
   updateContractSchema,
   type ContractInput,
@@ -228,6 +229,84 @@ export async function contractCraneOptions(
     where: { customerId, ...craneReadWhere(context) },
     select: { id: true, assetTag: true },
     orderBy: { assetTag: 'asc' },
+  })
+}
+
+export interface RenewalRow {
+  id: string
+  type: ContractType
+  reference: string | null
+  renewalDate: Date
+  /** Whole UTC days until the renewal; negative once it has passed. */
+  daysUntil: number
+  state: Exclude<RenewalState, 'none'>
+  customer: { id: string; legalName: string }
+}
+
+/**
+ * Every live contract renewing inside the window or already overdue, soonest first — the queue that
+ * answers "what runs out next" (slice 30, brief §8).
+ *
+ * The renewal date is a stored fact; "due" and "overdue" are the derived opinion `renewalState`
+ * already gives the customer page, so the two screens cannot disagree about the same contract. The
+ * window is applied in the query as well as by `renewalState` so a long-lived contract never enters
+ * the list just to be filtered out.
+ *
+ * Scoped by `customerReadWhere` like every other customer read. It rides on `customer.read` because
+ * it sits on the customer list; a role without that capability is refused outright by `assertCan`,
+ * as `listCustomers` is, rather than silently seeing an empty board.
+ */
+export async function listUpcomingRenewals(
+  context: AuthContext,
+  client: Tx = db,
+  now: Date = new Date(),
+): Promise<RenewalRow[]> {
+  assertCan(context, 'customer.read')
+
+  const horizon = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) +
+      RENEWAL_WINDOW_DAYS * 86_400_000,
+  )
+
+  const rows = await client.contract.findMany({
+    where: {
+      deletedAt: null,
+      renewalDate: { not: null, lte: horizon },
+      customer: customerReadWhere(context),
+    },
+    select: {
+      id: true,
+      type: true,
+      reference: true,
+      renewalDate: true,
+      customer: { select: { id: true, legalName: true } },
+    },
+    orderBy: { renewalDate: 'asc' },
+  })
+
+  return rows.flatMap((row) => {
+    const renewalDate = row.renewalDate!
+    const state = renewalState(renewalDate, now)
+    if (state === 'none') return []
+    return [
+      {
+        id: row.id,
+        type: row.type,
+        reference: row.reference,
+        renewalDate,
+        state,
+        daysUntil: Math.round(
+          (Date.UTC(
+            renewalDate.getUTCFullYear(),
+            renewalDate.getUTCMonth(),
+            renewalDate.getUTCDate(),
+          ) -
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) /
+            86_400_000,
+        ),
+        customer: row.customer,
+      },
+    ]
   })
 }
 

@@ -776,11 +776,30 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
      leaves the list and `insertJob`'s lookup but keeps its SLA rows as the record of what was agreed.
 185. **A renewal badge uses 90 days, counted in whole UTC days** — the same window certificates use — and is derived
      on read, never stored.
+186. **The company-wide SLA targets are edited on one screen, `/admin/sla`, all four priorities at once.** The four rows
+     are one policy; saving them one at a time invites a half-applied pair. Writing them is `sla.manage`, the capability
+     that has guarded targets since Phase 1.
+187. **A company-wide target row is found with `findFirst` and then updated or created, never `upsert`ed.** Company rows
+     carry `contractId = NULL`, and Postgres treats NULLs as distinct in a unique key, so `upsert` cannot name the row.
+     An inactive row edited here is reactivated rather than duplicated.
+188. **A priority with no company row keeps the built-in default, and the screen says so.** `DEFAULT_SLA_POLICIES` is the
+     code fallback `resolveSlaTargets` already had; showing the built-in number with a "nothing configured" badge is
+     truthful, while a blank field would suggest no target exists. No row is ever deleted or zeroed from the screen.
+189. **Resolution may not be quicker than response, refused per priority in the schema.** A pair where the resolution
+     clock ends before the response clock is not a target; both are whole minutes, at least one, at most a year.
+190. **The renewal board lives on `/customers` and ignores that page's filters.** An overdue renewal hidden because the
+     list is filtered to "prospect" would be the one failure the board exists to prevent. It reuses the 90-day window
+     and `renewalState` of slice 29, applied in the query as well, so the board and the customer page cannot disagree.
+191. **The renewal board rides on `customer.read` and `customerReadWhere`.** It sits on the customer list, so anything
+     that can open that page can see it, and nothing else can; no separate capability was invented for it.
+192. **Editing a company-wide target does not touch jobs already raised.** A job snapshots its deadline at creation, as
+     it always has; a correction therefore shows on new jobs only. Changing history is what amending a report is for.
 
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in
   `DocumentSequence` and are a one-line change each once you confirm the format you want.
-- The **SLA minutes per priority** are seeded as plausible defaults only, because the real numbers are contractual.
+- The **SLA minutes per priority** are seeded as plausible defaults only, because the real numbers are contractual. They
+  are now editable at `/admin/sla` (slice 30), which is where your own numbers belong.
 - The **checklist item wording** for the four Phase 1 templates follows the components named in brief §6.3 and is
   marked for review by your technicians before it is used on a real job.

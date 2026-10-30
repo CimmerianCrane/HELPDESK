@@ -15,16 +15,28 @@ and the state of the build. Everything else is in the repository:
 
 ## Where the build stands
 
-**Phases 1, 2 and 3 are complete, and Phase 4 (Optimisation) is under way.** Slices 0–29 are built;
+**Phases 1, 2 and 3 are complete, and Phase 4 (Optimisation) is under way.** Slices 0–30 are built;
 Phase 1's acceptance path still passes untouched. **`docs/PLAN.md` §7 is the canonical copy** — §7.2 is
 the Phase 2 slice table, §7.3–§7.12 each Phase 2 slice's fixed decisions as built, **§7.13 is the
 Phase 3 slice table plus slices 22 and 23 as built (§7.13.1), slice 24 as built (§7.13.2), slice 25
 as built (§7.13.3), slice 26 as built (§7.13.4), slice 27 as built (§7.13.5) and slice 28 as built
-(§7.13.6)**, and **§7.14 is the Phase 4 slice table with slice 29 as built (§7.15)**.
-**Slice 29 is built; slice 30 (SLA management and the renewal board) is next — read `docs/PLAN.md`
+(§7.13.6)**, and **§7.14 is the Phase 4 slice table with slice 29 as built (§7.15) and slice 30 as
+built (§7.16)**.
+**Slice 30 is built; slice 31 (the customer portal) is next — read `docs/PLAN.md`
 §7.14, then ask before starting it.**
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
+
+> **Slice 30 is done and verified.** No migration was needed. `npm run verify` (428 unit tests,
+> 0 lint errors), `npm run test:integration` (347), `npm run test:e2e` (38 passed, 2 offline-only
+> skipped) and `npm run build` all pass.
+
+> **Slice 30 — SLA management and the renewal board.** `/admin/sla` edits the company-wide response
+> and resolution minutes for all four priorities (seed-only until now), showing the built-in fallback
+> where a priority has no row. `/customers` gains a **Contracts renewing** board above the list:
+> every live contract overdue or renewing within 90 days, soonest first, each linking to the
+> customer's contracts. Both ride on existing capability and scope — `sla.manage` to write targets,
+> `customer.read` to read the board. See `docs/PLAN.md` §7.16.
 
 > **Slice 29 is done and verified.** No migration was needed. `npm run verify` (423 unit tests),
 > `npm run test:integration` (341), `npm run test:e2e` (38 passed) and `npm run build` all pass, and
@@ -247,10 +259,10 @@ filters applied to the file. `AccountingExporter` is the seam a Xero/QuickBooks 
 `tests/e2e/phase2.spec.ts` walks the whole of Phase 2 in one browser run, starting with a compliance rule
 added on `/admin/compliance`, adopted on a crane, and ending with the invoice exported.
 
-**Not yet built:** the rest of Phase 4 — SLA management and the renewal board, the customer portal,
+**Not yet built:** the rest of Phase 4 — the customer portal,
 profitability and utilisation reporting, calibration, route optimisation, WhatsApp/SMS and the
-Xero/QuickBooks driver. Phase 3 is complete (§7.13); Phase 4's slice table is §7.14 and slice 29 as
-built is §7.15.
+Xero/QuickBooks driver. Phase 3 is complete (§7.13); Phase 4's slice table is §7.14, with slice 29
+as built in §7.15 and slice 30 as built in §7.16.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 
