@@ -795,6 +795,28 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
 192. **Editing a company-wide target does not touch jobs already raised.** A job snapshots its deadline at creation, as
      it always has; a correction therefore shows on new jobs only. Changing history is what amending a report is for.
 
+193. **A portal login is a `User` with `role = CUSTOMER` and a nullable `customerId`, not a separate account table.** The
+     existing password login, rate limiter, session invalidation and deactivation all apply to it unchanged; a second
+     table would have needed a second of each. Several logins may belong to one customer (site contact, accounts contact).
+194. **`CUSTOMER` holds exactly four capabilities: `portal.read`, `crane.read`, `certificate.read`, `report.read.own`.**
+     The last three are the existing capabilities, so the portal calls the same crane and certificate services the office
+     does. `job.read.all` is not granted, because `jobReadWhere` treats it as "unfiltered" and the portal's job list is
+     narrowed by the `customerId` branch instead. No write capability is granted at all.
+195. **A `CUSTOMER` login with no `customerId` is refused, not scoped to nothing silently.** That is the one shape a
+     half-finished admin save leaves behind, and a portal that reads "you have no jobs" for it would hide the mistake.
+196. **The customer picker is required when the role is CUSTOMER and refused for every other role.** A staff account
+     carrying a `customerId` would be narrowed to that customer's data by the `customerId` branches in scope.ts, which is
+     a data leak rather than a spare field. The chosen customer must be live (`deletedAt = null`), checked in the service.
+197. **The portal lists only `APPROVED` reports.** A submitted report has no document number and no issued PDF; showing a
+     customer an unfinished page is the failure mode this filter exists to prevent. The filter is in `portalReports`, not
+     in the scope, because a technician's `report.read.own` deliberately does reach drafts.
+198. **The portal is read-only: no ticket raising, no invoice or quote access.** Brief §3 lists "raise tickets" as a
+     customer capability, and PLAN §7.14 scoped this slice to jobs, cranes, certificates and reports. Raising a ticket is
+     a write path with its own intake questions and is left to a later slice rather than bolted onto a read-only portal.
+199. **One demo portal login is seeded (`portal@cimmeriancrane.example`), attached to the first demo customer, behind the
+     same demo-data gate as every other invented row.** It shares the published demo password and is skipped on any
+     database that is not local unless `SEED_DEMO_USERS=true`, so it can never land in a real register.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

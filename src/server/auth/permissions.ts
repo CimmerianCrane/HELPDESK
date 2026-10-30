@@ -84,6 +84,10 @@ export const CAPABILITIES = [
   /** Raising and receiving a delivery order — paperwork for parts issued on a job (slice 18). */
   'deliveryorder.write',
 
+  // Customer portal (slice 31)
+  /** Signing in to `/portal`: their own jobs, cranes, certificates and issued reports, read-only. */
+  'portal.read',
+
   // Commercial
   /** May read quotes: dispatch raises them, finance sees what has been offered and accepted. */
   'quote.read',
@@ -198,11 +202,16 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
   ],
 
   /**
-   * Phase 4. A customer user logs in and sees only their own cranes, reports, certificates and due
-   * dates. The capability list is empty until the portal exists; the row-level scoping it will need
-   * is already in scope.ts, which is why there is a branch for it there today.
+   * The customer portal (slice 31). A customer user signs in at `/portal` and sees only their own
+   * cranes, certificates, issued reports and jobs; every read is narrowed by the `customerId`
+   * branches in scope.ts, and nothing here writes.
+   *
+   * `crane.read`, `certificate.read` and `report.read.own` are the *existing* capabilities, so a
+   * customer user reaches the same crane, certificate and report services the office does and the
+   * scope filter decides what comes back. Deliberately absent: `customer.read` (the office's book),
+   * `job.read.all` (it would make `jobReadWhere` unfiltered — see scope.ts), and every write.
    */
-  CUSTOMER: [],
+  CUSTOMER: ['portal.read', 'crane.read', 'certificate.read', 'report.read.own'],
 }
 
 export function capabilitiesFor(role: Role): readonly CapabilityGrant[] {

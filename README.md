@@ -13,8 +13,10 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 **contracts** a screen on its customer page — type, reference, term, renewal, covered cranes and the
 response/resolution targets agreed — written as the contract-scoped SLA rows a new job already
 resolves; slice 30 makes the **company-wide SLA targets** editable at `/admin/sla` and puts every
-contract renewing or overdue in a board on `/customers`. **Phase 4 continues with the customer
-portal.** See "What works today" below.
+contract renewing or overdue in a board on `/customers`; slice 31 opens the **customer portal** —
+a `CUSTOMER` login saw nothing before it, and now sees its own jobs, cranes, certificates and issued
+reports at `/portal`, read-only. **Phase 4 continues with profitability reporting.** See "What works
+today" below.
 
 ---
 
@@ -97,8 +99,11 @@ another technician's jobs" is something you can check by signing in and looking.
 | `raj@cimmeriancrane.example` | Technician |
 | `store@cimmeriancrane.example` | Storekeeper |
 | `finance@cimmeriancrane.example` | Finance |
+| `portal@cimmeriancrane.example` | Customer (portal, first demo customer) |
 
-The password is `cimmerian-dev-2026`, or whatever you set `SEED_PASSWORD` to.
+The password is `cimmerian-dev-2026`, or whatever you set `SEED_PASSWORD` to. The customer login is
+created with the demo book, so it exists only when the demo estate does; it signs in at `/portal` and
+sees only Jurong Port Engineering's jobs, cranes, certificates and issued reports.
 
 > **These are development accounts.** The password is published in this repository, so the seed only
 > creates them when `DATABASE_URL` points at this machine. If you are using a hosted database — the
@@ -176,6 +181,32 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 31 — the customer portal
+
+- **The `CUSTOMER` role finally signs in.** A `User` with a `customerId` (new nullable column, indexed, migration
+  `20261030100000_slice31_portal_user`) lands on `/portal` after sign-in and is redirected there from `/dashboard`.
+  `/admin/users` gains a customer picker, shown only when the role is Customer; a Customer login without one is
+  refused when saved, and one that has none is scoped to nothing rather than to everything.
+- **Read-only, by construction.** `CUSTOMER` holds `portal.read`, `crane.read`, `certificate.read` and
+  `report.read.own` — no writes, and deliberately no `job.read.all` (which would make `jobReadWhere` unfiltered and
+  leak the whole book). Every portal page is a server component calling read services.
+- **Five pages:** `/portal` (open jobs, cranes, certificates due soon, recent work), `/portal/jobs` and
+  `/portal/jobs/[id]`, `/portal/cranes`, `/portal/certificates`, `/portal/reports` (approved reports only, with the
+  issued PDF link).
+- **One scoping rule, not two.** The portal calls the same `listCranes`, `listCertificates` and `issuedPdfUrl` the
+  office calls; the `customerId` branch already in every `xxxReadWhere` decides the rows. A job id belonging to
+  another customer returns 404, not 403.
+- **The way in is the customer link, not a capability.** Admin holds `ALL`, so `portal.read` would put a staff login
+  on `/portal` and the first service call would throw. Each page runs `requirePortalPage()` (Next 15 renders a layout
+  and its page in parallel, so the layout's redirect alone does not stop the page).
+- **Try it:** sign in as `portal@cimmeriancrane.example` (first demo customer). Then sign in as Admin, open
+  `/admin/users`, and give a second login a different customer to see the isolation.
+- **Tests** — 8 integration tests (`portal.test.ts`: own jobs only, another customer's job 404s, own cranes via
+  `listCranes`, approved-only reports, the overview counts, no foreign certificates, a login with no customer sees
+  nothing, and a role without `portal.read` refused), plus unit tests on the capability set and the crane scope, and
+  7 browser tests (`tests/e2e/portal.spec.ts`: sign-in lands on `/portal`, `/dashboard` redirects back, only their own
+  jobs are listed, another customer's job 404s by URL, empty states, and a staff login is turned away).
 
 ### Slice 30 — SLA management and the renewal board
 

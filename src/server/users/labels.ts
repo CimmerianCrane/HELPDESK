@@ -16,5 +16,5 @@ export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   TECHNICIAN: 'Their own jobs and reports, from the mobile app.',
   STOREKEEPER: 'Parts, stock and suppliers.',
   FINANCE: 'Invoices, pricing and financial reporting.',
-  CUSTOMER: 'The customer portal. Not built yet.',
+  CUSTOMER: 'Read-only portal: their own jobs, cranes, certificates and issued reports.',
 }

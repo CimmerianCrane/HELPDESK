@@ -2267,7 +2267,7 @@ been migrated since Phase 1 — **no migration is expected for the first slices.
 |---|---|---|---|---|
 | **29** | **Contracts on the customer page** (**built** — see §7.15) | A customer's contracts: type, reference, term, renewal, included visits, scope notes and covered cranes, with the negotiated response/resolution targets written as `SlaPolicy` rows for that contract — the rows `createJob` already reads. Retired, never deleted | `src/server/contracts/` (new), `src/lib/validation/contracts.ts` (new), the customer page's Contracts tab | §5, §8 |
 | **30** | **SLA management and the renewal board** (**built** — see §7.16) | Company-wide targets editable on a screen (they are seed-only today), and every contract renewing or overdue in one queue | `/admin/sla` (new), `/customers` | §4.3, §8 |
-| 31 | The customer portal | The `CUSTOMER` role finally signs in: their jobs and their cranes' certificates and reports, read-only, scoped by `customerId` | `src/app/(portal)/`, `src/server/auth/scope.ts` | §4.1 |
+| **31** | **The customer portal** (**built** — see §7.17) | The `CUSTOMER` role finally signs in: their jobs and their cranes' certificates and reports, read-only, scoped by `customerId` | `src/app/(portal)/`, `src/server/portal/`, `src/server/auth/scope.ts` | §4.1 |
 | 32 | Profitability reporting | Revenue against cost per customer, contract and job type, from the invoices and purchase orders already recorded | `src/server/reports/profitability.ts` (new), office reports | §11 |
 | 33 | Technician utilisation | Hours on the road and on the tools against the roster, from job status history | `src/server/reports/utilisation.ts` (new) | §11 |
 | 34 | Equipment calibration tracking | A calibration register beside certificates, with its own due/overdue queue | `/calibrations` | §4.5 |
@@ -2372,6 +2372,74 @@ screen also sits under the admin layout, which refuses any role without `user.ma
 today so the two gates agree, but a future role holding `sla.manage` alone would see the nav link and the refusal panel.
 No browser test of `/admin/sla` or the board; the integration suite proves the four-row write and its audit, the fallback,
 the role refusals, the window and ordering, and the exclusion of retired contracts.
+
+---
+
+### 7.17 Slice 31 — the customer portal (**built**)
+
+**Goal:** the `CUSTOMER` role has existed since Phase 1 and could not sign in to anything. The scope filters in
+`scope.ts` already had a `customerId` branch in every one of them; `AuthContext.customerId` was hard-wired to `null`
+and `ROLE_CAPABILITIES.CUSTOMER` was an empty list, so none of it was reachable.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 193–199):
+
+1. **`User.customerId`, not a second account table.** A portal login is a `User` with `role = CUSTOMER` and one nullable
+   FK to `Customer`. It reuses the existing password login, rate limiter, session invalidation on password reset and
+   deactivation, all of which a `PortalUser` table would have had to reimplement. Several logins may share one customer
+   (a site contact and an accounts contact), which the FK permits.
+2. **The role gains exactly four capabilities and no writes.** `portal.read`, `crane.read`, `certificate.read`,
+   `report.read.own` — the last three are the *existing* capabilities, so the portal reaches the same crane, certificate
+   and report services the office does and the scope filter decides the rows. `job.read.all` is deliberately absent: it
+   would make `jobReadWhere` return an unfiltered query for a customer.
+3. **The portal adds no second query where one exists.** `listCranes`, `listCertificates` and `issuedPdfUrl` are called
+   as they are. Only the jobs list is read directly, and only because `listJobs` is gated on `job.read.all`. A query
+   written for the portal alone is a second place for the scoping rule to be wrong.
+4. **`portal.read` is the gate, and a `CUSTOMER` login without a customer is refused.** `requirePortalCustomer` asserts the
+   capability and throws `ForbiddenError` when `customerId` is null, so a half-finished admin save produces a refusal
+   rather than a portal narrowed to `DENY` and reading as "you have no jobs".
+5. **The customer picker is required for CUSTOMER and refused for every other role**, in the schema (`withCustomerRule`)
+   and in the service (`assertCustomerExists`). A staff account carrying a `customerId` would be narrowed by the
+   `customerId` branches to one customer's data — a leak, not an harmless extra field. The customer must be live.
+6. **Only `APPROVED` reports.** `portalReports` filters on status as well as scope: a submitted report has no document
+   number and no PDF, and showing a customer an unfinished page is worse than showing none.
+7. **A customer login never sees the office or technician shells.** The office layout redirects a role with
+   `portal.read` and no `dashboard.office` to `/portal`; the login page sends a customer to `/portal` rather than
+   `/dashboard`. In the other direction the portal gate is the **customer link**, not `portal.read`: Admin holds
+   `ALL`, so a capability check would wave a staff login onto `/portal` and the first service call would throw — a
+   500 where a redirect belongs. Every portal page runs `requirePortalPage()` from
+   `src/app/(portal)/guard.ts`, because Next 15 renders a layout and its page in parallel and the layout's
+   `redirect()` does not stop the page running.
+8. **The portal is read-only by construction, not by hiding buttons.** There is no `portal.write` capability and every
+   page is a server component that calls read services. Raising a ticket is the obvious next capability and is
+   deliberately not in this slice.
+
+**As built.** `prisma/schema.prisma` gains `User.customerId` (nullable, indexed, `ON DELETE SET NULL`) and `Customer.users`;
+`20261030100000_slice31_portal_user` is the additive migration. `src/server/auth/context.ts` reads `customerId` from the
+database like the role, so revoking it takes effect on the next request. `src/server/auth/permissions.ts` gives
+`CUSTOMER` its four capabilities. `src/server/portal/portal.ts` (new domain) holds `requirePortalCustomer`,
+`portalJobs`, `portalJob`, `portalReports` and `portalSummary`. `src/app/(portal)/` is a fourth route group with its own
+shell and five pages — `/portal` overview, `/portal/jobs`, `/portal/jobs/[id]`, `/portal/cranes`, `/portal/certificates`,
+`/portal/reports`. `/admin/users` and `/admin/users/[id]` gain the customer picker and show the customer beside the role.
+The seed gains one portal login (`portal@cimmeriancrane.example`, the first demo customer) behind the same demo gate as
+every other demo row.
+
+**Migration:** `20261030100000_slice31_portal_user` — one nullable column, its FK and an index. Additive only.
+**Applied** to the hosted database, and confirmed directly against it (the column is nullable, `User_customerId_idx`
+exists). It is required rather than optional: `getAuthContext` selects `User.customerId` on every request, so the app
+fails on sign-in without it.
+
+**Verified.** `npm run verify` (430 unit tests, 0 lint errors) · `npm run test:integration` (355 tests, 31 files, of
+which 8 are `tests/integration/portal.test.ts`) · `npm run test:e2e` (45 passed, 2 offline-only skipped) ·
+`npm run build`.
+
+**Known limits.** No "raise a ticket" from the portal (brief §3 lists it; it is a write path and a separate slice). No
+invoice or quote access — the portal is scoped to jobs, cranes, certificates and reports, per PLAN §7.14. The customer
+sees a job's status and dates but not its findings or internal notes. There is no per-login audit of what a customer
+looked at; reads are not audited anywhere in this app, for any role. The browser test (`tests/e2e/portal.spec.ts`)
+covers sign-in and landing, the `/dashboard` → `/portal` redirect, the jobs list showing only their own jobs, another
+customer's job 404ing by URL, the empty states of certificates and reports, and a staff login being sent back out of
+`/portal`; the integration suite is what proves cross-customer isolation of jobs, cranes, certificates and reports, the
+approved-only filter, and the fail-closed behaviour of a login with no customer.
 
 ---
 

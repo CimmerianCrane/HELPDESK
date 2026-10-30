@@ -28,6 +28,9 @@ export interface UserSummary {
   createdAt: Date
   technicianId: string | null
   employeeNo: string | null
+  /** The account a CUSTOMER login is scoped to (slice 31). Null for every staff account. */
+  customerId: string | null
+  customerName: string | null
 }
 
 const userSelect = {
@@ -39,7 +42,9 @@ const userSelect = {
   isActive: true,
   lastLoginAt: true,
   createdAt: true,
+  customerId: true,
   technician: { select: { id: true, employeeNo: true } },
+  customer: { select: { legalName: true, tradingName: true } },
 } satisfies Prisma.UserSelect
 
 type UserRow = Prisma.UserGetPayload<{ select: typeof userSelect }>
@@ -56,6 +61,8 @@ function toSummary(row: UserRow): UserSummary {
     createdAt: row.createdAt,
     technicianId: row.technician?.id ?? null,
     employeeNo: row.technician?.employeeNo ?? null,
+    customerId: row.customerId,
+    customerName: row.customer ? row.customer.tradingName ?? row.customer.legalName : null,
   }
 }
 
@@ -70,6 +77,7 @@ function auditSnapshot(row: {
   role: Role
   phone: string | null
   isActive: boolean
+  customerId?: string | null
 }): Record<string, unknown> {
   return {
     name: row.name,
@@ -77,7 +85,22 @@ function auditSnapshot(row: {
     role: row.role,
     phone: row.phone,
     isActive: row.isActive,
+    customerId: row.customerId ?? null,
   }
+}
+
+/**
+ * A portal login may only be attached to a live customer. Validated here rather than trusted from
+ * the form: a tampered id pointing at an archived or nonexistent customer would leave the login
+ * scoped to nothing, which reads to the customer as "you have no jobs" rather than as an error.
+ */
+async function assertCustomerExists(tx: Tx, customerId: string | null): Promise<void> {
+  if (!customerId) return
+  const customer = await tx.customer.findFirst({
+    where: { id: customerId, deletedAt: null },
+    select: { id: true },
+  })
+  if (!customer) throw new RuleError('That customer does not exist or has been archived.')
 }
 
 export async function listUsers(context: AuthContext, client: Tx = db): Promise<UserSummary[]> {
@@ -127,12 +150,15 @@ export async function createUser(
   const created = await withAudit(
     context,
     async (tx, log) => {
+      await assertCustomerExists(tx, input.customerId)
+
       const user = await tx.user.create({
         data: {
           name: input.name,
           email: input.email,
           role: input.role,
           phone: input.phone,
+          customerId: input.customerId,
           passwordHash,
         },
         select: { id: true },
@@ -199,12 +225,17 @@ export async function updateUser(
         )
       }
 
+      // A staff account demoted to CUSTOMER must gain a customer in the same save, and a customer
+      // promoted to staff must lose it — the schema refuses either half.
+      await assertCustomerExists(tx, input.customerId)
+
       await tx.user.update({
         where: { id: userId },
         data: {
           name: input.name,
           role: input.role,
           phone: input.phone,
+          customerId: input.customerId,
           isActive: input.isActive,
         },
       })

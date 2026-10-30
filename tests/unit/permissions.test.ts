@@ -166,12 +166,30 @@ describe('the permission map', () => {
     expect(can('FINANCE', 'crane.write')).toBe(false)
   })
 
-  it('leaves the customer portal role with no capabilities until Phase 4', () => {
-    expect(capabilitiesFor('CUSTOMER')).toEqual([])
+  /**
+   * Slice 31. The portal role is read-only and sees four things: the portal itself, cranes,
+   * certificates and its own reports. `job.read.all` is deliberately absent — scope.ts would treat
+   * it as the company-wide list — and so is every write.
+   */
+  it('gives the customer portal role its read-only portal capabilities and nothing else', () => {
+    expect(capabilitiesFor('CUSTOMER').slice().sort()).toEqual([
+      'certificate.read',
+      'crane.read',
+      'portal.read',
+      'report.read.own',
+    ])
+    expect(can('CUSTOMER', 'job.read.all')).toBe(false)
+    expect(can('CUSTOMER', 'customer.read')).toBe(false)
+    expect(can('CUSTOMER', 'report.read.all')).toBe(false)
+    expect(can('CUSTOMER', 'invoice.read')).toBe(false)
+    expect(can('CUSTOMER', 'quote.read')).toBe(false)
+    for (const capability of ['customer.write', 'crane.write', 'job.create', 'report.draft', 'stock.move', 'user.manage'] as Capability[]) {
+      expect(can('CUSTOMER', capability), `CUSTOMER should not hold ${capability}`).toBe(false)
+    }
   })
 
-  it('gives every non-customer role something to do', () => {
-    for (const role of ROLES.filter((r) => r !== 'CUSTOMER')) {
+  it('gives every role something to do', () => {
+    for (const role of ROLES) {
       expect(capabilitiesFor(role).length, `${role} holds nothing`).toBeGreaterThan(0)
     }
   })

@@ -304,11 +304,19 @@ model User {
   deletedAt    DateTime?
 
   technician    Technician?
+  /**
+   * Set for CUSTOMER logins (slice 31): the one account whose data this user may see. Every scope
+   * filter in scope.ts keys off it, so a customer login with no customer sees nothing rather than
+   * everything — the same fail-closed default as a technician with no Technician row.
+   */
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id])
   notifications Notification[]
   auditLogs     AuditLog[]
   savedJobFilters SavedJobFilter[]
 
   @@index([role, isActive])
+  @@index([customerId])
 }
 
 model Technician {
@@ -420,6 +428,8 @@ model Customer {
   jobs      Job[]
   quotes    Quote[]
   invoices  Invoice[]
+  /** Portal logins belonging to this account (slice 31). Several people may share one customer. */
+  users     User[]
 
   @@index([status, legalName])
 }

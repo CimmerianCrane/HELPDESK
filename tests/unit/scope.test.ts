@@ -98,6 +98,18 @@ describe('crane scope', () => {
       expect(craneReadWhere(ctx(role))).toEqual({ deletedAt: null })
     }
   })
+
+  /** Slice 31: a portal login holds `crane.read`, and the filter narrows it to that customer's cranes. */
+  it('scopes a customer user to their own cranes', () => {
+    expect(craneReadWhere(ctx('CUSTOMER', { customerId: 'cust-9' }))).toEqual({
+      deletedAt: null,
+      customerId: 'cust-9',
+    })
+  })
+
+  it('denies a customer user with no customer, rather than opening the register', () => {
+    expect(craneReadWhere(ctx('CUSTOMER'))).toEqual(DENY)
+  })
 })
 
 describe('customer scope', () => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import {
   FieldError,
   FormMessage,
@@ -10,23 +10,33 @@ import {
 } from '@/components/office/ui'
 import { IDLE_FORM } from '@/server/action-result'
 import { updateUserAction } from '../actions'
-import type { RoleOption } from '../user-create-form'
+import type { CustomerOption, RoleOption } from '../user-create-form'
 
 export function UserEditForm({
   userId,
   user,
   roles,
+  customers,
   isSelf,
 }: {
   userId: string
-  user: { name: string; role: string; phone: string | null; isActive: boolean }
+  user: {
+    name: string
+    role: string
+    phone: string | null
+    isActive: boolean
+    customerId: string | null
+  }
   roles: RoleOption[]
+  customers: CustomerOption[]
   isSelf: boolean
 }) {
   const [state, formAction, pending] = useActionState(
     updateUserAction.bind(null, userId),
     IDLE_FORM,
   )
+  // Local, so choosing "Customer" reveals the picker before the first save.
+  const [role, setRole] = useState(user.role)
 
   return (
     <form action={formAction} className="space-y-5">
@@ -48,7 +58,8 @@ export function UserEditForm({
           <select
             id="role"
             name="role"
-            defaultValue={user.role}
+            value={role}
+            onChange={(event) => setRole(event.target.value)}
             disabled={isSelf}
             className={inputClass}
           >
@@ -77,6 +88,32 @@ export function UserEditForm({
           <input id="phone" name="phone" defaultValue={user.phone ?? ''} className={inputClass} />
           <FieldError state={state} name="phone" />
         </div>
+
+        {role === 'CUSTOMER' ? (
+          <div>
+            <label htmlFor="customerId" className={labelClass}>
+              Customer
+            </label>
+            <select
+              id="customerId"
+              name="customerId"
+              defaultValue={user.customerId ?? ''}
+              required
+              className={inputClass}
+            >
+              <option value="">Choose a customer…</option>
+              {customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-500">
+              The account this login can see in the portal.
+            </p>
+            <FieldError state={state} name="customerId" />
+          </div>
+        ) : null}
 
         <div className="flex items-end">
           <label className="flex items-center gap-2 text-sm text-slate-700">

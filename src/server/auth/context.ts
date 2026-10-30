@@ -34,6 +34,7 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
       role: true,
       passwordChangedAt: true,
       technician: { select: { id: true } },
+      customerId: true,
     },
   })
   if (!user) return null
@@ -50,9 +51,10 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
     email: user.email,
     role: user.role,
     technicianId: user.technician?.id ?? null,
-    // Phase 4 gives CUSTOMER users a customerId. Until the portal exists this is always null, and
-    // scope.ts treats a customer user with no customerId as having access to nothing.
-    customerId: null,
+    // Set only for CUSTOMER logins (slice 31). Read from the database like the role, so revoking a
+    // portal user's customer takes effect on their next request. A customer login with no customer
+    // is scoped to nothing by scope.ts rather than to everything.
+    customerId: user.customerId,
     ip: clientIp(requestHeaders),
     userAgent: requestHeaders.get('user-agent'),
   }

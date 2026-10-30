@@ -32,10 +32,11 @@ export default defineConfig({
     // Technician screens are mobile-first and must be checked at ~390px (brief §14).
     // The acceptance paths are the exception: they are long office-only tests whose phone halves
     // already run here as `report.spec.ts`, so they only run in the desktop project.
+    // The portal is a desktop screen like the office, not the phone.
     {
       name: 'technician',
       use: { ...devices['Pixel 7'] },
-      testIgnore: /happy-path\.spec\.ts|phase2\.spec\.ts/,
+      testIgnore: /happy-path\.spec\.ts|phase2\.spec\.ts|portal\.spec\.ts/,
     },
   ],
   webServer: {

@@ -37,7 +37,8 @@ export function jobReadWhere(ctx: AuthContext): Prisma.JobWhereInput {
   if (can(ctx.role, 'job.read.own') && ctx.technicianId) {
     return { ...LIVE, ...assignedTo(ctx.technicianId) }
   }
-  // Phase 4: a customer user sees only their own jobs.
+  // A customer user sees only their own jobs (slice 31). Deliberately below the capability checks:
+  // the portal role must never hold `job.read.all`, and this branch is what narrows it.
   if (ctx.customerId) return { ...LIVE, customerId: ctx.customerId }
   return DENY
 }
@@ -94,8 +95,9 @@ export function craneScheduleReadWhere(ctx: AuthContext): Prisma.CraneScheduleWh
  *
  * Capability first, then the crane: whoever browses the register sees every live certificate, and a
  * technician — who holds `certificate.read` so they can see a crane's paperwork on a visit — sees only
- * certificates on cranes they can read. A customer user has no certificate capability yet, so it
- * fails closed for them rather than leaking another customer's documents.
+ * certificates on cranes they can read. A customer user (slice 31) holds `certificate.read` too, and
+ * `craneReadWhere` narrows them to their own cranes, so the portal lists their paperwork and nobody
+ * else's.
  */
 export function certificateReadWhere(ctx: AuthContext): Prisma.CertificateWhereInput {
   if (!can(ctx.role, 'certificate.read')) return DENY

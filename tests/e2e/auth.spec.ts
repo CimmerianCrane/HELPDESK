@@ -1,4 +1,5 @@
-import { expect, test, type Page } from './fixtures'
+import { expect, test } from './fixtures'
+import { DEMO_PASSWORD as PASSWORD, signIn } from './helpers'
 
 /**
  * Sign-in, and the two things that must be true once you are in: a technician cannot reach
@@ -7,16 +8,8 @@ import { expect, test, type Page } from './fixtures'
  * Needs the seed to have run (`npm run seed`), which creates one account per role.
  */
 
-const PASSWORD = process.env.SEED_PASSWORD ?? 'cimmerian-dev-2026'
 const ADMIN = 'admin@cimmeriancrane.example'
 const TECHNICIAN = 'ahmad@cimmeriancrane.example'
-
-async function signIn(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login')
-  await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill(password)
-  await page.getByRole('button', { name: 'Sign in' }).click()
-}
 
 test('a protected page redirects to the sign-in form when signed out', async ({ page }) => {
   await page.goto('/admin/users')
