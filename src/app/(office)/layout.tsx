@@ -38,6 +38,7 @@ const NAV: readonly {
   { href: '/stock-takes', label: 'Stock takes', capability: 'stock.move' },
   { href: '/suppliers', label: 'Suppliers', capability: 'part.read' },
   { href: '/reports', label: 'Reports', capability: 'report.approve' },
+  { href: '/reports/profitability', label: 'Profitability', capability: 'report.financial' },
   { href: '/schedule', label: 'Schedule', capability: 'job.schedule' },
   { href: '/schedules', label: 'Schedules', capability: 'crane.read' },
   { href: '/certificates', label: 'Certificates', capability: 'certificate.read' },

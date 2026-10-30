@@ -817,6 +817,23 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
      same demo-data gate as every other invented row.** It shares the published demo password and is skipped on any
      database that is not local unless `SEED_DEMO_USERS=true`, so it can never land in a real register.
 
+200. **Profitability costs parts only — labour is not costed.** No hourly or per-job labour cost exists in the data model;
+     `Technician` has no rate and an invoice's labour line is sell price, not cost. The report therefore subtracts the
+     `ISSUE` movements' `unitCost` from invoice subtotals and labels the column "Parts cost", never "cost of sale", so the
+     margin is not read as gross profit. Adding `Technician.hourlyCost` and an hours source is the one place to extend it.
+201. **Revenue is the invoice subtotal excluding GST**, on `ISSUED`, `PART_PAID` and `PAID` invoices only, dated by
+     `issueDate` — a draft is not a bill and a void invoice never was, and the day money became receivable is the issue
+     date rather than the creation or payment date.
+202. **A job's material is booked once, to the period its invoice falls in.** A job billed on two invoices, or invoiced after
+     its parts were issued, contributes its whole material cost to the invoice window in which it first appears — so a job
+     invoiced in March for February parts shows both in March rather than splitting cost across periods. A job that has not
+     been billed at all contributes nothing, because unsold material is work in progress, not a loss.
+203. **Invoice lines with no job behind them are counted in the totals and against their customer, but in no contract or
+     job type.** Labour typed straight onto an invoice has no job to attribute. The screen says how much that is rather
+     than inventing a "No job" row, so the reason the three tables do not reconcile is on the page.
+204. **The report is a read behind `report.financial` (finance and admin).** It is not audited and exports nothing yet; the
+     slice is the report, and a CSV of it can reuse the accounting export's seam if asked.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

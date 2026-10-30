@@ -21,11 +21,18 @@ the Phase 2 slice table, §7.3–§7.12 each Phase 2 slice's fixed decisions as 
 Phase 3 slice table plus slices 22 and 23 as built (§7.13.1), slice 24 as built (§7.13.2), slice 25
 as built (§7.13.3), slice 26 as built (§7.13.4), slice 27 as built (§7.13.5) and slice 28 as built
 (§7.13.6)**, and **§7.14 is the Phase 4 slice table with slice 29 as built (§7.15), slice 30 as
-built (§7.16) and slice 31 as built (§7.17)**.
-**Slice 31 (the customer portal) is done and verified; slice 32 (profitability reporting) is next —
+built (§7.16), slice 31 as built (§7.17) and slice 32 as built (§7.18)**.
+**Slice 32 (profitability reporting) is done; slice 33 (technician utilisation) is next —
 read `docs/PLAN.md` §7.14, then ask before starting it.**
 **One slice per session: stop after the slice you were asked for; do not begin the next one unless
 asked.**
+
+> **Slice 32 — profitability reporting.** `/reports/profitability` puts revenue against material cost per
+> customer, contract and job type. Revenue is the invoice subtotal ex-GST on issued, partly paid and
+> paid invoices; cost is the `unitCost` on the `ISSUE` movements of the jobs behind them. **Labour is
+> not costed** — nothing records an hourly rate — so the column is labelled Parts cost and the screen
+> says a margin here is not gross profit. Behind `report.financial`. No migration. See `docs/PLAN.md`
+> §7.18.
 
 > **Slice 31 is done and verified.** Migration `20261030100000_slice31_portal_user` is applied (column
 > and index confirmed in the database directly, not just from the migrate output). `npm run verify`
@@ -171,6 +178,7 @@ asked.**
 | 29 Contracts on the customer page | done |
 | 30 SLA management & the renewal board | done |
 | 31 The customer portal | done |
+| 32 Profitability reporting | done |
 
 What exists now, in the order it was built: sign-in and role scoping; the customer, site and crane
 registers with CSV import and QR labels; fourteen seeded job types plus four versioned report
@@ -276,8 +284,8 @@ added on `/admin/compliance`, adopted on a crane, and ending with the invoice ex
 
 **Not yet built:** the rest of Phase 4 — profitability and utilisation reporting, calibration,
 route optimisation, WhatsApp/SMS and the Xero/QuickBooks driver. Phase 3 is complete (§7.13); Phase
-4's slice table is §7.14, with slice 29 as built in §7.15, slice 30 in §7.16 and slice 31 (the
-customer portal) in §7.17.
+4's slice table is §7.14, with slice 29 as built in §7.15, slice 30 in §7.16, slice 31 (the
+customer portal) in §7.17 and slice 32 (profitability) in §7.18.
 
 Decisions that depart from the brief as written, all already in the code and in `docs/PLAN.md`:
 

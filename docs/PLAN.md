@@ -2268,7 +2268,7 @@ been migrated since Phase 1 — **no migration is expected for the first slices.
 | **29** | **Contracts on the customer page** (**built** — see §7.15) | A customer's contracts: type, reference, term, renewal, included visits, scope notes and covered cranes, with the negotiated response/resolution targets written as `SlaPolicy` rows for that contract — the rows `createJob` already reads. Retired, never deleted | `src/server/contracts/` (new), `src/lib/validation/contracts.ts` (new), the customer page's Contracts tab | §5, §8 |
 | **30** | **SLA management and the renewal board** (**built** — see §7.16) | Company-wide targets editable on a screen (they are seed-only today), and every contract renewing or overdue in one queue | `/admin/sla` (new), `/customers` | §4.3, §8 |
 | **31** | **The customer portal** (**built** — see §7.17) | The `CUSTOMER` role finally signs in: their jobs and their cranes' certificates and reports, read-only, scoped by `customerId` | `src/app/(portal)/`, `src/server/portal/`, `src/server/auth/scope.ts` | §4.1 |
-| 32 | Profitability reporting | Revenue against cost per customer, contract and job type, from the invoices and purchase orders already recorded | `src/server/reports/profitability.ts` (new), office reports | §11 |
+| **32** | **Profitability reporting** (**built** — see §7.18) | Revenue against the parts cost of the jobs behind it, per customer, contract and job type, from invoices and the stock ledger. Labour is not costed, and the screen says so | `src/server/reports/profitability.ts` (new), `/reports/profitability` | §11 |
 | 33 | Technician utilisation | Hours on the road and on the tools against the roster, from job status history | `src/server/reports/utilisation.ts` (new) | §11 |
 | 34 | Equipment calibration tracking | A calibration register beside certificates, with its own due/overdue queue | `/calibrations` | §4.5 |
 | 35 | Route optimisation | An ordered round from the day's jobs, using the site addresses already held | `/schedule` | §4.4 |
@@ -2440,6 +2440,42 @@ covers sign-in and landing, the `/dashboard` → `/portal` redirect, the jobs li
 customer's job 404ing by URL, the empty states of certificates and reports, and a staff login being sent back out of
 `/portal`; the integration suite is what proves cross-customer isolation of jobs, cranes, certificates and reports, the
 approved-only filter, and the fail-closed behaviour of a login with no customer.
+
+### 7.18 Slice 32 — profitability reporting (**built**)
+
+**Goal:** revenue and cost were both already in the system — invoices on one side, the stock ledger's costs on the
+other — and nothing put them side by side. This is the first Phase 4 slice that does not add a screen for entering
+something; it reads what the business has already recorded.
+
+**The finding that shaped it:** only **parts cost** is recorded. `StockMovement.unitCost` on every `ISSUE` row is what
+the part cost us, and `jobCosting` already sums it for the invoice prefill. Labour is *sold* on invoices but never
+*costed* — `Technician` has no rate and nothing records hours. So the report is revenue less material, and the column is
+labelled **Parts cost** rather than "cost of sale" so a margin here is not read as gross profit. `ASSUMPTIONS.md` 200.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 200–204):
+
+1. **Revenue is the invoice subtotal, ex-GST**, on `ISSUED`, `PART_PAID` and `PAID` only, dated by `issueDate`. A draft is
+   not a bill and a void one never was; the issue date is the day the money became receivable.
+2. **Cost is booked to the job, once, in the window its invoice falls in.** A job invoiced on two invoices does not have
+   its material counted twice; a job invoiced in March for February parts shows both in March. Unsold material contributes
+   nothing — work in progress is not a loss.
+3. **A line with no job is counted but not attributed.** Labour typed straight onto an invoice lands in the totals and
+   against its customer; the page reports how much that is rather than inventing a "No job" contract or job type.
+4. **All sums are in integer cents**, quantity read in thousandths before multiplying by the cost in cents, so a 0.1 + 0.2
+   of wire rope cannot leave a float in a margin.
+
+**The shape.** `src/server/reports/profitability.ts` is one service, `profitabilityReport(context, filters)`, gated on
+`report.financial` (finance and admin) and scoped with `invoiceReadWhere` + `jobReadWhere` so the two halves of rule 1 both
+apply. `/reports/profitability` is the screen: a from/to pair of issue dates, a totals row, and three tables — by customer,
+by contract, by job type — each sorted by revenue, with the margin in red when negative and "—" where there is no
+revenue to take a percentage of. The nav gains **Profitability**, shown only to roles that hold the capability.
+
+**No migration.** Everything read is a column that has existed since Phase 1 (invoices) and Phase 3 (the ledger).
+
+**Known limits.** Labour is not costed, which is the whole caveat above. There is no CSV export of the report and no
+browser test of the screen; the integration suite (`tests/integration/profitability.test.ts`) is what proves the grouping,
+the ex-GST revenue, the single booking of a job's material, the exclusion of drafts, the unattributed line, and the role
+refusal. Purchase orders are deliberately not read: an order is not a cost of a job until a part is issued from it.
 
 ---
 

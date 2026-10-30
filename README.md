@@ -15,8 +15,9 @@ response/resolution targets agreed — written as the contract-scoped SLA rows a
 resolves; slice 30 makes the **company-wide SLA targets** editable at `/admin/sla` and puts every
 contract renewing or overdue in a board on `/customers`; slice 31 opens the **customer portal** —
 a `CUSTOMER` login saw nothing before it, and now sees its own jobs, cranes, certificates and issued
-reports at `/portal`, read-only. **Phase 4 continues with profitability reporting.** See "What works
-today" below.
+reports at `/portal`, read-only; and slice 32 puts **profitability** side by side with the invoices — revenue
+against parts cost per customer, contract and job type at `/reports/profitability`. **Phase 4 continues
+with technician utilisation.** See "What works today" below.
 
 ---
 
@@ -181,6 +182,26 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 32 — profitability reporting
+
+- **Revenue against material cost.** `/reports/profitability` (Finance and Admin, via `report.financial`) shows a
+  totals row and three tables — by customer, by contract, by job type — each with revenue, parts cost, margin and
+  margin percentage, sorted by revenue. A from/to pair of **issue dates** narrows it.
+- **Where the numbers come from.** Revenue is the invoice subtotal **excluding GST**, on issued, partly paid and
+  paid invoices only. Cost is the `unitCost` on the `ISSUE` stock movements of the jobs behind those invoice lines —
+  the same ledger rows the invoice prefill and the delivery order read.
+- **Labour is not costed, and the screen says so.** Nothing records an hourly rate, so a margin here is revenue less
+  material, not gross profit. The column is labelled *Parts cost* rather than "cost of sale" for that reason.
+- **A job's material is counted once**, in the period its invoice falls in — a job billed on two invoices is not
+  double-costed, and a job invoiced in March for February parts shows both in March. Invoice lines with no job behind
+  them (labour typed straight onto an invoice) count in the totals and against their customer, and the page states
+  how much that is — which is why the contract and job type tables can total less than the overall figure.
+- **Try it:** sign in as `finance@cimmeriancrane.example`, raise and issue an invoice on a reviewed job with a part
+  issued on it, then open `/reports/profitability`.
+- **Tests** — 5 integration tests (`profitability.test.ts`: ex-GST revenue and the job's parts cost, a job's material
+  booked once across two invoices, a draft excluded, an unattributed line reported as such, and a role without
+  `report.financial` refused). No browser test walks the screen. **No migration.**
 
 ### Slice 31 — the customer portal
 
