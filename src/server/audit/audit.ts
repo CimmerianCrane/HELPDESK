@@ -205,6 +205,7 @@ export const AUDIT_ENTITIES = [
   'PurchaseOrder',
   'Supplier',
   'StockTake',
+  'Resource',
   'Technician',
   'OnCallShift',
   'File',
@@ -240,6 +241,7 @@ const ENTITY_HREFS: Record<string, (id: string) => string> = {
   PurchaseOrder: () => '/parts/reorder',
   // The book lists them all, so the link need not name one.
   Supplier: () => '/suppliers',
+  Resource: () => '/calibrations',
   StockTake: (id) => `/stock-takes/${id}`,
   User: (id) => `/admin/users/${id}`,
 }
@@ -276,6 +278,7 @@ export async function auditEntityLabels(
     parts,
     purchaseOrders,
     suppliers,
+    resources,
     stockTakes,
     contracts,
     slaPolicies,
@@ -360,6 +363,12 @@ export async function auditEntityLabels(
           select: { id: true, name: true },
         })
       : [],
+    present('Resource')
+      ? client.resource.findMany({
+          where: { id: { in: idsFor('Resource') } },
+          select: { id: true, name: true, serialNumber: true },
+        })
+      : [],
     present('StockTake')
       ? client.stockTake.findMany({
           where: { id: { in: idsFor('StockTake') } },
@@ -406,6 +415,9 @@ export async function auditEntityLabels(
   for (const row of purchaseOrders) put('PurchaseOrder', row.id, row.number)
   for (const row of suppliers) put('Supplier', row.id, row.name)
   for (const row of stockTakes) put('StockTake', row.id, row.reference)
+  for (const row of resources) {
+    put('Resource', row.id, row.serialNumber ? `${row.name} (${row.serialNumber})` : row.name)
+  }
   for (const row of slaPolicies) put('SlaPolicy', row.id, `Company-wide ${row.priority} target`)
   for (const row of contracts) {
     labels.set(`Contract:${row.id}`, {

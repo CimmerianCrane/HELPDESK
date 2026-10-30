@@ -55,6 +55,8 @@ export const CAPABILITIES = [
   // Bookable resources: vehicles, test weights, load cells (brief §4.4)
   /** May see and book the resource list. Dispatch holds it; a technician sees only what is on their job. */
   'resource.read',
+  /** May add equipment and record its calibration — the store's job (slice 34). */
+  'resource.write',
 
   // Reports and findings
   'report.read.all',
@@ -177,6 +179,7 @@ export const ROLE_CAPABILITIES: Record<Role, readonly CapabilityGrant[]> = {
     'crane.register.read',
     'job.read.all',
     'resource.read',
+    'resource.write',
     'report.read.all',
     'certificate.read',
     /** The storekeeper is who hands the parts over, so the receipt is theirs to record too. */

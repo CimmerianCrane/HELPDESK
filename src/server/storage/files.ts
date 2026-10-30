@@ -4,6 +4,7 @@ import {
   CERTIFICATE_UPLOAD_TYPES,
   certificateUploadSchema,
 } from '@/lib/validation/certificates'
+import { calibrationUploadSchema } from '@/lib/validation/calibrations'
 import {
   ALLOWED_UPLOAD_TYPES,
   MAX_UPLOAD_BYTES,
@@ -19,6 +20,7 @@ import {
   deliveryOrderReadWhere,
   findingReadWhere,
   jobReadWhere,
+  resourceReadWhere,
 } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { storage } from './storage'
@@ -28,8 +30,9 @@ import { storage } from './storage'
  *
  * The phone asks for a URL, uploads the bytes straight to storage, then refers to the File row by id
  * when it submits the report. The id is generated on the client so a retried upload updates the same
- * row rather than leaving an orphan behind. Certificates take the same path from the office, because
- * Vercel caps a function request body at 4.5 MB and a scanned PDF is close to it.
+ * row rather than leaving an orphan behind. Certificates — a crane's paper, or the calibration
+ * certificate for a piece of equipment — take the same path from the office, because Vercel caps a
+ * function request body at 4.5 MB and a scanned PDF is close to it.
  */
 
 const EXTENSIONS: Record<string, string> = {
@@ -54,6 +57,7 @@ export async function requestUpload(
   // allowed types, so each gets its own schema rather than one schema with every field optional.
   const kind = (raw as { kind?: unknown } | null)?.kind
   if (kind === 'CERTIFICATE') return requestCertificateUpload(context, raw)
+  if (kind === 'CALIBRATION') return requestCalibrationUpload(context, raw)
   if (kind === 'FINDING_SIGNATURE') return requestFindingSignatureUpload(context, raw)
   if (kind === 'DELIVERY_SIGNATURE') return requestDeliverySignatureUpload(context, raw)
 
@@ -146,6 +150,61 @@ async function requestCertificateUpload(
         id: input.id,
         entity: 'Crane',
         entityId: input.craneId,
+        kind: 'CERTIFICATE',
+        filename: input.filename,
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes,
+        storageKey,
+        uploadedById: context.userId,
+      },
+    })
+  }
+
+  const ticket = await storage().signedUploadUrl(storageKey, input.mimeType)
+  return { fileId: input.id, uploadUrl: ticket.url, method: ticket.method }
+}
+
+/**
+ * A calibration certificate for a piece of equipment (slice 34). Same shape as a crane certificate:
+ * uploaded from the office, owned by the resource (`entity: 'Resource'`), and referred to by id when
+ * the calibration date is saved. The `FileKind.CERTIFICATE` set is reused — it is the same paper.
+ */
+async function requestCalibrationUpload(
+  context: AuthContext,
+  raw: unknown,
+): Promise<UploadTicket> {
+  assertCan(context, 'resource.write')
+  const input = parseInput(calibrationUploadSchema, raw)
+
+  const resource = await db.resource.findFirst({
+    where: { id: input.resourceId, ...resourceReadWhere(context) },
+    select: { id: true },
+  })
+  if (!resource) throw new NotFoundError('No such equipment.')
+
+  const extension = EXTENSIONS[input.mimeType]!
+  const storageKey = `resources/${resource.id}/calibrations/${input.id}.${extension}`
+
+  const existing = await db.file.findUnique({ where: { id: input.id } })
+  if (existing) {
+    if (existing.uploadedById !== context.userId || existing.entityId !== input.resourceId) {
+      throw new ForbiddenError('That upload belongs to somebody else.')
+    }
+    await db.file.update({
+      where: { id: input.id },
+      data: {
+        filename: input.filename,
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes,
+        storageKey,
+      },
+    })
+  } else {
+    await db.file.create({
+      data: {
+        id: input.id,
+        entity: 'Resource',
+        entityId: input.resourceId,
         kind: 'CERTIFICATE',
         filename: input.filename,
         mimeType: input.mimeType,

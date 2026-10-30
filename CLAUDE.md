@@ -120,6 +120,7 @@ cimmerian-crane/
       compliance/          # ComplianceRule — the rulebook, its adoption check and the admin screen
       reminders/           # the daily scan: which schedule is due, who to tell, and the draft job
       certificates/        # the certificate register and the expiring/overdue queue
+      calibrations/        # the equipment register (Resource) and its calibration due dates and scans
       documents/           # numbering, PDF render, email-on-close
       tech/                # the field phone's read layer and its one-call sync bundle
       reports/             # report queue, approval/return/amendment, issued-PDF lookup, email retry;

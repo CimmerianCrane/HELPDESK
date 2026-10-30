@@ -129,6 +129,16 @@ describe('the permission map', () => {
     expect(can('STOREKEEPER', 'report.approve')).toBe(false)
   })
 
+  /** The store maintains the calibration register; dispatch books the kit but does not edit it (slice 34). */
+  it('gives calibration writes to the storekeeper only', () => {
+    expect(can('STOREKEEPER', 'resource.write')).toBe(true)
+    expect(can('DISPATCHER', 'resource.read')).toBe(true)
+    expect(can('DISPATCHER', 'resource.write')).toBe(false)
+    expect(can('TECHNICIAN', 'resource.write')).toBe(false)
+    expect(can('FINANCE', 'resource.write')).toBe(false)
+    expect(can('CUSTOMER', 'resource.write')).toBe(false)
+  })
+
   /**
    * A delivery order is paperwork for parts the store already issued, so the people who hand parts
    * over (storekeeper) and who run the job (dispatcher) raise one. The technician issues the parts

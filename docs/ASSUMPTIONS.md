@@ -849,6 +849,22 @@ Every assumption made where the brief was silent or ambiguous. Each has the assu
      constant with a `shortcut:` comment naming where to move it if the office works shifts. *If wrong:* the denominator
      is the only thing that changes; the worked hours are unaffected.
 
+210. **The calibration register is the existing `Resource` table, not a new `Calibration` model.** Those rows are what the
+     scheduler books and what the load test's instruments table names, and `calibrationDueDate` has been on them since
+     Phase 1. A second table holding the same dates would be a second opinion, and the register, the booking warning
+     and the report could disagree.
+211. **A calibration certificate is a `File` with `kind = CERTIFICATE`, `entity = 'Resource'`, `entityId` = the
+     equipment.** It accepts the same types and 5 MB limit as a crane certificate — a scanned lab report is a scanned
+     document — and the service refuses a file uploaded for any other item, so one piece of equipment cannot show
+     another's paperwork.
+212. **The certificate is attached on edit, not on create.** The upload's storage key names the resource's id, and a new
+     item has no id until it is saved. The form says so and offers the file field only on an existing item, rather than
+     creating the row twice or inventing a placeholder id.
+213. **Calibration writes are `resource.write`, held by the storekeeper; dispatch keeps `resource.read`.** The store
+     maintains the kit's paperwork and dispatch books it. Retiring is the `RETIRED` status, refused while the item is
+     booked on an unfinished job and naming those jobs; the row is kept, because jobs, bookings and the audit trail
+     name the equipment forever.
+
 ## Not assumed — deliberately left to you
 
 - The **document number formats** (`JOB-2026-0001`, `RPT-2026-0001`, `DO-…`, `INV-…`) are placeholders. They live in

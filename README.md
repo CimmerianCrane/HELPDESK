@@ -16,10 +16,12 @@ resolves; slice 30 makes the **company-wide SLA targets** editable at `/admin/sl
 contract renewing or overdue in a board on `/customers`; slice 31 opens the **customer portal** —
 a `CUSTOMER` login saw nothing before it, and now sees its own jobs, cranes, certificates and issued
 reports at `/portal`, read-only; and slice 32 puts **profitability** side by side with the invoices — revenue
-against parts cost per customer, contract and job type at `/reports/profitability`; and slice 33 adds
+against parts cost per customer, contract and job type at `/reports/profitability`; slice 33 adds
 **technician utilisation** at `/reports/utilisation` — hours on the tools and on the road against the
-working hours available, from the job status history. **Phase 4 continues with equipment calibration
-tracking.** See "What works today" below.
+working hours available, from the job status history; and slice 34 adds the **calibration register** at
+`/calibrations` — the test weights, load cells, vans and tools the schedule books, with the date each
+one's calibration runs out and the certificate from the lab. **Phase 4 continues with route
+optimisation.** See "What works today" below.
 
 ---
 
@@ -184,6 +186,26 @@ development and keeping Supabase for deployment; the app does not care which one
 ---
 
 ## What works today
+
+### Slice 34 — equipment calibration tracking
+
+- **One register for the kit that gets calibrated.** `/calibrations` (Dispatch, Storekeeper, Admin and Finance, via
+  `resource.read`) lists the equipment the schedule already books — test weights, load cells, vans and tools — with its
+  state, the date its calibration runs out, and the lab certificate if one is on file. It opens on the same
+  overdue/30/60/90 buckets as the certificate register, soonest first.
+- **No new model.** The register is the `Resource` table: `calibrationDueDate` and `calibrationFileId` have existed
+  since Phase 1, which is why the booking warning (slice 6) and the load test's instruments table (slice 17) already
+  read them. This slice gives the date a screen that owns it, so a lapsed item can be renewed rather than only flagged.
+- **The storekeeper maintains it.** Adding and editing is `resource.write` (Storekeeper and Admin); dispatch keeps
+  `resource.read`. The certificate is uploaded through the same signed-URL route as a crane certificate, accepted as a
+  PDF or a photo up to 5 MB, and is attached after the item is first saved — the storage key names its id.
+- **Retiring is a status, not a delete.** An item still booked on an unfinished job cannot be retired, and the refusal
+  names the jobs; once released, retiring keeps the row and its audit trail.
+- **Try it:** sign in as `store@cimmeriancrane.example` and open `/calibrations`; add a load cell, save, then
+  reopen its **Edit** panel to attach the certificate.
+- **Tests** — 1 new permission test and 6 integration tests (`calibrations.test.ts`: the create and update audit rows,
+  the file-ownership refusal, the retirement guard, the bucket counts and filters, and the role refusal). No browser
+  test walks the screen. **No migration.**
 
 ### Slice 33 — technician utilisation
 

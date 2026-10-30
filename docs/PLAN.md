@@ -2270,7 +2270,7 @@ been migrated since Phase 1 — **no migration is expected for the first slices.
 | **31** | **The customer portal** (**built** — see §7.17) | The `CUSTOMER` role finally signs in: their jobs and their cranes' certificates and reports, read-only, scoped by `customerId` | `src/app/(portal)/`, `src/server/portal/`, `src/server/auth/scope.ts` | §4.1 |
 | **32** | **Profitability reporting** (**built** — see §7.18) | Revenue against the parts cost of the jobs behind it, per customer, contract and job type, from invoices and the stock ledger. Labour is not costed, and the screen says so | `src/server/reports/profitability.ts` (new), `/reports/profitability` | §11 |
 | **33** | **Technician utilisation** (**built** — see §7.19) | Hours on the tools and on the road against the working hours available, from the job status history, less booked leave | `src/server/reports/utilisation.ts` (new), `/reports/utilisation` | §11 |
-| 34 | Equipment calibration tracking | A calibration register beside certificates, with its own due/overdue queue | `/calibrations` | §4.5 |
+| **34** | **Equipment calibration tracking** (**built** — see §7.20) | A calibration register beside certificates, with its own due/overdue queue | `src/server/calibrations/` (new), `/calibrations` | §4.5 |
 | 35 | Route optimisation | An ordered round from the day's jobs, using the site addresses already held | `/schedule` | §4.4 |
 | 36 | WhatsApp and SMS adapters | A third and fourth `notify` channel, behind the adapter seam that already exists | `src/server/notify/` | §10 |
 | 37 | Xero/QuickBooks integration | Push issued invoices through the accounting adapter slice 21 left in place | `src/server/accounting/` | §10 |
@@ -2513,6 +2513,50 @@ the job's own stamps).
 **Known limits.** The working calendar is fixed in code (a `shortcut:` comment names where to move it), there is no
 public-holiday table, and no CSV export. No browser test walks the screen; `tests/integration/utilisation.test.ts` is
 what proves the spans, the crew split, the leave subtraction, the exclusion of unfinished jobs and the role refusal.
+
+---
+
+### 7.20 Slice 34 — equipment calibration tracking (**built**)
+
+**Goal:** the equipment the schedule already books — test weights, load cells, vans and tools — given the one date
+that matters about it: when its calibration runs out, and what has already lapsed.
+
+**The finding that shaped it:** nothing new had to be modelled. `Resource.calibrationDueDate` and
+`Resource.calibrationFileId` have existed since Phase 1, the scheduler warns when a lapsed item is booked (slice 6),
+and the load test's instruments table already names it (slice 17). What was missing was a screen that owns the date,
+so the office can record a new certificate instead of only being warned about the old one.
+
+Fixed decisions (recorded as `ASSUMPTIONS.md` items 210–213):
+
+1. **The register is the `Resource` table, not a new `Calibration` model.** The scheduler books those rows and the
+   load test reads them; a second table of the same dates could only disagree with both.
+2. **A calibration certificate is a `File` with `kind = CERTIFICATE`, owned by the equipment** (`entity = 'Resource'`,
+   `entityId` = the resource). It takes the certificate register's accepted types and 5 MB limit, so a scanned lab
+   report uploads exactly as a crane certificate does. Only the owner differs.
+3. **The certificate is attached on edit, not on create.** The upload's storage key names the resource id, and a new
+   item has no id yet; the form says "save the item first, then attach its certificate" rather than inventing a
+   two-step create.
+4. **Writes are `resource.write`, held by the storekeeper.** Dispatch keeps `resource.read` — it books the kit but does
+   not maintain its paperwork. Retiring is the `RETIRED` status, refused while the item is booked on an unfinished job
+   (naming the job numbers), because a technician would otherwise turn up without it.
+5. **The date windows are the certificate register's**: overdue, 30, 60 and 90 days, derived on read from the same
+   `dueBucket` helper, so the two registers cannot bucket the same date differently.
+
+**The shape.** `src/server/calibrations/calibrations.ts` is one service: `listCalibrations` (search, kind and bucket
+filters; soonest first, undated last), `calibrationCounts`, `calibrationDueLabel`, `createResource` and
+`updateResource`. Every read spreads `resourceReadWhere` and every write takes the capability, like the rest of
+`src/server`. The certificate upload is a new `CALIBRATION` flavour on the existing signed-URL route, and
+`src/lib/validation/calibrations.ts` holds the Zod schemas and the two label maps. `/calibrations` is the screen:
+counts, the filter row, one table (equipment, state, due date, bucket, certificate, edit), and an "Add equipment"
+panel for the storekeeper. The nav gains **Calibrations** after Certificates, gated on `resource.read`.
+
+**No migration.** Both columns have existed since Phase 1; the `File` row is the only thing written, and its table is
+already there.
+
+**Known limits.** There is no calibration history — replacing the certificate overwrites `calibrationFileId`, so the
+audit trail is the record of what was there before. No browser test walks the screen;
+`tests/integration/calibrations.test.ts` is what proves the audit rows, the file-ownership refusal, the retirement
+guard, the bucket counts and the role refusal.
 
 ---
 
