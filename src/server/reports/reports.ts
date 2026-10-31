@@ -55,6 +55,7 @@ async function reportJob(context: AuthContext, tx: Tx, jobId: string) {
       jobType: {
         select: {
           name: true,
+          isServiceReport: true,
           defaultReportTemplateId: true,
           defaultChecklistTemplateId: true,
         },
@@ -111,6 +112,26 @@ export async function applyReport(
     : []
 
   const input = parseInput(reportSubmitSchema(template.data, checklistItems), raw)
+
+  // Grading a Service Report is the point of it: every checklist line the technician answered must
+  // carry a 1–5 rating, or the sheet says nothing the paper form did not. A job type that is not a
+  // Service Report may not submit grades at all — it would be a second, unsanctioned rating scheme.
+  if (job.jobType.isServiceReport) {
+    const answered = Object.keys(input.checklist).filter((code) => {
+      const answer = input.checklist[code]
+      return Boolean(answer?.result || answer?.measurement !== null || answer?.note)
+    })
+    const ungraded = answered.filter((code) => input.grades?.[code]?.grade == null)
+    if (ungraded.length > 0) {
+      throw new ValidationError({
+        grades: [`Grade every component you recorded — ${ungraded.length} line(s) still ungraded.`],
+      })
+    }
+  } else if (Object.keys(input.grades ?? {}).length > 0) {
+    throw new ValidationError({
+      grades: ['This job type is not a Service Report, so it does not carry condition grades.'],
+    })
+  }
 
   // The phone must be filling in the version it actually rendered. Silently accepting a newer
   // template would store answers the technician never saw.
@@ -209,6 +230,22 @@ export async function applyReport(
   const data: Record<string, unknown> = {
     ...(input.data as Record<string, unknown>),
     checklist: input.checklist,
+    // The grades carry the checklist line's wording as it stood when the technician signed, for the
+    // same reason the template version is stored: an issued report must re-render as issued.
+    ...(job.jobType.isServiceReport
+      ? {
+          grades: Object.fromEntries(
+            Object.entries(input.grades ?? {}).map(([code, entry]) => [
+              code,
+              {
+                grade: entry.grade,
+                comment: entry.comment,
+                label: checklistItems.find((item) => item.code === code)?.label ?? null,
+              },
+            ]),
+          ),
+        }
+      : {}),
     // Snapshotted like every other answer: the issued PDF embeds these exact photographs, so adding
     // or removing a File row later cannot change what a signed report says was attached.
     photoFileIds: input.photoFileIds,

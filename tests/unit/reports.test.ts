@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { TemplateSchema } from '@/lib/templates/schema'
 import {
   checklistAnswersSchema,
+  readGrades,
   reportSubmitSchema,
+  serviceGradesSchema,
   templateDataSchema,
 } from '@/lib/validation/reports'
 
@@ -133,6 +135,47 @@ describe('checklist answers', () => {
       'H-02': { measurement: 6.4 },
     })
     expect(answered.success).toBe(true)
+  })
+})
+
+describe('service report grades', () => {
+  it('accepts a whole 1–5 rating with a comment', () => {
+    const parsed = serviceGradesSchema().safeParse({
+      grades: { HOIST_BRAKE: { grade: 2, comment: 'Lining at 1.8 mm, replace next visit.' } },
+    })
+    expect(parsed.success).toBe(true)
+  })
+
+  it('refuses a rating outside 1–5', () => {
+    for (const grade of [0, 6, 2.5, -1]) {
+      expect(
+        serviceGradesSchema().safeParse({ grades: { HOIST_BRAKE: { grade } } }).success,
+        `grade ${grade}`,
+      ).toBe(false)
+    }
+  })
+
+  it('treats an untouched line as ungraded, not zero', () => {
+    const parsed = serviceGradesSchema().safeParse({ grades: { HOIST_BRAKE: { grade: '' } } })
+    expect(parsed.success).toBe(true)
+    if (parsed.success) expect(parsed.data.grades?.HOIST_BRAKE?.grade).toBeNull()
+  })
+
+  it('reads grades out of stored report data and ignores anything malformed', () => {
+    expect(readGrades({ grades: { ROPE: { grade: 4, comment: 'OK', label: 'Rope condition' } } })).toEqual({
+      ROPE: { grade: 4, comment: 'OK', label: 'Rope condition' },
+    })
+    expect(readGrades({ grades: { ROPE: { grade: 9 } } })).toEqual({})
+    expect(readGrades({ grades: 'nonsense' })).toEqual({})
+    expect(readGrades(null)).toEqual({})
+  })
+
+  it('carries the grades through the submit schema', () => {
+    const parsed = reportSubmitSchema(template, checklist).safeParse(
+      submitInput({ grades: { 'H-01': { grade: 5, comment: 'Sound.' } } }),
+    )
+    expect(parsed.success).toBe(true)
+    if (parsed.success) expect(parsed.data.grades?.['H-01']?.grade).toBe(5)
   })
 })
 

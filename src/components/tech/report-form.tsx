@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { calibrationWarnings, type TemplateField, type TemplateSection } from '@/lib/templates/schema'
-import { reportSubmitSchema, type ChecklistAnswer } from '@/lib/validation/reports'
+import {
+  SERVICE_GRADE_LABELS,
+  reportSubmitSchema,
+  type ChecklistAnswer,
+  type ComponentGrade,
+} from '@/lib/validation/reports'
 import {
   TECHNICIAN_NAME_KEY,
   techDb,
@@ -154,6 +159,18 @@ export function ReportForm({
         ...draft,
         checklist: { ...draft.checklist, [code]: { ...draft.checklist[code], ...change } },
       }))
+    },
+    [update],
+  )
+
+  // A Service Report grades every line as well as answering it. One state, one autosave: the grade
+  // travels in the same draft as the answer it describes.
+  const setGrade = useCallback(
+    (code: string, change: Partial<ComponentGrade>) => {
+      update((draft) => {
+        const current = draft.grades[code] ?? { grade: null, comment: null, label: null }
+        return { ...draft, grades: { ...draft.grades, [code]: { ...current, ...change } } }
+      })
     },
     [update],
   )
@@ -310,6 +327,7 @@ export function ReportForm({
       templateVersion: draft.templateVersion,
       data: draft.data,
       checklist: draft.checklist,
+      grades: job.isServiceReport ? draft.grades : undefined,
       parts: draft.parts.map((part) => ({
         partNumber: part.partNumber,
         quantity: part.quantity,
@@ -506,7 +524,14 @@ export function ReportForm({
 
       {job.checklist.length > 0 && (
         <section className="rounded-lg bg-panel p-4">
-          <h2 className="text-base font-semibold text-ink">Checklist</h2>
+          <h2 className="text-base font-semibold text-ink">
+            {job.isServiceReport ? 'Component grades' : 'Checklist'}
+          </h2>
+          {job.isServiceReport && (
+            <p className="mt-1 text-sm text-muted">
+              Grade every line 1–5 and note anything to replace or repair. 5 is as new, 1 is failed.
+            </p>
+          )}
           <div className="mt-3 space-y-5">
             {groupChecklist(job.checklist).map((group) => (
               <div key={group.name}>
@@ -514,6 +539,7 @@ export function ReportForm({
                 <ul className="mt-2 space-y-3">
                   {group.items.map((item) => {
                     const answer = draft.checklist[item.code] ?? {}
+                    const grade = draft.grades[item.code] ?? {}
                     const choices =
                       item.resultType === 'PASS_FAIL_NA'
                         ? ['Pass', 'Fail', 'N/A']
@@ -555,6 +581,14 @@ export function ReportForm({
                             onChange={(event) => setChecklist(item.code, { note: event.target.value })}
                             rows={2}
                             className="mt-1 w-full rounded-lg border border-line px-3 py-2"
+                          />
+                        )}
+                        {job.isServiceReport && (
+                          <GradeInput
+                            label={item.label}
+                            grade={grade.grade ?? null}
+                            comment={grade.comment ?? null}
+                            onChange={(change) => setGrade(item.code, change)}
                           />
                         )}
                       </li>
@@ -715,6 +749,7 @@ function blankDraft(
     templateVersion,
     data: {},
     checklist: {},
+    grades: {},
     parts: [],
     photoIds: [],
     technicianSignerName: technicianName,
@@ -831,6 +866,50 @@ function ChoiceButtons({
           {option}
         </button>
       ))}
+    </div>
+  )
+}
+
+function GradeInput({
+  label,
+  grade,
+  comment,
+  onChange,
+}: {
+  label: string
+  grade: number | null
+  comment: string | null
+  onChange: (change: Partial<ComponentGrade>) => void
+}) {
+  return (
+    <div className="mt-2 rounded-lg border border-line p-2">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Condition grade: ${label}`}>
+        {[5, 4, 3, 2, 1].map((value) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={grade === value}
+            aria-label={`${value} — ${SERVICE_GRADE_LABELS[value]}`}
+            onClick={() => onChange({ grade: grade === value ? null : value })}
+            className={`min-w-11 rounded-lg border px-3 py-2 text-lg font-semibold ${
+              grade === value ? 'border-ink bg-accent text-white' : 'border-line bg-field text-ink'
+            }`}
+          >
+            {value}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1 text-sm text-muted">
+        {grade ? SERVICE_GRADE_LABELS[grade] : 'Not graded yet'}
+      </p>
+      <textarea
+        aria-label={`Comment: ${label}`}
+        value={comment ?? ''}
+        onChange={(event) => onChange({ comment: event.target.value || null })}
+        rows={2}
+        placeholder="What needs replacing or what is damaged…"
+        className="mt-1 w-full rounded-lg border border-line px-3 py-2"
+      />
     </div>
   )
 }

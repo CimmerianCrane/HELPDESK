@@ -17,6 +17,7 @@ import { formatDate, formatDateTime } from '@/lib/format'
 import { dayKey } from '@/lib/time'
 import { FINDING_SEVERITY_LABELS, FINDING_STATUS_LABELS } from '@/lib/validation/findings'
 import { calibrationWarnings, templateSchema } from '@/lib/templates/schema'
+import { SERVICE_GRADE_LABELS, readGrades } from '@/lib/validation/reports'
 import { requireAuth } from '@/server/auth/context'
 import { NotFoundError } from '@/server/auth/errors'
 import { can } from '@/server/auth/permissions'
@@ -94,6 +95,10 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const openAmendment = report.amendments.find((entry) => entry.status !== 'AMENDED')
   // The register is not passed: the office reads the dates as recorded and the reviewer decides.
   const calibration = parsed.success ? calibrationWarnings(parsed.data, data) : []
+  const grades = readGrades(data)
+  const graded = Object.entries(grades).sort(
+    (a, b) => (a[1].grade ?? 9) - (b[1].grade ?? 9),
+  )
 
   return (
     <div className="space-y-8">
@@ -302,6 +307,38 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           below; the issued PDF is the record of what was signed.
         </p>
       )}
+
+      {graded.length > 0 ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Component grades</h2>
+          <p className="mt-1 text-sm text-muted">
+            Rated 1–5 on the day. Worst first, because that is what needs quoting.
+          </p>
+          <ul className="mt-4 space-y-2 text-sm">
+            {graded.map(([code, entry]) => (
+              <li
+                key={code}
+                className={`flex items-start gap-3 border-l-2 pl-3 ${
+                  entry.grade != null && entry.grade <= 2 ? 'border-neg' : 'border-line'
+                }`}
+              >
+                <span className="w-16 shrink-0 font-semibold text-ink">
+                  {entry.grade ?? '—'}
+                  <span className="ml-1 font-normal text-muted">
+                    {entry.grade ? SERVICE_GRADE_LABELS[entry.grade] : 'ungraded'}
+                  </span>
+                </span>
+                <span>
+                  <span className="block text-ink">{entry.label ?? code}</span>
+                  {entry.comment ? (
+                    <span className="block text-muted">{entry.comment}</span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {report.findings.length > 0 ? (
         <section className={cardClass}>

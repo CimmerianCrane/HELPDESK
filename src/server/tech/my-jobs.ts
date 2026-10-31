@@ -87,6 +87,8 @@ export interface TechJobDetail extends TechJobSummary {
   checklist: TechChecklistItem[]
   /** The report the technician fills in. Null when the job type has no template attached. */
   reportTemplate: TechReportTemplate | null
+  /** A Service Report: every checklist line is graded 1–5 and commented, and it numbers `SR…`. */
+  isServiceReport: boolean
   /** Already submitted for this job, so the phone can say so instead of offering a second one. */
   reports: TechReportSummary[]
   /** Everything the phone must say out loud before somebody climbs: restrictions, missing access. */
@@ -160,7 +162,12 @@ const jobSelect = {
   scheduledStart: true,
   scheduledEnd: true,
   jobType: {
-    select: { name: true, defaultChecklistTemplateId: true, defaultReportTemplateId: true },
+    select: {
+      name: true,
+      isServiceReport: true,
+      defaultChecklistTemplateId: true,
+      defaultReportTemplateId: true,
+    },
   },
   customer: { select: { legalName: true, tradingName: true } },
   site: {
@@ -371,6 +378,7 @@ async function toDetail(
     })),
     checklist,
     reportTemplate,
+    isServiceReport: row.jobType.isServiceReport,
     reports: reports.map((report) => ({
       id: report.id,
       craneId: report.craneId,

@@ -12,7 +12,8 @@ import {
   submitAmendment,
 } from '@/server/reports/approval'
 import { submitReport } from '@/server/reports/reports'
-import { craneFixtures, inRolledBackTx, testSuffix, type Tx } from './helpers'
+import { zonedParts } from '@/lib/time'
+import { craneFixtures, inRolledBackTx, technicianFixture, testSuffix, type Tx } from './helpers'
 
 /**
  * Approval, locking and the issued document (slice 9).
@@ -334,6 +335,150 @@ describe('an issued report re-renders as issued', () => {
 
       expect(report.templateVersion).toBe(1)
       expect(sha256(rendered)).toBe(stored.sha256)
+    })
+  })
+})
+
+describe('service reports', () => {
+  it('numbers an approved service report SR<yy><mm><nnn> instead of RPT-…', async () => {
+    await inRolledBackTx(async (tx) => {
+      const setup = await approvalSetup(tx)
+      await tx.jobType.update({
+        where: { id: setup.jobType.id },
+        data: { isServiceReport: true },
+      })
+
+      const result = await approveReport(setup.dispatcher, setup.reportId, {}, tx)
+      expect(result.documentNumber).toMatch(/^SR\d{2}\d{2}\d{3,}$/)
+
+      // The month in the number is the approval month in the operating zone, which is the rule the
+      // office asked for: a report signed on 31 May and approved on 1 June is the first of June.
+      const settings = await tx.setting.findUnique({ where: { key: 'timezone' } })
+      const timeZone = typeof settings?.value === 'string' ? settings.value : 'Asia/Singapore'
+      const at = zonedParts(new Date(), timeZone)
+      expect(result.documentNumber.slice(2, 6)).toBe(
+        `${String(at.year).slice(-2)}${String(at.month).padStart(2, '0')}`,
+      )
+    })
+  })
+
+  it('gives two service reports in the same month consecutive numbers', async () => {
+    await inRolledBackTx(async (tx) => {
+      const first = await approvalSetup(tx)
+      const second = await approvalSetup(tx)
+      for (const setup of [first, second]) {
+        await tx.jobType.update({
+          where: { id: setup.jobType.id },
+          data: { isServiceReport: true },
+        })
+      }
+
+      const a = await approveReport(first.dispatcher, first.reportId, {}, tx)
+      const b = await approveReport(second.dispatcher, second.reportId, {}, tx)
+      expect(Number(b.documentNumber.slice(-3)) - Number(a.documentNumber.slice(-3))).toBe(1)
+    })
+  })
+
+  it('refuses a service report whose answered lines are not all graded', async () => {
+    await inRolledBackTx(async (tx) => {
+      const base = await craneFixtures(tx)
+      const { user: techUser, technician } = await technicianFixture(tx)
+      const techContext = contextFor(techUser, technician.id)
+
+      // A checklist is what a grade is attached to, so this type needs one.
+      const checklist = await tx.checklistTemplate.create({
+        data: {
+          code: `CHK-GRADE-${base.suffix}`,
+          name: 'Service checklist',
+          version: 1,
+          items: {
+            create: {
+              section: 'Hoist',
+              code: 'BRAKE',
+              label: 'Brake holds',
+              resultType: 'PASS_FAIL_NA',
+              sortOrder: 1,
+            },
+          },
+        },
+      })
+      const template = await tx.reportTemplate.create({
+        data: {
+          code: `RPT-GRADE-${base.suffix}`,
+          name: 'Service report',
+          version: 1,
+          bodyHtml: '<p>template</p>',
+          schema: TEMPLATE_V1,
+        },
+      })
+      await tx.jobType.update({
+        where: { id: base.jobType.id },
+        data: {
+          isServiceReport: true,
+          defaultChecklistTemplateId: checklist.id,
+          defaultReportTemplateId: template.id,
+        },
+      })
+
+      const job = await tx.job.create({
+        data: {
+          number: `JOB-GRADE-${base.suffix}`,
+          jobTypeId: base.jobType.id,
+          customerId: base.customer.id,
+          siteId: base.site.id,
+          status: 'COMPLETED',
+          priority: 'P2',
+          cranes: { create: { craneId: base.crane.id } },
+          technicians: { create: { technicianId: technician.id } },
+        },
+      })
+
+      const signatureId = crypto.randomUUID()
+      await tx.file.create({
+        data: {
+          id: signatureId,
+          entity: 'Job',
+          entityId: job.id,
+          kind: 'SIGNATURE',
+          filename: `${signatureId}.png`,
+          mimeType: 'image/png',
+          sizeBytes: 512,
+          storageKey: `jobs/${job.id}/${signatureId}.png`,
+          uploadedById: techUser.id,
+          jobId: job.id,
+        },
+      })
+
+      const input = {
+        reportId: crypto.randomUUID(),
+        jobId: job.id,
+        craneId: base.crane.id,
+        templateId: template.id,
+        templateVersion: 1,
+        data: { workDone: 'Adjusted the brake', safeToOperate: 'Yes' },
+        checklist: { BRAKE: { result: 'Pass' } },
+        parts: [],
+        photoFileIds: [],
+        technicianSignerName: 'Ahmad',
+        technicianSignatureFileId: signatureId,
+        customerSignerName: 'Mei Ling',
+        customerSignerDesignation: 'Supervisor',
+        customerSignatureFileId: signatureId,
+        customerDeclinedReason: null,
+      }
+
+      await expect(submitReport(techContext, input, tx)).rejects.toThrow(/ungraded/)
+
+      // Graded, it goes through, and the grade is snapshotted with the line's wording.
+      const submitted = await submitReport(
+        techContext,
+        { ...input, reportId: crypto.randomUUID(), grades: { BRAKE: { grade: 3, comment: 'Sound' } } },
+        tx,
+      )
+      const report = await tx.report.findUniqueOrThrow({ where: { id: submitted.reportId } })
+      const data = report.data as { grades: Record<string, { grade: number; label: string }> }
+      expect(data.grades.BRAKE.grade).toBe(3)
+      expect(data.grades.BRAKE.label).toBe('Brake holds')
     })
   })
 })

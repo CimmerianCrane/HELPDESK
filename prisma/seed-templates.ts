@@ -128,6 +128,7 @@ export async function seedJobTypesAndTemplates(db: PrismaClient): Promise<void> 
           sortOrder: jobType.sortOrder,
           requiredDocumentTypes: jobType.requiredDocumentTypes ?? [],
           requiredCompetencies: jobType.requiredCompetencies ?? [],
+          isServiceReport: jobType.isServiceReport ?? false,
           defaultChecklistTemplateId: templates?.checklistId ?? null,
           defaultReportTemplateId: templates?.reportId ?? null,
         },
@@ -161,6 +162,17 @@ export async function seedJobTypesAndTemplates(db: PrismaClient): Promise<void> 
           defaultChecklistTemplateId: existing.defaultChecklistTemplateId ?? templates.checklistId,
           defaultReportTemplateId: existing.defaultReportTemplateId ?? templates.reportId,
         },
+      })
+      updatedLinks += 1
+    }
+
+    // A job type seeded before Service Reports existed is not a Service Report, and turning one on is
+    // the office's decision. The static `isServiceReport` flag is therefore filled once, like the
+    // competency list below, and never overwritten afterwards.
+    if (jobType.isServiceReport && !existing.isServiceReport) {
+      await db.jobType.update({
+        where: { id: existing.id },
+        data: { isServiceReport: true },
       })
       updatedLinks += 1
     }

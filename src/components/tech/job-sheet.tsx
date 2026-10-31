@@ -204,7 +204,9 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
             Checklist
           </h2>
           <p className="mt-1 text-sm text-muted">
-            What this job type requires. You fill it in on the report.
+            {job.isServiceReport
+              ? 'Grade every component on the report and note what needs replacing.'
+              : 'What this job type requires. You fill it in on the report.'}
           </p>
           <div className="mt-3 space-y-4">
             {sections.map((section) => (

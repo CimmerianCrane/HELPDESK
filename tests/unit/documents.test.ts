@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { DOCUMENT_PREFIXES, documentYear, formatDocumentNumber } from '@/server/documents/sequence'
+import {
+  DOCUMENT_PREFIXES,
+  documentYear,
+  formatDocumentNumber,
+  formatServiceReportNumber,
+} from '@/server/documents/sequence'
 
 describe('formatDocumentNumber', () => {
   it('pads the counter to four digits', () => {
@@ -15,6 +20,20 @@ describe('formatDocumentNumber', () => {
   it('has a distinct prefix for every document kind', () => {
     const prefixes = Object.values(DOCUMENT_PREFIXES)
     expect(new Set(prefixes).size).toBe(prefixes.length)
+  })
+})
+
+describe('formatServiceReportNumber', () => {
+  // The convention the technicians already use on paper: the first Service Report of June 2026 is
+  // SR2606001 — two-digit year, two-digit month, then the month's running number.
+  it('formats the year, month and counter without separators', () => {
+    expect(formatServiceReportNumber(2026, 6, 1)).toBe('SR2606001')
+    expect(formatServiceReportNumber(2026, 12, 42)).toBe('SR2612042')
+    expect(formatServiceReportNumber(2026, 1, 7)).toBe('SR2601007')
+  })
+
+  it('does not truncate once the counter overflows three digits', () => {
+    expect(formatServiceReportNumber(2026, 6, 1234)).toBe('SR26061234')
   })
 })
 

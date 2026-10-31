@@ -14,7 +14,7 @@ import { ForbiddenError, NotFoundError, RuleError } from '@/server/auth/errors'
 import { assertCan, can } from '@/server/auth/permissions'
 import { reportReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
-import { nextDocumentNumber } from '@/server/documents/sequence'
+import { nextDocumentNumber, nextServiceReportNumber } from '@/server/documents/sequence'
 import { renderReportPdf } from '@/server/documents/render'
 import { emailAdapter } from '@/server/email/email'
 import { storage } from '@/server/storage/storage'
@@ -55,7 +55,7 @@ export async function loadReport(context: AuthContext, tx: Tx, reportId: string)
           id: true,
           number: true,
           customerId: true,
-          jobType: { select: { name: true } },
+          jobType: { select: { name: true, isServiceReport: true } },
           customer: {
             select: {
               legalName: true,
@@ -221,10 +221,14 @@ export async function approveReport(
       }
       const settings = await getSettings(tx)
       const approvedAt = new Date()
-      const documentNumber = await nextDocumentNumber(tx, 'REPORT', {
-        at: approvedAt,
-        timeZone: settings.timezone,
-      })
+      // A Service Report is the graded sheet the customer files, and its number says which one of the
+      // month it is (SR2606001). Everything else keeps the general report series.
+      const documentNumber = report.job.jobType.isServiceReport
+        ? await nextServiceReportNumber(tx, { at: approvedAt, timeZone: settings.timezone })
+        : await nextDocumentNumber(tx, 'REPORT', {
+            at: approvedAt,
+            timeZone: settings.timezone,
+          })
 
       const pdf = await renderStoredReport(report, {
         documentNumber,

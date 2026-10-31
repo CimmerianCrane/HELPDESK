@@ -1,5 +1,6 @@
 import type { Tx } from '@/lib/db'
 import { env } from '@/lib/env'
+import { zonedParts } from '@/lib/time'
 
 export const DOCUMENT_PREFIXES = {
   TICKET: 'TKT',
@@ -50,4 +51,37 @@ export async function nextDocumentNumber(
   `
 
   return formatDocumentNumber(prefix, year, Number(rows[0].issued))
+}
+
+/** `SR2606001` — two-digit year, two-digit month, then the month's running number. */
+export function formatServiceReportNumber(year: number, month: number, value: number): string {
+  return `SR${String(year).slice(-2)}${String(month).padStart(2, '0')}${String(value).padStart(3, '0')}`
+}
+
+/**
+ * The next Service Report number, restarting every month, in the operating timezone.
+ *
+ * Same atomic `INSERT … ON CONFLICT` as `nextDocumentNumber`, keyed by year *and* month so the count
+ * restarts as the office's clock does. Stored in the same `DocumentSequence` table — the `SR` prefix
+ * keeps it distinct from every RPT/INV row, so no new table and no new migration for the counter.
+ */
+export async function nextServiceReportNumber(
+  tx: Tx,
+  options: { at?: Date; timeZone?: string } = {},
+): Promise<string> {
+  const at = options.at ?? new Date()
+  const timeZone = options.timeZone ?? env().DEFAULT_TIMEZONE
+  const { year, month } = zonedParts(at, timeZone)
+  const key = `SR:${year}${String(month).padStart(2, '0')}`
+
+  const rows = await tx.$queryRaw<Array<{ issued: number }>>`
+    INSERT INTO "DocumentSequence" ("key", "prefix", "nextValue", "updatedAt")
+    VALUES (${key}, 'SR', 2, now())
+    ON CONFLICT ("key") DO UPDATE
+      SET "nextValue" = "DocumentSequence"."nextValue" + 1,
+          "updatedAt" = now()
+    RETURNING "nextValue" - 1 AS issued
+  `
+
+  return formatServiceReportNumber(year, month, Number(rows[0].issued))
 }

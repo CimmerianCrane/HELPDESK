@@ -162,6 +162,77 @@ export function checklistAnswersSchema(items: ChecklistItemLike[]) {
   return z.object(shape)
 }
 
+/**
+ * The Service Report grading: every checklist line gets a condition rating from 1 to 5 and a short
+ * comment saying what needs replacing or what is damaged. Stored under the reserved `grades` key of
+ * `Report.data`, one entry per `ChecklistItem.code` — the same key the checklist answers use, because
+ * the two are two halves of one line on the paper form.
+ *
+ * The schema accepts any number and the service checks it is a whole 1–5, so the phone's own check
+ * (which uses the same rule) and the server agree on the wording of the refusal.
+ */
+export const SERVICE_GRADES = [1, 2, 3, 4, 5] as const
+
+export const SERVICE_GRADE_LABELS: Record<number, string> = {
+  5: 'As new',
+  4: 'Good',
+  3: 'Serviceable',
+  2: 'Repair soon',
+  1: 'Failed',
+}
+
+export interface ComponentGrade {
+  grade: number | null
+  comment: string | null
+  /** The checklist line's wording, snapshotted at submission so an old report re-renders as signed. */
+  label: string | null
+}
+
+export function serviceGradesSchema() {
+  return z.object({
+    grades: z
+      .record(
+        z.string().min(1).max(80),
+        z.object({
+          // `''` and `null` mean "not graded": the schema keeps that distinction because the service
+          // uses it to tell an unanswered line from a rated one.
+          grade: z
+            .preprocess(
+              (value) => (value === '' || value === undefined ? null : value),
+              z.union([z.null(), z.coerce.number().finite()]),
+            )
+            .transform((value) => value ?? null),
+          comment: z
+            .string()
+            .max(2000)
+            .nullish()
+            .transform((value) => (value?.trim() ? value.trim() : null)),
+          label: z.string().max(300).nullish().transform((value) => value ?? null),
+        }),
+      )
+      .superRefine((grades, ctx) => {
+        for (const [code, entry] of Object.entries(grades)) {
+          if (entry.grade !== null && !SERVICE_GRADES.includes(entry.grade as 1 | 2 | 3 | 4 | 5)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: [code, 'grade'],
+              message: 'Grade must be a whole number from 1 to 5.',
+            })
+          }
+        }
+      })
+      .optional(),
+  })
+}
+
+/** The grades on a report, read back without trusting the stored JSON. */
+export function readGrades(data: unknown): Record<string, ComponentGrade> {
+  if (!data || typeof data !== 'object') return {}
+  const raw = (data as Record<string, unknown>).grades
+  const parsed = serviceGradesSchema().safeParse({ grades: raw })
+  return parsed.success ? (parsed.data.grades ?? {}) : {}
+}
+
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 export const ALLOWED_UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
@@ -198,6 +269,8 @@ export function reportSubmitSchema(template: TemplateSchema, checklistItems: Che
       templateVersion: z.number().int().positive(),
       data: templateDataSchema(template),
       checklist: checklistAnswersSchema(checklistItems),
+      /** Service Reports only; the server refuses a grading on any other job type. */
+      ...serviceGradesSchema().shape,
       parts: z
         .array(
           z.object({

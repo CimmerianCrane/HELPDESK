@@ -4,7 +4,7 @@ System of record for crane servicing, breakdown repairs, inspections, load testi
 Replaces spreadsheets, WhatsApp threads and paper forms.
 
 Full product spec: the brief the user supplied (this file summarises the parts that constrain *how* we build).
-Architecture, schema, screens and phase plan: `docs/PLAN.md`.
+Architecture, screens and phase plan: `docs/PLAN.md`. The full schema: `docs/DATA-MODEL.md`.
 Assumptions made where the brief was silent: `docs/ASSUMPTIONS.md`.
 
 ---
@@ -152,7 +152,7 @@ cimmerian-crane/
     unit/                  # Vitest
     e2e/                   # Playwright
   docs/
-    PLAN.md  ASSUMPTIONS.md  README.md
+    PLAN.md  DATA-MODEL.md  ASSUMPTIONS.md  README.md
 ```
 
 One domain = one folder under `src/server/`. Route handlers and server actions are thin: they validate with Zod,
@@ -168,6 +168,7 @@ check permission, call a service, return. Logic lives in the service, tests live
 | **Crane / asset** | The centre of the data model. Every job, report, certificate, part and reminder hangs off a crane. Each crane belongs to one site and one customer |
 | **SWL** | Safe Working Load (kg) |
 | **PM** | Preventive maintenance — scheduled servicing |
+| **Service Report** | A PM report (`JobType.isServiceReport`) where every answered checklist line is graded 1–5 with a comment. Numbered `SR<yy><mm><nnn>` — `SR2606001` is the first of June 2026 — on approval; every other report is `RPT-…`. Grades live in `Report.data.grades`, keyed by checklist code |
 | **Statutory examination** | AE-led inspection producing a *certificate*. Not the same as our inspections |
 | **Company inspection** | Work our technicians do and report on. Never called a certificate, never implies statutory status |
 | **Finding** | A defect recorded on a report; can spawn a follow-up job |
@@ -273,7 +274,7 @@ session ends, because site phones are shared.
 
 - **One vertical slice at a time**: database → service → API → UI → tests. After each slice: `npm run verify`,
   a commit with a clear message, and a 3–5 line summary of what works and how to try it.
-- The schema is designed up front for all phases (`docs/PLAN.md` §3) so we don't rewrite it; only the current phase's
+- The schema is designed up front for all phases (`docs/DATA-MODEL.md`) so we don't rewrite it; only the current phase's
   UI and logic get implemented.
 - Migrations are reversible where possible. Never edit an applied migration — add a new one.
 - Seed data stays realistic and the seed stays runnable after every slice.

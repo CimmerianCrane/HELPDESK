@@ -289,30 +289,32 @@ enum LocationType {
 // ===========================================================================
 
 model User {
-  id           String    @id @default(uuid(7))
-  email        String    @unique
-  name         String
-  passwordHash String
-  role         Role
-  phone        String?
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  /** Set when an administrator resets the password. Ends every session issued before it. */
+  id                String    @id @default(uuid(7))
+  email             String    @unique
+  name              String
+  passwordHash      String
+  role              Role
+  phone             String?
+  isActive          Boolean   @default(true)
+  lastLoginAt       DateTime?
+  /**
+   * Set when an administrator resets the password. Ends every session issued before it.
+   */
   passwordChangedAt DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  deletedAt    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
 
-  technician    Technician?
+  technician      Technician?
   /**
    * Set for CUSTOMER logins (slice 31): the one account whose data this user may see. Every scope
    * filter in scope.ts keys off it, so a customer login with no customer sees nothing rather than
    * everything — the same fail-closed default as a technician with no Technician row.
    */
-  customerId    String?
-  customer      Customer? @relation(fields: [customerId], references: [id])
-  notifications Notification[]
-  auditLogs     AuditLog[]
+  customerId      String?
+  customer        Customer?        @relation(fields: [customerId], references: [id])
+  notifications   Notification[]
+  auditLogs       AuditLog[]
   savedJobFilters SavedJobFilter[]
 
   @@index([role, isActive])
@@ -354,7 +356,7 @@ model OnCallShift {
 }
 
 model Competency {
-  id            String    @id @default(uuid(7))
+  id            String     @id @default(uuid(7))
   technicianId  String
   technician    Technician @relation(fields: [technicianId], references: [id])
   name          String
@@ -363,8 +365,8 @@ model Competency {
   issuedDate    DateTime?
   expiryDate    DateTime?
   fileId        String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   @@index([technicianId, expiryDate])
 }
@@ -391,8 +393,9 @@ model Setting {
   updatedAt   DateTime @updatedAt
 }
 
-/// Backs document numbers (JOB-2026-0001, RPT-2026-0001, DO-…, INV-…, QTE-…, PO-…).
-/// One row per prefix per year so numbering restarts annually.
+/// Backs document numbers (JOB-2026-0001, RPT-2026-0001, DO-…, INV-…, QTE-…, PO-…), and the
+/// Service Report `SR2606001` — one row per key, so although `nextValue` restarts annually every other
+/// kind, an SR sequence keyed by `SR:2606` restarts monthly.
 model DocumentSequence {
   key       String   @id
   prefix    String
@@ -428,7 +431,9 @@ model Customer {
   jobs      Job[]
   quotes    Quote[]
   invoices  Invoice[]
-  /** Portal logins belonging to this account (slice 31). Several people may share one customer. */
+  /**
+   * Portal logins belonging to this account (slice 31). Several people may share one customer.
+   */
   users     User[]
 
   @@index([status, legalName])
@@ -482,38 +487,38 @@ model Site {
 // ===========================================================================
 
 model Crane {
-  id                      String      @id @default(uuid(7))
-  siteId                  String
-  site                    Site        @relation(fields: [siteId], references: [id])
-  customerId              String
-  customer                Customer    @relation(fields: [customerId], references: [id])
-  assetTag                String      @unique
-  qrValue                 String      @unique
-  type                    CraneType
-  brand                   String?
-  model                   String?
-  serialNumber            String?
-  swlKg                   Decimal     @db.Decimal(10, 2)
-  yearOfManufacture       Int?
-  statutoryRegistrationNo String?
-  registrationDate        DateTime?
+  id                       String      @id @default(uuid(7))
+  siteId                   String
+  site                     Site        @relation(fields: [siteId], references: [id])
+  customerId               String
+  customer                 Customer    @relation(fields: [customerId], references: [id])
+  assetTag                 String      @unique
+  qrValue                  String      @unique
+  type                     CraneType
+  brand                    String?
+  model                    String?
+  serialNumber             String?
+  swlKg                    Decimal     @db.Decimal(10, 2)
+  yearOfManufacture        Int?
+  statutoryRegistrationNo  String?
+  registrationDate         DateTime?
   /// Owner of record. Change here (or in the customer's UEN) raises a re-registration reminder.
-  ownerEntity             String?
-  locationOnSite          String?
-  hourMeter               Decimal?    @db.Decimal(12, 1)
-  status                  CraneStatus @default(IN_SERVICE)
-  restrictedReason        String?
-  restrictedAt            DateTime?
-  restrictedById          String?
+  ownerEntity              String?
+  locationOnSite           String?
+  hourMeter                Decimal?    @db.Decimal(12, 1)
+  status                   CraneStatus @default(IN_SERVICE)
+  restrictedReason         String?
+  restrictedAt             DateTime?
+  restrictedById           String?
   /// Slice 14: raised when the owner, the customer's UEN or the site changes, and cleared when
   /// somebody has checked whether the crane needs re-registering (brief §7.3).
   reregistrationRequiredAt DateTime?
   reregistrationReason     String?
-  notes                   String?
-  createdAt               DateTime    @default(now())
-  updatedAt               DateTime    @updatedAt
-  createdById             String?
-  deletedAt               DateTime?
+  notes                    String?
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+  createdById              String?
+  deletedAt                DateTime?
 
   schedules    CraneSchedule[]
   certificates Certificate[]
@@ -530,24 +535,24 @@ model Crane {
 }
 
 model CraneSchedule {
-  id                  String         @id @default(uuid(7))
+  id                  String          @id @default(uuid(7))
   craneId             String
-  crane               Crane          @relation(fields: [craneId], references: [id])
+  crane               Crane           @relation(fields: [craneId], references: [id])
   scheduleType        ScheduleType
   intervalMonths      Int?
   lastDoneDate        DateTime?
   nextDueDate         DateTime?
-  source              ScheduleSource @default(MANUAL)
-  reminderOffsetsDays Int[]          @default([90, 60, 30])
+  source              ScheduleSource  @default(MANUAL)
+  reminderOffsetsDays Int[]           @default([90, 60, 30])
   ruleId              String?
   rule                ComplianceRule? @relation(fields: [ruleId], references: [id])
-  autoCreateDraftJob  Boolean        @default(false)
+  autoCreateDraftJob  Boolean         @default(false)
   /// The kind of work the reminder scan raises when this falls due. Chosen by the office on the
   /// schedule; which job type completes which obligation is not something the code decides (rule 2).
   draftJobTypeId      String?
   notes               String?
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
   /// An obligation that no longer applies is ended, not erased (slice 12).
   deletedAt           DateTime?
 
@@ -649,7 +654,7 @@ model Contract {
   updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
 
-  coveredCranes Crane[] @relation("ContractCranes")
+  coveredCranes Crane[]  @relation("ContractCranes")
   tickets       Ticket[]
   jobs          Job[]
 
@@ -702,6 +707,10 @@ model JobType {
   /// Matched against `Competency.name` on the technician. Empty means no requirement. Whether a
   /// missing one blocks or only warns is the `blockAssignmentOnExpiredCompetency` setting.
   requiredCompetencies       String[] @default([])
+  /// A Service Report: every checklist line is graded 1–5 with a comment, and the report is numbered
+  /// `SR<yy><mm><nnn>` instead of `RPT-…` when it is approved. Office-owned, like every other job type
+  /// default — a second servicing type is a row, not a code change.
+  isServiceReport            Boolean  @default(false)
   isActive                   Boolean  @default(true)
   sortOrder                  Int      @default(0)
   createdAt                  DateTime @default(now())
@@ -713,32 +722,32 @@ model JobType {
 }
 
 model Job {
-  id          String  @id @default(uuid(7))
-  number      String  @unique
+  id          String    @id @default(uuid(7))
+  number      String    @unique
   ticketId    String?
-  ticket      Ticket? @relation(fields: [ticketId], references: [id])
+  ticket      Ticket?   @relation(fields: [ticketId], references: [id])
   /// Follow-up jobs generated from a previous job's findings.
   parentJobId String?
-  parentJob   Job?    @relation("FollowUps", fields: [parentJobId], references: [id])
-  followUps   Job[]   @relation("FollowUps")
+  parentJob   Job?      @relation("FollowUps", fields: [parentJobId], references: [id])
+  followUps   Job[]     @relation("FollowUps")
   jobTypeId   String
-  jobType     JobType @relation(fields: [jobTypeId], references: [id])
+  jobType     JobType   @relation(fields: [jobTypeId], references: [id])
   customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id])
+  customer    Customer  @relation(fields: [customerId], references: [id])
   siteId      String
-  site        Site     @relation(fields: [siteId], references: [id])
+  site        Site      @relation(fields: [siteId], references: [id])
   contractId  String?
   contract    Contract? @relation(fields: [contractId], references: [id])
 
-  status JobStatus @default(NEW)
-  priority Priority
+  status       JobStatus     @default(NEW)
+  priority     Priority
   /// Required whenever status = ON_HOLD — enforced by a DB CHECK constraint and by the service.
   onHoldReason OnHoldReason?
   onHoldNote   String?
   /// The catalogue part the hold is waiting for (slice 28), so "awaiting parts" names which one and
   /// when it lands. The date is never stored — it is the open purchase order line's `expectedAt`.
   onHoldPartId String?
-  onHoldPart   Part?   @relation("JobOnHoldPart", fields: [onHoldPartId], references: [id])
+  onHoldPart   Part?         @relation("JobOnHoldPart", fields: [onHoldPartId], references: [id])
 
   scheduledStart DateTime?
   scheduledEnd   DateTime?
@@ -762,19 +771,19 @@ model Job {
   createdById   String?
   deletedAt     DateTime?
 
-  cranes          JobCrane[]
-  technicians     JobTechnician[]
-  resources       JobResource[]
-  statusHistory   JobStatusHistory[]
-  reports         Report[]
-  certificates    Certificate[]
-  stockMovements  StockMovement[]
-  deliveryOrders  DeliveryOrder[]
-  quoteLines      QuoteLine[]
-  invoiceLines    InvoiceLine[]
-  files           File[]
-  notifications   Notification[]
-  followUpFindings Finding[] @relation("FollowUpJobs")
+  cranes           JobCrane[]
+  technicians      JobTechnician[]
+  resources        JobResource[]
+  statusHistory    JobStatusHistory[]
+  reports          Report[]
+  certificates     Certificate[]
+  stockMovements   StockMovement[]
+  deliveryOrders   DeliveryOrder[]
+  quoteLines       QuoteLine[]
+  invoiceLines     InvoiceLine[]
+  files            File[]
+  notifications    Notification[]
+  followUpFindings Finding[]          @relation("FollowUpJobs")
 
   @@index([status, scheduledStart])
   @@index([customerId, status])
@@ -787,8 +796,8 @@ model Job {
 model JobCrane {
   jobId   String
   craneId String
-  job     Job   @relation(fields: [jobId], references: [id])
-  crane   Crane @relation(fields: [craneId], references: [id])
+  job     Job    @relation(fields: [jobId], references: [id])
+  crane   Crane  @relation(fields: [craneId], references: [id])
 
   @@id([jobId, craneId])
   @@index([craneId])
@@ -827,17 +836,17 @@ model JobStatusHistory {
 /// is "why did the Tuesday service move", and it needs the displaced job, the job that took its slot
 /// and the reason in one place.
 model ScheduleBump {
-  id               String   @id @default(uuid(7))
+  id             String    @id @default(uuid(7))
   /// The job that was moved out of its slot.
-  displacedJobId   String
+  displacedJobId String
   /// The urgent job that needed the slot. Null only if the bump was recorded without one.
-  incomingJobId    String?
-  reason           String
+  incomingJobId  String?
+  reason         String
   /// What the displaced job's schedule was before the bump, so a reversal is possible.
-  previousStart    DateTime?
-  previousEnd      DateTime?
-  bumpedById       String?
-  bumpedAt         DateTime @default(now())
+  previousStart  DateTime?
+  previousEnd    DateTime?
+  bumpedById     String?
+  bumpedAt       DateTime  @default(now())
 
   @@index([displacedJobId, bumpedAt])
   @@index([incomingJobId])
@@ -879,8 +888,8 @@ model Resource {
 model JobResource {
   jobId      String
   resourceId String
-  job        Job      @relation(fields: [jobId], references: [id])
-  resource   Resource @relation(fields: [resourceId], references: [id])
+  job        Job       @relation(fields: [jobId], references: [id])
+  resource   Resource  @relation(fields: [resourceId], references: [id])
   startAt    DateTime?
   endAt      DateTime?
 
@@ -969,7 +978,7 @@ model Report {
 
   /// YES | NO | WITH_RESTRICTIONS
   safeToOperate  String?
-  documentNumber String?  @unique
+  documentNumber String? @unique
   pdfFileId      String?
 
   amendmentOfId   String?
@@ -978,7 +987,7 @@ model Report {
   amendmentReason String?
 
   /// Why the office sent a submission back. Set when status = RETURNED.
-  returnReason        String?
+  returnReason String?
 
   submittedAt         DateTime?
   approvedAt          DateTime?
@@ -988,8 +997,8 @@ model Report {
   updatedAt           DateTime  @updatedAt
   createdById         String?
 
-  findings   Finding[]
-  partsUsed  StockMovement[]
+  findings  Finding[]
+  partsUsed StockMovement[]
 
   @@index([jobId])
   @@index([craneId, status])
@@ -997,25 +1006,25 @@ model Report {
 }
 
 model Finding {
-  id             String          @id @default(uuid(7))
-  reportId       String
-  report         Report          @relation(fields: [reportId], references: [id])
-  craneId        String
-  crane          Crane           @relation(fields: [craneId], references: [id])
-  component      String
-  description    String
-  severity       FindingSeverity
-  recommendation String?
-  status         FindingStatus   @default(OPEN)
+  id                       String          @id @default(uuid(7))
+  reportId                 String
+  report                   Report          @relation(fields: [reportId], references: [id])
+  craneId                  String
+  crane                    Crane           @relation(fields: [craneId], references: [id])
+  component                String
+  description              String
+  severity                 FindingSeverity
+  recommendation           String?
+  status                   FindingStatus   @default(OPEN)
   /// Set when the office turns this finding into a follow-up job with one click.
-  followUpJobId  String?
-  followUpJob    Job?            @relation("FollowUpJobs", fields: [followUpJobId], references: [id])
+  followUpJobId            String?
+  followUpJob              Job?            @relation("FollowUpJobs", fields: [followUpJobId], references: [id])
   /// A customer declining a recommended critical repair is captured as a signed acknowledgement.
   declinedAcknowledgedName String?
   declinedAcknowledgedAt   DateTime?
   declinedSignatureFileId  String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
 
   files File[]
 
@@ -1028,7 +1037,7 @@ model Finding {
 /// resolved through the file service, which enforces access and signs URLs. Trade-off: no FK integrity
 /// on the link — acceptable because files are never hard-deleted, and the alternative is ~10 back-relations.
 model File {
-  id           String   @id @default(uuid(7))
+  id           String    @id @default(uuid(7))
   entity       String
   entityId     String
   kind         FileKind
@@ -1040,7 +1049,7 @@ model File {
   height       Int?
   sha256       String?
   uploadedById String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
   deletedAt    DateTime?
 
   // Optional typed links for the Phase 1 entities that list their own attachments directly.
@@ -1062,23 +1071,23 @@ model File {
 // ===========================================================================
 
 model Quote {
-  id         String      @id @default(uuid(7))
-  number     String      @unique
-  customerId String
-  customer   Customer    @relation(fields: [customerId], references: [id])
-  jobId      String?
-  status     QuoteStatus @default(DRAFT)
-  validUntil DateTime?
+  id          String      @id @default(uuid(7))
+  number      String      @unique
+  customerId  String
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  jobId       String?
+  status      QuoteStatus @default(DRAFT)
+  validUntil  DateTime?
   /// Snapshot of the rate the quote was priced at, so a reprint shows the original (slice 19).
-  gstRate    Decimal     @default(0) @db.Decimal(5, 4)
-  subtotal   Decimal     @default(0) @db.Decimal(12, 2)
-  gstAmount  Decimal     @default(0) @db.Decimal(12, 2)
-  total      Decimal     @default(0) @db.Decimal(12, 2)
-  notes      String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  gstRate     Decimal     @default(0) @db.Decimal(5, 4)
+  subtotal    Decimal     @default(0) @db.Decimal(12, 2)
+  gstAmount   Decimal     @default(0) @db.Decimal(12, 2)
+  total       Decimal     @default(0) @db.Decimal(12, 2)
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   createdById String?
-  deletedAt  DateTime?
+  deletedAt   DateTime?
 
   lines QuoteLine[]
 
@@ -1100,25 +1109,25 @@ model QuoteLine {
 }
 
 model Invoice {
-  id         String        @id @default(uuid(7))
-  number     String        @unique
-  customerId String
-  customer   Customer      @relation(fields: [customerId], references: [id])
-  status     InvoiceStatus @default(DRAFT)
-  issueDate  DateTime?
-  dueDate    DateTime?
+  id               String        @id @default(uuid(7))
+  number           String        @unique
+  customerId       String
+  customer         Customer      @relation(fields: [customerId], references: [id])
+  status           InvoiceStatus @default(DRAFT)
+  issueDate        DateTime?
+  dueDate          DateTime?
   /// Snapshot of the rate that applied when issued, so a reprint shows the original.
-  gstRate    Decimal       @db.Decimal(5, 4)
-  subtotal   Decimal       @default(0) @db.Decimal(12, 2)
-  gstAmount  Decimal       @default(0) @db.Decimal(12, 2)
-  total      Decimal       @default(0) @db.Decimal(12, 2)
-  amountPaid Decimal       @default(0) @db.Decimal(12, 2)
+  gstRate          Decimal       @db.Decimal(5, 4)
+  subtotal         Decimal       @default(0) @db.Decimal(12, 2)
+  gstAmount        Decimal       @default(0) @db.Decimal(12, 2)
+  total            Decimal       @default(0) @db.Decimal(12, 2)
+  amountPaid       Decimal       @default(0) @db.Decimal(12, 2)
   /// The accounting system's id, written only after a push succeeded (slice 37).
   externalRef      String?
   externalPushedAt DateTime?
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  deletedAt  DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
 
   lines    InvoiceLine[]
   payments Payment[]
@@ -1155,7 +1164,7 @@ model Payment {
 // ===========================================================================
 
 model Supplier {
-  id           String   @id @default(uuid(7))
+  id           String    @id @default(uuid(7))
   name         String
   contactName  String?
   phone        String?
@@ -1163,8 +1172,8 @@ model Supplier {
   address      Json?
   leadTimeDays Int?
   notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
   parts          Part[]          @relation("PreferredSupplier")
@@ -1198,7 +1207,7 @@ model Part {
   stockLevels StockLevel[]
   movements   StockMovement[]
   /// Jobs on hold awaiting this part (slice 28).
-  heldJobs    Job[]         @relation("JobOnHoldPart")
+  heldJobs    Job[]           @relation("JobOnHoldPart")
 
   @@index([brand])
   @@index([isActive])
@@ -1236,32 +1245,32 @@ model StockLevel {
 
 /// Append-only ledger. The only way a quantity ever changes.
 model StockMovement {
-  id              String       @id @default(uuid(7))
-  partId          String
-  part            Part         @relation(fields: [partId], references: [id])
-  fromLocationId  String?
-  fromLocation    Location?    @relation("MovementFrom", fields: [fromLocationId], references: [id])
-  toLocationId    String?
-  toLocation      Location?    @relation("MovementTo", fields: [toLocationId], references: [id])
-  quantity        Decimal      @db.Decimal(12, 3)
-  type            MovementType
-  unitCost        Decimal?     @db.Decimal(12, 2)
-  serialOrBatch   String?
-  reasonCode      String?
-  jobId           String?
-  job             Job?         @relation(fields: [jobId], references: [id])
-  reportId        String?
-  report          Report?      @relation(fields: [reportId], references: [id])
-  deliveryOrderId String?
-  deliveryOrder   DeliveryOrder? @relation(fields: [deliveryOrderId], references: [id])
+  id                String             @id @default(uuid(7))
+  partId            String
+  part              Part               @relation(fields: [partId], references: [id])
+  fromLocationId    String?
+  fromLocation      Location?          @relation("MovementFrom", fields: [fromLocationId], references: [id])
+  toLocationId      String?
+  toLocation        Location?          @relation("MovementTo", fields: [toLocationId], references: [id])
+  quantity          Decimal            @db.Decimal(12, 3)
+  type              MovementType
+  unitCost          Decimal?           @db.Decimal(12, 2)
+  serialOrBatch     String?
+  reasonCode        String?
+  jobId             String?
+  job               Job?               @relation(fields: [jobId], references: [id])
+  reportId          String?
+  report            Report?            @relation(fields: [reportId], references: [id])
+  deliveryOrderId   String?
+  deliveryOrder     DeliveryOrder?     @relation(fields: [deliveryOrderId], references: [id])
   /// Set when a delivery order line is raised for this issue (slice 18).
   deliveryOrderLine DeliveryOrderLine? @relation("DeliveryOrderLineMovement")
-  purchaseOrderId String?
-  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-  stockTakeId     String?
-  stockTake       StockTake?   @relation(fields: [stockTakeId], references: [id])
-  movedById       String?
-  movedAt         DateTime     @default(now())
+  purchaseOrderId   String?
+  purchaseOrder     PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id])
+  stockTakeId       String?
+  stockTake         StockTake?         @relation(fields: [stockTakeId], references: [id])
+  movedById         String?
+  movedAt           DateTime           @default(now())
 
   @@index([partId, movedAt])
   @@index([jobId])
@@ -1293,22 +1302,22 @@ model DeliveryOrder {
 }
 
 model DeliveryOrderLine {
-  id                 String        @id @default(uuid(7))
+  id                 String         @id @default(uuid(7))
   deliveryOrderId    String
-  deliveryOrder      DeliveryOrder @relation(fields: [deliveryOrderId], references: [id])
+  deliveryOrder      DeliveryOrder  @relation(fields: [deliveryOrderId], references: [id])
   /// The ISSUE movement this line is paperwork for, so a part cannot be put on two DOs (slice 18).
-  movementId         String?       @unique
+  movementId         String?        @unique
   movement           StockMovement? @relation("DeliveryOrderLineMovement", fields: [movementId], references: [id])
   partId             String?
   description        String
-  quantity           Decimal       @db.Decimal(12, 3)
+  quantity           Decimal        @db.Decimal(12, 3)
   /// Running total handed over so far. A partial delivery fills in the remainder later.
-  receivedQuantity   Decimal       @default(0) @db.Decimal(12, 3)
+  receivedQuantity   Decimal        @default(0) @db.Decimal(12, 3)
   serialOrBatch      String?
   condition          String?
-  chargeType         ChargeType    @default(CHARGEABLE)
+  chargeType         ChargeType     @default(CHARGEABLE)
   expectedReturnDate DateTime?
-  returnedQuantity   Decimal?      @db.Decimal(12, 3)
+  returnedQuantity   Decimal?       @db.Decimal(12, 3)
 }
 
 model PurchaseOrder {

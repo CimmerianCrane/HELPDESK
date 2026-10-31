@@ -22,6 +22,11 @@ export interface JobTypeDefinition {
   sortOrder: number
   /** Which of the four built templates this type gains, if any. */
   template?: TemplateKey
+  /**
+   * A Service Report: the technician grades every component 1–5 against this type's checklist, and
+   * the approved report is numbered `SR<yy><mm><nnn>` instead of `RPT-…`.
+   */
+  isServiceReport?: boolean
   /** Documents the office expects back for this kind of visit. Free text keys, shown as a reminder. */
   requiredDocumentTypes?: string[]
   /**
@@ -43,6 +48,7 @@ export const JOB_TYPES: readonly JobTypeDefinition[] = [
     defaultPriority: 'P4',
     sortOrder: 10,
     template: 'SERVICING',
+    isServiceReport: true,
     requiredDocumentTypes: [],
     requiredCompetencies: ['Crane servicing'],
   },

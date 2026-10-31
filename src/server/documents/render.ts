@@ -2,6 +2,7 @@ import { createElement } from 'react'
 import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from '@react-pdf/renderer'
 import { formatDate, formatDateTime } from '@/lib/format'
 import type { TemplateSchema, TemplateSection } from '@/lib/templates/schema'
+import { SERVICE_GRADE_LABELS, readGrades } from '@/lib/validation/reports'
 
 /**
  * A report as a PDF (slice 9).
@@ -178,8 +179,47 @@ function TableSection({
   )
 }
 
+function GradeTable({
+  grades,
+}: {
+  grades: Array<[string, { grade: number | null; comment: string | null; label: string | null }]>
+}) {
+  return createElement(
+    View,
+    { style: styles.section },
+    createElement(Text, { style: styles.sectionTitle }, 'Component grades (1–5)'),
+    createElement(
+      View,
+      { style: styles.tableHead },
+      createElement(Text, { style: [styles.tableHeadCell, { flex: 3 }] }, 'Component'),
+      createElement(Text, { style: styles.tableHeadCell }, 'Grade'),
+      createElement(Text, { style: styles.tableHeadCell }, 'Rating'),
+      createElement(Text, { style: [styles.tableHeadCell, { flex: 3 }] }, 'Comment'),
+    ),
+    ...grades.map(([code, entry], index) =>
+      createElement(
+        View,
+        { key: index, style: styles.row },
+        createElement(Text, { style: [styles.cell, { flex: 3 }] }, entry.label ?? code),
+        createElement(Text, { style: styles.cell }, String(entry.grade ?? '—')),
+        createElement(
+          Text,
+          { style: styles.cell },
+          entry.grade ? SERVICE_GRADE_LABELS[entry.grade] ?? '—' : '—',
+        ),
+        createElement(Text, { style: [styles.cell, { flex: 3 }] }, entry.comment ?? '—'),
+      ),
+    ),
+  )
+}
+
 export async function renderReportPdf(input: ReportPdfInput): Promise<Buffer> {
   const { data } = input
+  // A Service Report's grades ride in `Report.data.grades`; read them through the same validator the
+  // office page uses so a malformed entry cannot break the document.
+  const graded = Object.entries(readGrades(data))
+    .filter(([, entry]) => entry.grade !== null)
+    .sort((a, b) => (a[1].grade ?? 9) - (b[1].grade ?? 9))
   const photoElements = input.photos
     .filter((bytes) => bytes.byteLength > 0)
     .map((bytes, index) =>
@@ -293,6 +333,15 @@ export async function renderReportPdf(input: ReportPdfInput): Promise<Buffer> {
               : createElement(FieldRows, { section, data }),
           ),
         ),
+
+        ...(graded.length > 0
+          ? [
+              createElement(GradeTable, {
+                key: 'grades',
+                grades: graded,
+              }),
+            ]
+          : []),
 
         input.findings.length > 0
           ? createElement(
