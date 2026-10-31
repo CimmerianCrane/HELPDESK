@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { newId } from '@/lib/id'
 import { calibrationWarnings, type TemplateField, type TemplateSection } from '@/lib/templates/schema'
 import {
   SERVICE_GRADE_LABELS,
@@ -16,7 +17,6 @@ import {
   type LocalFile,
   type ReportDraft,
 } from '@/offline/db'
-import { newId } from '@/lib/id'
 import { flushOutbox } from '@/offline/outbox'
 import type { TechCrane, TechJobDetail } from '@/server/tech/my-jobs'
 import { SignaturePad } from './signature-pad'
