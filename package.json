@@ -9,6 +9,7 @@
     "setup": "npm install && npm run db:migrate && npm run seed",
     "postinstall": "prisma generate",
     "dev": "next dev --webpack",
+    "dev:lan": "tsx scripts/dev-lan.ts",
     "dev:stop": "tsx scripts/dev-stop.ts",
     "build": "next build --webpack",
     "start": "next start",

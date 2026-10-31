@@ -42,10 +42,10 @@ dead, and both were found on 31 Oct 2026 (see `docs/HISTORY.md`):
   `src/lib/id.ts`. But **plain HTTP is still not a supported way to run this**: no secure context also
   means **no service worker and no offline mode**. Give the dev machine HTTPS (or test against the
   deployed URL) before checking field behaviour.
-- **Next 16 needs `allowedDevOrigins` for a LAN host.** Without it `/_next/*` is refused cross-origin
-  and React never hydrates, so every client component is dead while the HTML looks fine. **Not yet
-  applied** — the config edit needs sign-off:
-  `allowedDevOrigins: ['<the dev machine's LAN host or IP>']` in `next.config.ts`.
+- **Next 16 needs the server started on the LAN address.** Without it `/_next/*` is refused cross-origin
+  and React never hydrates, so every client component is dead while the HTML looks fine. **Fixed**: use
+  `npm run dev:lan` — it finds the machine's address and starts `next dev --hostname <it>`; it prints the
+  URL to open on the phone. `npm run dev` is still right for desktop-only work.
 
 **The gates all pass** — `npm run verify` (477 unit), `npm run test:integration` (403, slice 39 included) and
 `npm run build`. E2E was last green before slice 39 and has not been re-run since the migrations were applied.

@@ -20,8 +20,10 @@ in `docs/PLAN-SLICES.md`; the slice tables are `docs/PLAN.md` §7.2, §7.13 and 
 > 2. **Next 16 blocks cross-origin dev requests.** With no `allowedDevOrigins` entry, `/_next/*` from the
 >    LAN host is refused, the HMR socket fails with `ERR_INVALID_HTTP_RESPONSE`, and React never hydrates
 >    — so *every* client component (the form, the sync provider, Dexie) is dead on the device, though the
->    server-rendered HTML looks fine. The fix is `allowedDevOrigins` in `next.config.ts` (dev only;
->    production ignores it). Not applied yet — it needs the owner's sign-off.
+>    server-rendered HTML looks fine. Fixed without widening any origin list: the guard always allows the
+>    hostname the server was **started** with, so `npm run dev:lan` (`scripts/dev-lan.ts`) finds the
+>    machine's LAN address and starts `next dev --hostname <it>`. Verified on a real LAN origin: hydrates,
+>    syncs, and opens the report form.
 
 **All four phases are complete, and slice 39 brings the paper Service Report into the app.** Slices 0–39 are built;
 Phase 1's acceptance path still passes untouched. **The slice write-ups are in `docs/PLAN-SLICES.md`**,
