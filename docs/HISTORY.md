@@ -6,20 +6,27 @@ in `docs/PLAN-SLICES.md`; the slice tables are `docs/PLAN.md` §7.2, §7.13 and 
 
 ## The last slices, as they landed
 
-**All four phases are complete, and slice 38 closes the last gap the plan had recorded twice.** Slices 0–38 are built;
+**All four phases are complete, and slice 39 brings the paper Service Report into the app.** Slices 0–39 are built;
 Phase 1's acceptance path still passes untouched. **The slice write-ups are in `docs/PLAN-SLICES.md`**,
-which holds §7.3–§7.12 (Phase 2), §7.13 slices 22–28 and §7.15–§7.24 (slices 29–38), each keeping the
+which holds §7.3–§7.12 (Phase 2), §7.13 slices 22–28 and §7.15–§7.25 (slices 29–39), each keeping the
 section number the plan gave it. The slice tables stay in `docs/PLAN.md`: **§7.2 is the Phase 2 table,
 §7.13 the Phase 3 table and §7.14 the Phase 4 table.** Slices 22 and 23 as built are §7.13.1, slice 24
 §7.13.2, slice 25 §7.13.3, slice 26 §7.13.4, slice 27 §7.13.5 and slice 28 §7.13.6. Slices 29–38 as
-built are §7.15–§7.24, in that order — slice 38, the notification inbox, is §7.24.
+built are §7.15–§7.24, in that order — slice 38, the notification inbox, is §7.24 — and slice 39, the
+Service Report, is §7.25.
 
-> **Slice 39 — the Service Report.** The paper form technicians already fill in at a site, brought into the app: every
-> checklist line graded 1–5 with a comment, refused at submit while an answered line is ungraded, and issued as
-> `SR2606001` (year, approval month, month's running number) instead of `RPT-…`. It is a flag on `JobType`, not a new
-> document type — `Report.data.grades` keyed by checklist code, with the line's wording snapshotted so an issued report
-> re-renders as signed — and the monthly counter is one more `DocumentSequence` key (`SR:2606`). One migration.
-> See `docs/PLAN.md` §7.25.
+> **Slice 39 — the Service Report.** The paper is **two documents**, and the technician only fills the first. The
+> **Servicing checklist form** is the per-crane `Report` they already submit: `JobType.isServiceReport` (seeded on PM)
+> makes its form ask for a 1–5 condition grade and a short comment on every checklist line, held in
+> `Report.data.grades` keyed by `ChecklistItem.code` with the line's wording snapshotted. Submission is refused while
+> an answered line is ungraded. The **Service Report** is the second document and the one that gets the number: one
+> row per job (`ServiceReport`, `@@unique([jobId])`) because it belongs to the visit rather than the crane. The office
+> opens the job, presses generate, and gets prose built from the grades — worst first, a section per crane, a sentence
+> per part — which they may reword but not restructure. `approveServiceReport` issues it as `SR2606001` (year, approval
+> month, month's running number) through a `DocumentSequence` key `SR:2606`; a crane with no graded checklist blocks
+> the issue. The per-crane form keeps its `RPT-…`. **Two additive migrations**,
+> `20261031100000_service_report_grades` and `20261031110000_service_report_documents`, neither deployed yet. See
+> `docs/PLAN.md` §7.25.
 
 > **Slice 38 — the notification inbox.** `/inbox` is where the alerts have been going all along: every
 > P1, due-service reminder and dispatch pack has written an `IN_APP` row since Phase 1, and nothing

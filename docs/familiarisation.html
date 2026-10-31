@@ -1,0 +1,792 @@
+<title>Cimmerian Crane Helpdesk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: one reading column under a full-width header, with a sticky contents rail on wide screens. */
+  :root {
+    --bg: #f3f4f2;
+    --surface: #ffffff;
+    --surface-2: #e9ede9;
+    --ink: #131a1d;
+    --muted: #58636a;
+    --line: #d2d8d5;
+    --accent: #d99b00;
+    --accent-soft: #fcf2d8;
+    --accent-ink: #6a4a00;
+    --critical: #a92c22;
+    --critical-soft: #fbe8e6;
+    --ok: #2b6b46;
+    --code-bg: #edf0ed;
+    --shadow: 0 1px 2px rgba(19, 26, 29, 0.06), 0 8px 24px -16px rgba(19, 26, 29, 0.35);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101416;
+      --surface: #171d20;
+      --surface-2: #1f272b;
+      --ink: #e5ebe8;
+      --muted: #9ba7a4;
+      --line: #2b3539;
+      --accent: #e8b73a;
+      --accent-soft: #292312;
+      --accent-ink: #f1cf7d;
+      --critical: #ff8f80;
+      --critical-soft: #30201d;
+      --ok: #7fd3a1;
+      --code-bg: #0b0f11;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101416;
+    --surface: #171d20;
+    --surface-2: #1f272b;
+    --ink: #e5ebe8;
+    --muted: #9ba7a4;
+    --line: #2b3539;
+    --accent: #e8b73a;
+    --accent-soft: #292312;
+    --accent-ink: #f1cf7d;
+    --critical: #ff8f80;
+    --critical-soft: #30201d;
+    --ok: #7fd3a1;
+    --code-bg: #0b0f11;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.62;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+
+  h1, h2, h3, h4 {
+    font-family: Archivo, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  a { color: inherit; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  /* Header band */
+  .band {
+    border-bottom: 3px solid var(--accent);
+    background: var(--surface);
+    margin-bottom: 40px;
+  }
+  .band-inner { padding-block: 26px 22px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+  .band h1 {
+    font-size: clamp(2rem, 5.2vw, 3.1rem);
+    font-weight: 700;
+    margin-top: 10px;
+    letter-spacing: -0.03em;
+  }
+  .band p.lede {
+    max-width: 62ch;
+    color: var(--muted);
+    margin: 12px 0 0;
+    font-size: 1.02rem;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .meta {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px;
+    padding: 4px 9px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    color: var(--muted);
+    background: var(--bg);
+  }
+
+  /* Contents rail + article */
+  .doc { display: grid; gap: 40px; }
+  @media (min-width: 1000px) {
+    .doc { grid-template-columns: 196px minmax(0, 1fr); gap: 56px; }
+    .rail { position: sticky; top: 24px; align-self: start; }
+  }
+  .rail nav { display: flex; flex-direction: column; gap: 2px; }
+  .rail .rail-title {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-bottom: 8px;
+  }
+  .rail a {
+    text-decoration: none;
+    font-size: 14px;
+    color: var(--muted);
+    padding: 5px 10px 5px 0;
+    border-left: 2px solid transparent;
+    padding-left: 10px;
+    margin-left: -12px;
+    border-radius: 0 3px 3px 0;
+  }
+  .rail a:hover { color: var(--ink); border-left-color: var(--line); background: var(--surface); }
+
+  main { min-width: 0; }
+
+  section { scroll-margin-top: 24px; }
+  section + section { margin-top: 52px; }
+
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sec-head h2 { font-size: 1.35rem; }
+  .kicker {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--accent-ink);
+    text-transform: uppercase;
+    flex: none;
+  }
+
+  p { margin: 0 0 14px; max-width: 68ch; }
+  p:last-child { margin-bottom: 0; }
+
+  /* Fact strip */
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 44px;
+  }
+  .fact { background: var(--surface); padding: 16px 18px; }
+  .fact dt {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .fact dd {
+    margin: 6px 0 0;
+    font-family: Archivo, ui-sans-serif, sans-serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  /* Hub diagram */
+  .hub {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    padding: 18px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    margin-bottom: 18px;
+  }
+  .hub-node {
+    font-size: 13px;
+    line-height: 1.35;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--bg);
+    color: var(--muted);
+  }
+  .hub-node strong { display: block; color: var(--ink); font-weight: 600; font-size: 13.5px; }
+  .hub-node.centre {
+    grid-column: 1 / -1;
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+    padding: 14px 16px;
+  }
+  .hub-node.centre strong { color: var(--accent-ink); font-family: Archivo, sans-serif; font-size: 1rem; letter-spacing: 0.02em; text-transform: uppercase; }
+
+  /* Lifecycle chain */
+  .chain {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    margin-bottom: 18px;
+  }
+  .step {
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 3px;
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  .step.opt { border: 1px dashed var(--line); background: transparent; color: var(--muted); }
+  .arrow { color: var(--muted); font-size: 12px; }
+
+  /* Cards */
+  .cards { display: grid; gap: 14px; }
+  @media (min-width: 720px) { .cards.two { grid-template-columns: 1fr 1fr; } }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 16px 18px;
+  }
+  .card h3 { font-size: 1rem; margin-bottom: 4px; }
+  .card p { font-size: 14.5px; color: var(--muted); margin-bottom: 10px; }
+  .card p:last-child { margin-bottom: 0; }
+  .card .tag {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+
+  ul.tight { margin: 0 0 14px; padding-left: 18px; max-width: 66ch; }
+  ul.tight li { margin-bottom: 6px; }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.86em;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1px 5px;
+    overflow-wrap: anywhere;
+  }
+  pre {
+    overflow-x: auto;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 14px 16px;
+    margin: 0 0 16px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+
+  .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 4px; margin-bottom: 16px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 560px; }
+  th {
+    text-align: left;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: bottom;
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td .mono { font-size: 12px; white-space: nowrap; }
+
+  .note {
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    padding: 12px 16px;
+    margin: 0 0 16px;
+    font-size: 14.5px;
+    color: var(--muted);
+    border-radius: 0 3px 3px 0;
+  }
+  .note strong { color: var(--ink); font-weight: 600; }
+  .note.warn { border-left-color: var(--critical); }
+
+  .flow { display: grid; gap: 10px; counter-reset: step; }
+  .flow-item {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: 12px;
+    font-size: 14.5px;
+  }
+  .flow-item .n {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--accent-ink);
+    padding-top: 4px;
+  }
+  .flow-item strong { font-weight: 600; }
+  .flow-item p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  footer {
+    margin-top: 64px;
+    border-top: 1px solid var(--line);
+    padding-block: 20px 48px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<header class="band">
+  <div class="wrap band-inner">
+    <div class="eyebrow">Familiarisation guide</div>
+    <h1>Cimmerian Crane Helpdesk</h1>
+    <p class="lede">
+      The system of record for crane servicing, breakdown repair, inspection, load testing, parts and
+      compliance paperwork. This page is the short route from opening the repository to knowing where
+      everything lives and why it is shaped that way.
+    </p>
+    <div class="meta-row">
+      <span class="meta">Next.js 15 · App Router</span>
+      <span class="meta">PostgreSQL · Prisma</span>
+      <span class="meta">Supabase + Vercel</span>
+      <span class="meta">Auth.js · JWT</span>
+      <span class="meta">Dexie + Serwist PWA</span>
+      <span class="meta">Vitest · Playwright</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap doc">
+
+  <aside class="rail">
+    <nav aria-label="Contents">
+      <div class="rail-title">Contents</div>
+      <a href="#shape">The shape of it</a>
+      <a href="#lifecycle">The path work takes</a>
+      <a href="#roles">A day in each role</a>
+      <a href="#screens">The screen map</a>
+      <a href="#rules">Five rules that hold</a>
+      <a href="#field">The phone, offline</a>
+      <a href="#running">Running it</a>
+      <a href="#reading">What to read next</a>
+      <a href="#traps">Traps and known gaps</a>
+    </nav>
+  </aside>
+
+  <main>
+
+    <dl class="facts">
+      <div class="fact"><dt>Slices built</dt><dd>0 – 38</dd></div>
+      <div class="fact"><dt>Phases complete</dt><dd>All four</dd></div>
+      <div class="fact"><dt>Roles</dt><dd>Six</dd></div>
+      <div class="fact"><dt>Job statuses</dt><dd>Thirteen</dd></div>
+      <div class="fact"><dt>Writers of stock</dt><dd>Exactly one</dd></div>
+    </dl>
+
+    <section id="shape">
+      <div class="sec-head"><h2>The shape of it</h2><span class="kicker">01</span></div>
+
+      <p>
+        The crane is the centre of the data model. Every job, report, certificate, part movement,
+        schedule and reminder hangs off one. A crane belongs to one site, and a site belongs to one
+        customer. That single decision explains most of what you will see in the schema and on the
+        screens.
+      </p>
+
+      <div class="hub" role="img" aria-label="The crane at the centre: customer and site above it, jobs, reports, schedules, certificates, findings and stock movements radiating from it.">
+        <div class="hub-node"><strong>Customer</strong>account, terms, UEN</div>
+        <div class="hub-node"><strong>Site</strong>address, access notes, coordinates</div>
+        <div class="hub-node centre"><strong>The crane</strong>asset tag · type · SWL · registration · status</div>
+        <div class="hub-node"><strong>Jobs &amp; reports</strong>the work and its signed paperwork</div>
+        <div class="hub-node"><strong>Schedules</strong>recurring obligations, next due</div>
+        <div class="hub-node"><strong>Certificates</strong>the AE's paper and its expiry</div>
+        <div class="hub-node"><strong>Findings</strong>defects still open on it</div>
+        <div class="hub-node"><strong>Stock movements</strong>which part, which serial, which job</div>
+        <div class="hub-node"><strong>Contracts</strong>agreed SLA targets and renewal</div>
+      </div>
+
+      <p>The crane page is therefore the screen to learn first. From it you reach the timeline of every
+      report on the machine, its obligations and next-due dates, its certificates, the findings still
+      open, the parts fitted, and the printable QR label that opens the record from a phone camera.</p>
+
+      <div class="note">
+        <strong>Two consequences worth knowing early.</strong> A job must have a site, because somebody
+        has to drive there; a ticket need not. And a crane is never deleted, only decommissioned,
+        because reports and certificates cite it forever.
+      </div>
+    </section>
+
+    <section id="lifecycle">
+      <div class="sec-head"><h2>The path work takes</h2><span class="kicker">02</span></div>
+
+      <div class="chain" role="img" aria-label="Ticket, triage, job, schedule, dispatch, work on the phone, report, approval, invoice, closed.">
+        <span class="step">Ticket</span><span class="arrow">→</span>
+        <span class="step">Triage</span><span class="arrow">→</span>
+        <span class="step opt">Quote</span><span class="arrow">→</span>
+        <span class="step">Job</span><span class="arrow">→</span>
+        <span class="step">Schedule</span><span class="arrow">→</span>
+        <span class="step">Dispatch</span><span class="arrow">→</span>
+        <span class="step">On the phone</span><span class="arrow">→</span>
+        <span class="step">Report approved</span><span class="arrow">→</span>
+        <span class="step">Invoice</span><span class="arrow">→</span>
+        <span class="step">Closed</span>
+      </div>
+
+      <p>A call arrives as a ticket and is triaged, which sets the priority and starts the response
+      clock. One ticket can become several jobs, and a job covers one or more cranes. Jobs move
+      through a status machine: every legal transition lives in one map in the code, and a status
+      absent from it is refused rather than stored.</p>
+
+      <p>Statuses: <span class="mono">New</span> · <span class="mono">Triaged</span> ·
+      <span class="mono">Quoted</span> · <span class="mono">Approved</span> ·
+      <span class="mono">Scheduled</span> · <span class="mono">Dispatched</span> ·
+      <span class="mono">In progress</span> · <span class="mono">On hold</span> ·
+      <span class="mono">Completed</span> · <span class="mono">Reviewed</span> ·
+      <span class="mono">Invoiced</span> · <span class="mono">Closed</span> ·
+      <span class="mono">Cancelled</span>.</p>
+
+      <div class="flow">
+        <div class="flow-item"><span class="n">01</span><div><strong>Priority and SLA.</strong>
+          <p>P1 means crane down or someone at risk, and alerts every dispatcher immediately by in-app row, email, SMS and WhatsApp. Response and resolution deadlines are snapshotted onto the job at creation, so a later policy edit cannot rewrite history.</p></div></div>
+        <div class="flow-item"><span class="n">02</span><div><strong>On hold always has a reason.</strong>
+          <p>Awaiting parts, customer access, quote approval, the AE, weather, or other. Enforced by a Zod rule, a service rule and a Postgres CHECK constraint. An awaiting-parts hold can name the catalogue part it is waiting for.</p></div></div>
+        <div class="flow-item"><span class="n">03</span><div><strong>The field report is filled on the phone.</strong>
+          <p>Template-driven sections, the checklist with measurements, photos compressed on the device, parts issued as stock movements, findings, and both signatures, or a recorded reason the customer did not sign. It works with no signal.</p></div></div>
+        <div class="flow-item"><span class="n">04</span><div><strong>Approval is what makes it a document.</strong>
+          <p>Approving a report assigns its number, renders the PDF with signatures and photographs embedded, locks it, and moves the job <span class="mono">Completed → Reviewed</span>. A correction is an amendment linked to the original, never an edit.</p></div></div>
+        <div class="flow-item"><span class="n">05</span><div><strong>Money last, and only from a reviewed job.</strong>
+          <p>A quote is optional and moves the job <span class="mono">Quoted → Approved</span> when accepted. An invoice pre-fills from the parts actually issued, snapshots the GST rate at issue, and moves the job to <span class="mono">Invoiced</span>.</p></div></div>
+      </div>
+    </section>
+
+    <section id="roles">
+      <div class="sec-head"><h2>A day in each role</h2><span class="kicker">03</span></div>
+
+      <p>The seed creates one login per role, plus a second technician so that "a technician cannot
+      see another technician's work" is something you can check by signing in and looking. The
+      password is <span class="mono">cimmerian-dev-2026</span>.</p>
+
+      <div class="cards two">
+        <div class="card">
+          <div class="tag">admin@cimmeriancrane.example</div>
+          <h3>Administrator</h3>
+          <p>Holds every capability. Users and roles, the compliance rulebook, company-wide SLA
+          targets, the audit log, and everything else.</p>
+        </div>
+        <div class="card">
+          <div class="tag">dispatch@cimmeriancrane.example</div>
+          <h3>Dispatcher</h3>
+          <p>The busiest screens: <span class="mono">/tickets</span>, <span class="mono">/jobs</span>,
+          <span class="mono">/schedule</span>, <span class="mono">/reports</span>. Takes the call,
+          schedules and dispatches, approves the field report, raises quotes and finds follow-up work.</p>
+        </div>
+        <div class="card">
+          <div class="tag">ahmad@ / raj@cimmeriancrane.example</div>
+          <h3>Technician</h3>
+          <p>Lives in <span class="mono">/m/jobs</span> on a phone. Sees only their own work, opens a
+          job, fills the report and signs it. Can count stock, cannot write it off.</p>
+        </div>
+        <div class="card">
+          <div class="tag">store@cimmeriancrane.example</div>
+          <h3>Storekeeper</h3>
+          <p><span class="mono">/parts</span>, <span class="mono">/parts/reorder</span>,
+          <span class="mono">/parts/locations</span>, <span class="mono">/suppliers</span>,
+          <span class="mono">/stock-takes</span> and <span class="mono">/calibrations</span>. The
+          catalogue, the ledger, purchase orders and the calibration register.</p>
+        </div>
+        <div class="card">
+          <div class="tag">finance@cimmeriancrane.example</div>
+          <h3>Finance</h3>
+          <p>Reads the whole book but writes only money: <span class="mono">/invoices</span>,
+          <span class="mono">/reports/profitability</span>,
+          <span class="mono">/reports/utilisation</span>. Cannot raise a quote or move a job.</p>
+        </div>
+        <div class="card">
+          <div class="tag">portal@cimmeriancrane.example</div>
+          <h3>Customer</h3>
+          <p>Read-only at <span class="mono">/portal</span>: their own jobs, cranes, certificates and
+          <em>approved</em> reports. No writes, and no capability that would widen the scope filter.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="screens">
+      <div class="sec-head"><h2>The screen map</h2><span class="kicker">04</span></div>
+
+      <p>Every screen is gated by one capability, and the nav shows only the links the signed-in
+      role can use. Route handlers and server actions are thin: validate with Zod, check the
+      capability, call a service, return.</p>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Screen</th><th>Route</th><th>What it is for</th><th>Gate</th></tr></thead>
+          <tbody>
+            <tr><td>Dashboard</td><td><span class="mono">/dashboard</span></td><td>The morning's questions as counts that link to the list answering each</td><td>—</td></tr>
+            <tr><td>Inbox</td><td><span class="mono">/inbox</span></td><td>Your own alerts, including a failed email or SMS with its reason</td><td><span class="mono">notification.read</span></td></tr>
+            <tr><td>Customers</td><td><span class="mono">/customers</span></td><td>Register, contracts, renewal board, CSV import</td><td><span class="mono">customer.read</span></td></tr>
+            <tr><td>Cranes</td><td><span class="mono">/cranes</span></td><td>Register and the crane page: timeline, schedules, certificates, findings, QR label</td><td><span class="mono">crane.register.read</span></td></tr>
+            <tr><td>Tickets</td><td><span class="mono">/tickets</span></td><td>Intake, triage, P1 alerts, live SLA timers</td><td><span class="mono">ticket.read</span></td></tr>
+            <tr><td>Jobs</td><td><span class="mono">/jobs</span></td><td>Every filter, six-week calendar, saved views, CSV export</td><td><span class="mono">job.read.all</span></td></tr>
+            <tr><td>Job detail</td><td><span class="mono">/jobs/[id]</span></td><td>Status machine, crew, resources, quotes, delivery orders, invoices, audit panel</td><td><span class="mono">job.read.all</span></td></tr>
+            <tr><td>Schedule</td><td><span class="mono">/schedule</span></td><td>Day/week board with drag-to-move, conflict warnings, and the driving round</td><td><span class="mono">job.schedule</span></td></tr>
+            <tr><td>Roster</td><td><span class="mono">/schedule/roster</span></td><td>Leave, on-call shifts and the hours nobody covers</td><td><span class="mono">job.schedule</span></td></tr>
+            <tr><td>Schedules</td><td><span class="mono">/schedules</span></td><td>Every crane obligation, soonest due first</td><td><span class="mono">crane.read</span></td></tr>
+            <tr><td>Certificates</td><td><span class="mono">/certificates</span></td><td>The expiring queue, overdue and 90/60/30</td><td><span class="mono">certificate.read</span></td></tr>
+            <tr><td>Calibrations</td><td><span class="mono">/calibrations</span></td><td>Test weights, load cells and vans with their calibration dates</td><td><span class="mono">resource.read</span></td></tr>
+            <tr><td>Reports</td><td><span class="mono">/reports</span></td><td>The approval queue and what was sent back</td><td><span class="mono">report.approve</span></td></tr>
+            <tr><td>Parts</td><td><span class="mono">/parts</span></td><td>Catalogue, on-hand, movements, serial and batch trace</td><td><span class="mono">part.read</span></td></tr>
+            <tr><td>Reorder</td><td><span class="mono">/parts/reorder</span></td><td>What is short, grouped by supplier, and the purchase orders</td><td><span class="mono">part.write</span></td></tr>
+            <tr><td>Stock takes</td><td><span class="mono">/stock-takes</span></td><td>Blind count, variance review, approval that posts the difference</td><td><span class="mono">stock.move</span></td></tr>
+            <tr><td>Quotes</td><td><span class="mono">/quotes</span></td><td>Offers and variations, with derived expiry</td><td><span class="mono">quote.read</span></td></tr>
+            <tr><td>Invoices</td><td><span class="mono">/invoices</span></td><td>The book of what is owed, payments, CSV export, Xero push</td><td><span class="mono">invoice.read</span></td></tr>
+            <tr><td>Reports: money</td><td><span class="mono">/reports/profitability</span><br><span class="mono">/reports/utilisation</span></td><td>Revenue against parts cost; hours against hours available</td><td><span class="mono">report.financial</span></td></tr>
+            <tr><td>Admin</td><td><span class="mono">/admin/users</span><br><span class="mono">/admin/compliance</span><br><span class="mono">/admin/sla</span><br><span class="mono">/admin/audit</span></td><td>Users, the compliance rulebook, company targets, the audit log</td><td>varies per screen</td></tr>
+            <tr><td>Technician</td><td><span class="mono">/m/jobs</span></td><td>The installable phone app: own work, report form, outbox</td><td><span class="mono">job.read.own</span></td></tr>
+            <tr><td>Portal</td><td><span class="mono">/portal</span></td><td>The customer's read-only view of their own estate</td><td><span class="mono">portal.read</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="rules">
+      <div class="sec-head"><h2>Five rules that hold the code together</h2><span class="kicker">05</span></div>
+
+      <p>Read these before writing a slice. Almost every file follows one of them, and a change that
+      breaks one is a bug even when the tests pass.</p>
+
+      <div class="cards">
+        <div class="card">
+          <h3>1. Authorization has two halves</h3>
+          <p><span class="mono">permissions.ts</span> decides <em>whether</em> a role may act;
+          <span class="mono">scope.ts</span> decides <em>which rows</em>. Every read spreads its
+          filter into the <span class="mono">where</span>. A capability without a scope filter is a
+          bug, not a shortcut.</p>
+          <pre><code>export async function listJobs(context, filters, client = db) {
+  assertCan(context, 'job.read.all')
+  return client.job.findMany({
+    where: { ...jobReadWhere(context), ...validated(filters) },
+  })
+}</code></pre>
+        </div>
+        <div class="card">
+          <h3>2. Every business write is audited</h3>
+          <p><span class="mono">withAudit()</span> runs the mutation and its audit row in one
+          transaction, recording only the fields that changed. A new entity should get its
+          <span class="mono">xxxReadWhere</span> in <span class="mono">scope.ts</span> before its
+          first service, so the fail-closed default is there from the start.</p>
+        </div>
+        <div class="card">
+          <h3>3. One function writes stock</h3>
+          <p><span class="mono">postMovement</span> in
+          <span class="mono">src/server/inventory/stock.ts</span> is the only writer of
+          <span class="mono">StockMovement</span> and the <span class="mono">StockLevel</span> it
+          moves, in the same transaction. Issuing a part on a report goes through it, so the ledger
+          and the shelf cannot disagree. Stock may go negative; a signed field report is never
+          refused over a shelf count.</p>
+        </div>
+        <div class="card">
+          <h3>4. An issued report is immutable</h3>
+          <p>The template version is stored on the report, not read from the job type at render
+          time, so an old document always re-renders as issued. Corrections are amendments linked to
+          the original with a reason. Nothing is hard-deleted: reports, certificates and audit rows
+          are archived or retired.</p>
+        </div>
+        <div class="card">
+          <h3>5. Anything the clock decides is derived on read</h3>
+          <p>Overdue schedules, certificate buckets, quote expiry, invoice paid status, on-hand,
+          a serial's whereabouts, purchase order status, stock take status, renewal badges. Nothing
+          stores a flag that a stored date could contradict, and no nightly job flips one.</p>
+        </div>
+        <div class="card">
+          <h3>Also fixed by design</h3>
+          <p>Timestamps in UTC, displayed as <span class="mono">DD/MM/YYYY</span>. Timezone, currency
+          and GST rate are settings, never constants. Compliance rules are Admin-editable data with a
+          source reference and a review date; no regulatory fact is hard-coded (see
+          <span class="mono">docs/ASSUMPTIONS-LOG.md</span> 97). Our reports are company inspections and
+          never claim to be an AE's statutory certificate.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="field">
+      <div class="sec-head"><h2>The phone, offline</h2><span class="kicker">06</span></div>
+
+      <p>The technician app is four pieces, and new work extends them rather than adding a fifth way
+      of doing the same thing.</p>
+
+      <ul class="tight">
+        <li><strong>Read layer.</strong> <span class="mono">src/server/tech/my-jobs.ts</span>. Every
+          query spreads <span class="mono">jobReadWhere(context)</span>. Another technician's job is
+          a 404, not a 403, because a 403 confirms it exists.</li>
+        <li><strong>One sync call.</strong> <span class="mono">GET /api/tech/sync</span> returns the
+          whole bundle: open jobs, cranes, checklist items, parts, site contacts and the operating
+          timezone. One request, because a phone at a site gate is the worst place to run eight.</li>
+        <li><strong>One cache.</strong> <span class="mono">src/offline/db.ts</span> (Dexie) writes
+          the bundle in a single multi-table transaction, clearing the old rows first.</li>
+        <li><strong>One component, two renderers.</strong> The server pages and the
+          <span class="mono">/offline</span> shell render the same list and job sheet. Never fork
+          them.</li>
+      </ul>
+
+      <div class="note">
+        <strong>Never lose field data.</strong> The draft lives in IndexedDB, not Postgres, until it
+        is signed. Its id is generated on the phone, so a retried sync returns the first result
+        instead of creating a second report. A rejected report stays queued with the server's reason
+        on screen.
+      </div>
+
+      <div class="note warn">
+        <strong>The service worker is off under <span class="mono">npm run dev</span>.</strong>
+        Offline behaviour is checked against <span class="mono">npm run build &amp;&amp; npm start</span>.
+        There is also no inbox tab in the phone nav yet, so a technician reaches
+        <span class="mono">/inbox</span> only from a browser.
+      </div>
+    </section>
+
+    <section id="running">
+      <div class="sec-head"><h2>Running it</h2><span class="kicker">07</span></div>
+
+      <p>Node 20.11 or newer, and either a hosted Supabase project or the bundled Docker Postgres.
+      The app lives in <span class="mono">cimmerian-crane/</span>; every command below runs from
+      there.</p>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono">npm run setup</span></td><td>Install, migrate and seed in one go</td></tr>
+            <tr><td><span class="mono">npm run dev</span></td><td>Dev server on localhost:3000</td></tr>
+            <tr><td><span class="mono">npm run dev:stop</span></td><td>Stop whatever holds the dev port (use this, not taskkill)</td></tr>
+            <tr><td><span class="mono">npm run seed</span></td><td>Demo estate and logins; idempotent</td></tr>
+            <tr><td><span class="mono">npm run verify</span></td><td>Typecheck, lint and unit tests. Fast, no database</td></tr>
+            <tr><td><span class="mono">npm run test:integration</span></td><td>Vitest against the real database</td></tr>
+            <tr><td><span class="mono">npm run test:e2e</span></td><td>Playwright, office and technician projects</td></tr>
+            <tr><td><span class="mono">npm run build</span></td><td>Production build</td></tr>
+            <tr><td><span class="mono">npm run db:studio</span></td><td>Prisma Studio, to look at rows directly</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>A slice is not done until all four gates pass: <span class="mono">verify</span>,
+      <span class="mono">test:integration</span>, <span class="mono">test:e2e</span> and
+      <span class="mono">build</span>.</p>
+
+      <p><strong>Your first hour</strong>, in this order:</p>
+      <ol class="tight">
+        <li>Sign in as the dispatcher, open <span class="mono">/dashboard</span>, and follow two
+          tiles into the lists they link to.</li>
+        <li>Open <span class="mono">/tickets</span> and look at the two seeded P1s, then a job they
+          became.</li>
+        <li>Open a crane and read its timeline, its schedules and its certificates.</li>
+        <li>Sign in as Ahmad on a phone-sized window, open <span class="mono">/m/jobs</span>, and
+          tap into a job.</li>
+        <li>Open <span class="mono">/parts</span>, filter to below reorder, then open
+          <span class="mono">/parts/reorder</span>.</li>
+      </ol>
+    </section>
+
+    <section id="reading">
+      <div class="sec-head"><h2>What to read next</h2><span class="kicker">08</span></div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>File</th><th>Answers</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono">KICKOFF.md</span></td><td>Where the build stands and what is left. Read this first in a fresh session.</td></tr>
+            <tr><td><span class="mono">CLAUDE.md</span></td><td>Conventions, stack, commands, glossary and the twelve rules that must never be violated.</td></tr>
+            <tr><td><span class="mono">docs/PLAN.md</span></td><td>Architecture, screen list, the slice tables and testing strategy.</td></tr>
+            <tr><td><span class="mono">docs/DATA-MODEL.md</span></td><td>The Prisma schema for all four phases, and the indexes the brief asks for.</td></tr>
+            <tr><td><span class="mono">docs/PLAN-SLICES.md</span></td><td>Every slice's fixed decisions as built, with its migration and known limits.</td></tr>
+            <tr><td><span class="mono">docs/ASSUMPTIONS.md</span>, <span class="mono">ASSUMPTIONS-LOG.md</span></td><td>Every place the brief was silent, what was assumed, and what it costs if wrong.</td></tr>
+            <tr><td><span class="mono">docs/SLICES.md</span></td><td>What each slice added, and how to try it.</td></tr>
+            <tr><td><span class="mono">docs/HISTORY.md</span></td><td>The build history, the traps, and the original brief verbatim.</td></tr>
+            <tr><td><span class="mono">README.md</span></td><td>Setup, the demo accounts, deployment and troubleshooting.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The code itself reads domain-first: one folder per domain under
+      <span class="mono">src/server/</span>, one service file per feature, tests against the service
+      rather than the page.</p>
+    </section>
+
+    <section id="traps">
+      <div class="sec-head"><h2>Traps and known gaps</h2><span class="kicker">09</span></div>
+
+      <div class="cards">
+        <div class="card">
+          <h3>Things that have already cost time</h3>
+          <p>A running <span class="mono">npm run dev</span> locks the Prisma engine, so
+          <span class="mono">prisma generate</span> fails until you run
+          <span class="mono">npm run dev:stop</span> first. The e2e suite runs against the dev server,
+          so editing source mid-run hot-reloads the page under a test. Every spec imports its
+          <span class="mono">test</span> from <span class="mono">tests/e2e/fixtures.ts</span>, which
+          clears the sign-in throttle; importing Playwright directly is how the next spec breaks.</p>
+        </div>
+        <div class="card">
+          <h3>Reads inside a transaction take its client</h3>
+          <p>The pooled connection has a small limit, so a helper that opens a second connection
+          while a transaction is open deadlocks. Services pass <span class="mono">tx</span> down to
+          every helper that reads. Any new helper takes <span class="mono">client: Tx = db</span>.</p>
+        </div>
+        <div class="card">
+          <h3>Declared but not built</h3>
+          <p><span class="mono">SMS_DRIVER=twilio</span> and
+          <span class="mono">WHATSAPP_DRIVER=meta</span> fall back to the console driver with a
+          warning. No live Xero call has been made from this repository and no credentials are in it,
+          so the first real push is the real test.</p>
+        </div>
+        <div class="card">
+          <h3>Honest limits written on the screens</h3>
+          <p>Profitability costs parts only; labour is not costed, and the column says so. Utilisation
+          assumes a fixed Monday to Friday week with no holiday calendar. Route distances are
+          great-circle and drive time assumes 30 km/h. The SLA filter runs in memory over a
+          2,000-row cap.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    Written for engineers joining this codebase. Everything here is drawn from
+    <span class="mono">KICKOFF.md</span>, <span class="mono">CLAUDE.md</span>, the two documents in
+    <span class="mono">docs/</span> and the routes themselves; where this page and those files
+    disagree, they win.
+  </div>
+</footer>

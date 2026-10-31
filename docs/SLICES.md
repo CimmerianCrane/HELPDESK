@@ -6,31 +6,34 @@ of what each one added and what to click. Canonical decisions stay in `docs/PLAN
 
 ## Slice 39 — the Service Report
 
-- **The paper Service Report is now a screen on the job.** A job type flagged `isServiceReport` (the seeded **PM**
-  type is the only one) turns the technician's checklist into **Component grades**: every line carries a 1–5 condition
-  rating — 5 As new, 4 Good, 3 Serviceable, 2 Repair soon, 1 Failed — and a short comment saying what needs replacing
-  or what is damaged. A line left ungraded reads "not graded yet", never 0.
-- **Every answered line must be graded before it can be submitted.** A line counts as answered when it has a result,
-  a measurement or a note, so a checklist line the technician never touched does not have to be judged. Pressing Submit
-  with one left ungraded is refused with "Grade every component you recorded — 1 line(s) still ungraded."
-- **An approved Service Report is numbered `SR<yy><mm><nnn>`** — `SR2606001` is the first of June 2026 — instead of
-  `RPT-2026-0004`. `RPT-…` numbering for every other report is untouched.
-- **The number uses the month of approval, in the operating timezone.** The monthly counter is a `DocumentSequence` row
-  keyed `SR:2606`, so it restarts each month without a new table, and two approvals in the same month cannot share one.
-- **Old reports still say what was signed.** Each grade is stored under the reserved `grades` key of `Report.data`
-  keyed by `ChecklistItem.code`, with the line's **wording snapshotted at submission** — so an issued report re-renders
-  exactly as signed even after the checklist template is superseded.
-- **The office and the PDF both read it worst-first.** The report page gains a **Component grades** card and the issued
-  PDF a **Component grades (1–5)** table, both sorted 1 → 5, so a Failed line is the first thing on the page.
-- **One column, one migration.** `JobType.isServiceReport` (default `false`, seeded on `PM`); the counter reuses
-  `DocumentSequence`. A second servicing type is a row, not a code change.
+- **Two documents, and the app now does both.** The **Servicing checklist form** is what a technician fills in at the
+  site, per crane: every component graded **1–5** — 5 As new, 4 Good, 3 Serviceable, 2 Repair soon, 1 Failed — with a
+  short comment saying what is damaged or needs replacing. A line left alone reads "not graded yet", never 0.
+- **The Service Report is what the visit issues.** On `/jobs/[id]` a **Service Report** panel turns the graded
+  checklists into prose — a section per crane, a paragraph per part, worst first — which the office rewords and then
+  issues. That is the document that gets the number, and the job page links its PDF.
+- **The number is `SR<yy><mm><nnn>`.** `SR2606001` is the first Service Report of June 2026. The monthly counter is a
+  `DocumentSequence` row keyed `SR:2606`, so it restarts each month and two approvals cannot share one. The per-crane
+  checklist form keeps `RPT-2026-0004` — it is a working record, not an issued document.
+- **The number uses the approval month, in the operating timezone.** A visit on 31 May approved on 1 June is June's
+  first.
+- **Every answered checklist line must be graded before the form can be submitted.** Answered means a result, a
+  measurement or a note, so a line nobody touched need not be judged. Submit is refused with "Grade every component
+  you recorded — 1 line(s) still ungraded."
+- **A crane with no graded checklist blocks the Service Report**, and the job page names which crane is missing.
+- **Old documents still say what was signed.** Each grade stores the checklist line's wording at submission, and an
+  issued Service Report stores its sentences; both re-render exactly as issued even after a template is superseded.
+- **Two migrations.** `JobType.isServiceReport` (seeded on `PM`) and the `ServiceReport` table.
 - **Tests** — 4 unit tests in `tests/unit/documents.test.ts` (`SR2606001`, month padding, 3-digit overflow) and 5 in
   `tests/unit/reports.test.ts` (1–5 accepted, 0/6/2.5/−1 refused, `''` reads as ungraded, malformed JSON ignored,
-  grades survive `reportSubmitSchema`); 3 integration tests in `tests/integration/report-approval.test.ts` (SR format
-  and approval month, consecutive numbering, ungraded refusal then a graded submit that snapshots the label).
-- **Known limit** — grading is per checklist line, so a Service Report only grades what its checklist declares; a
-  component the checklist does not list has no grade box. Only the seeded `PM` type is a Service Report until the
-  office adds another.
+  grades survive `reportSubmitSchema`); 7 in `tests/unit/service-report.test.ts` (sentence wording, worst-first
+  ordering, ungraded lines and empty cranes left out, no empty sentence accepted); 3 in
+  `tests/integration/report-approval.test.ts` (the checklist form keeps `RPT-…`, ungraded refusal, label snapshot);
+  8 in `tests/integration/service-reports.test.ts` (draft built from the checklists, SR issue + PDF + lock,
+  consecutive numbering, a missing crane refused, `report.approve` enforced server-side, nothing to download before
+  issue, no report for a job type that does not issue one).
+- **Known limit** — grading is per checklist line, so a component the checklist does not declare has no grade box.
+  Only the seeded `PM` type issues one. A Service Report has no amendment path: once issued it refuses edits.
 
 ## Slice 38 — the notification inbox
 

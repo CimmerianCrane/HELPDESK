@@ -10,7 +10,7 @@ record behind it is split into the files below so no single one is a wall of tex
 | `docs/DATA-MODEL.md` | The full Prisma schema for all four phases, and the index set |
 | `docs/PLAN-SLICES.md` | Every slice as built — its fixed decisions, migration and known limits |
 | `docs/ASSUMPTIONS.md` | Every assumption where the brief was silent (the Phase 1 set; 62+ in the log) |
-| `docs/ASSUMPTIONS-LOG.md` | Assumptions 62–238, in numeric order |
+| `docs/ASSUMPTIONS-LOG.md` | Assumptions 62–239, in numeric order |
 | `README.md` | How to run it, and deploy it |
 | `docs/SLICES.md` | What each slice added, and how to try it |
 | `docs/HISTORY.md` | The build history, the traps, and the original brief verbatim |
@@ -18,10 +18,11 @@ record behind it is split into the files below so no single one is a wall of tex
 | `docs/UI-REVIEW-FINDINGS.md` | The design review that produced it |
 
 > **Where the next session starts: finish the styling pass, then new feature work.** The feature plan
-> (§7 in `docs/PLAN.md`) is complete through slice 39. **Slice 39 — the Service Report — is built but its
-> migration is not deployed**: `npx prisma migrate deploy` (or `npm run db:deploy`) adds `JobType.isServiceReport`
-> and flips `PM`, and the three service-report integration tests will fail with *"The column
-> `isServiceReport` does not exist in the current database"* until it runs. The owner reviewed every screen on 31 October
+> (§7 in `docs/PLAN.md`) is complete through slice 39. **Slice 39 — the Service Report — is built but neither
+> migration is deployed**: `npx prisma migrate deploy` (or `npm run db:deploy`) must apply both
+> `20261031100000_service_report_grades` (adds `JobType.isServiceReport`, flips `PM`) and
+> `20261031110000_service_report_documents` (adds the `ServiceReport` table), and the service-report integration
+> tests will fail with *"The column `isServiceReport` does not exist in the current database"* until it runs. The owner reviewed every screen on 31 October
 > 2026 and rejected two things outright: **the sidebar is cluttered** and **the dashboard is not the
 > look they want**. Both were fixed, and the whole app was then restyled to the **Hi-Vis Industrial**
 > direction taken from the owner's taste board: charcoal chrome, a hazard-stripe band as the signature
@@ -31,13 +32,13 @@ record behind it is split into the files below so no single one is a wall of tex
 > See `docs/UI-REVIEW.md` §5b
 > for the settled direction, and §6 for its contrast rules.
 >
-> No new capabilities and no schema changes were made — styling, layout and information architecture only.
+> The restyle itself added no capabilities and no schema changes — styling, layout and information architecture only.
 
 ### What is left to be done (as at 31 Oct 2026)
 
-**The gates all pass** — `npm run verify` (470 unit), `npm run build`. Integration (394 before slice 39) and e2e
-were last green on the previous schema; slice 39's migration is undeployed (see above), so its three new integration
-tests are the only ones expected to fail until then.
+**The gates all pass** — `npm run verify` (477 unit), `npm run build`. Integration (394 before slice 39, 405 after)
+and e2e were last green on the previous schema; slice 39's two migrations are undeployed (see above), so its 11 new
+integration tests are the only ones expected to fail until then.
 
 **Next.js 16.4.3 (31 Oct 2026).** Upgraded from 15.5.28. What it forced:
 

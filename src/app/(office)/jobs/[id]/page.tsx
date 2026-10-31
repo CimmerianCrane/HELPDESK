@@ -45,6 +45,12 @@ import { JOB_STATUS_DESCRIPTIONS, JOB_STATUS_LABELS, ON_HOLD_REASON_LABELS } fro
 import { getJob, listJobs, metadataForJob } from '@/server/jobs/jobs'
 import { REPORT_STATUS_LABELS } from '@/server/reports/labels'
 import { reportsForJob } from '@/server/reports/reports'
+import { ServiceReportForm } from '@/components/office/service-report-form'
+import {
+  approveServiceReportAction,
+  saveServiceReportAction,
+} from './service-report/actions'
+import { serviceReportForJob } from '@/server/service-reports/service-reports'
 import { isTerminal, nextStatuses } from '@/server/jobs/status'
 import { dispatchPack } from '@/server/schedule/dispatch'
 import { listResources, listTechnicians } from '@/server/schedule/roster'
@@ -107,6 +113,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const mayWriteQuote = can(context.role, 'quote.write')
   const mayInvoice = can(context.role, 'invoice.read')
   const mayWriteInvoice = can(context.role, 'invoice.write')
+  const mayApproveReport = can(context.role, 'report.approve')
 
   const [
     jobResult,
@@ -126,6 +133,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     invoices,
     costing,
     catalogue,
+    serviceReport,
   ] = await Promise.all([
       getJob(context, id).then(
         (job) => ({ job }),
@@ -182,6 +190,9 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         : Promise.resolve({ parts: [], partsCost: 0 }),
       // The part an "awaiting parts" hold names (slice 28). Only the move form offers it.
       mayMove && can(context.role, 'part.read') ? partOptions(context) : Promise.resolve([]),
+      // The Service Report (slice 39). Only a job type that issues one has a row; the caller's own
+      // capability decides whether the panel is offered at all.
+      mayApproveReport ? serviceReportForJob(context, id) : Promise.resolve(null),
     ])
   const job = jobResult.job
 
@@ -603,6 +614,59 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           </ul>
         )}
       </section>
+
+      {serviceReport ? (
+        <section className={`${cardClass} lg:col-span-2`}>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-semibold text-ink">Service Report</h2>
+            {serviceReport.documentNumber ? (
+              <a
+                href={`/api/jobs/${job.id}/service-report/pdf`}
+                className="text-sm text-ink underline"
+              >
+                {serviceReport.documentNumber} — download the issued PDF
+              </a>
+            ) : (
+              <span className="text-sm text-muted">
+                Draft — the wording is generated from the graded checklists below and is yours to
+                edit before it is issued.
+              </span>
+            )}
+          </div>
+
+          {serviceReport.missingCranes.length > 0 && serviceReport.status !== 'APPROVED' ? (
+            <p className="mt-2 text-sm text-warn">
+              Waiting on a graded checklist for{' '}
+              {serviceReport.missingCranes.map((crane) => crane.assetTag).join(', ')}.
+            </p>
+          ) : null}
+
+          {serviceReport.cranes.length === 0 ? (
+            <p className="mt-2 text-sm text-muted">
+              Nothing graded yet. The Service Report is built from the servicing checklist forms the
+              technicians submit.
+            </p>
+          ) : (
+            <div className="mt-4">
+              <ServiceReportForm
+                saveAction={saveServiceReportAction.bind(null, job.id)}
+                approveAction={approveServiceReportAction.bind(null, job.id)}
+                editable={serviceReport.status !== 'APPROVED'}
+                cranes={serviceReport.cranes.map((crane) => ({
+                  craneId: crane.craneId,
+                  assetTag: crane.assetTag,
+                  type: crane.type,
+                  paragraphs: crane.paragraphs.map((paragraph) => ({
+                    component: paragraph.component,
+                    grade: paragraph.grade,
+                    text: paragraph.text,
+                  })),
+                }))}
+              />
+            </div>
+          )}
+        </section>
+      ) : null}
 
       {can(context.role, 'part.read') ? (
         <section className={cardClass}>

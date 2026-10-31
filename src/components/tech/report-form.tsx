@@ -525,11 +525,12 @@ export function ReportForm({
       {job.checklist.length > 0 && (
         <section className="rounded-lg bg-panel p-4">
           <h2 className="text-base font-semibold text-ink">
-            {job.isServiceReport ? 'Component grades' : 'Checklist'}
+            {job.isServiceReport ? 'Servicing checklist' : 'Checklist'}
           </h2>
           {job.isServiceReport && (
             <p className="mt-1 text-sm text-muted">
-              Grade every line 1–5 and note anything to replace or repair. 5 is as new, 1 is failed.
+              Grade every line 1–5 and note what is damaged or needs replacing. The office turns this
+              form into the Service Report for the visit.
             </p>
           )}
           <div className="mt-3 space-y-5">

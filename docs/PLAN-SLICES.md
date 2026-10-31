@@ -1250,54 +1250,64 @@ notification**, which is the rule-6 reading but noisy on a large backlog (see ab
 
 ## 7.25 Slice 39 — the Service Report (**built**)
 
-The owner's request: technicians already do a **Service Report** on paper — every component of the crane is graded and
-short-commented ("lining at 1.8 mm, replace next visit") — and numbering is `SR2606001`: `26` year, `06` month, `001`
-the month's running number. It is brought into the technician's app rather than added as a second document type.
+The owner's request: technicians already do a **Service Report** on paper. Corrected while building — the paper is two
+documents, not one:
+
+- The **Servicing checklist form** is what a technician fills in at the site, **per crane**: every component graded
+  1–5 with a short comment ("lining at 1.8 mm, replace next visit"). It is the working record — signed, no number.
+- The **Service Report** is one document for the visit. It turns those graded forms into prose, a section per crane
+  and a paragraph per part, and it is the document that is numbered `SR2606001`: `26` year, `06` month, `001` the
+  month's running number. It is issued as `SR2606001` for the first Service Report of June 2026.
 
 **Fixed decisions.**
 
-1. **A Service Report is a normal report with a flag, not a new entity.** `JobType.isServiceReport` (default `false`)
-   makes a job type's reports graded and SR-numbered. The report pipeline, approval, PDF, amendment and immutability
-   are unchanged; a second document type would have meant a second approval flow and a second PDF.
-2. **The grade is stored in `Report.data.grades`, keyed by `ChecklistItem.code`.** It sits beside the reserved
-   `checklist` key because the two are two halves of one line on the paper form. Each entry is
-   `{ grade, comment, label }`, and `label` is the checklist line's wording **snapshotted at submission** — the
-   CLAUDE.md rule-5 requirement that an issued report re-renders exactly as signed. No new table, no new column on
-   `ChecklistAnswer`.
+1. **A Servicing checklist form is a `Report`, unchanged.** One per crane, as reports already were. The job type gets
+   `JobType.isServiceReport`, which makes its reports graded. Approval, the template-version snapshot, the signature
+   and `RPT-…` numbering are untouched — a checklist form is not a numbered document.
+2. **The grades live in `Report.data.grades`, keyed by `ChecklistItem.code`.** Beside the reserved `checklist` key,
+   because the two are two halves of one line on the paper form. Each entry is `{ grade, comment, label }`, the `label`
+   snapshotted at submission so an issued checklist re-renders as signed (rule 5). No new column on `ChecklistAnswer`.
 3. **The scale is 1–5 with meaning attached.** 5 As new, 4 Good, 3 Serviceable, 2 Repair soon, 1 Failed. Ungraded is
-   `null`, never `0`, because a form that cannot tell "not looked at" from "failed" is worse than paper. The labels
-   live once in `SERVICE_GRADE_LABELS` and are used by the phone buttons, the office card and the PDF.
-4. **Every *answered* line must be graded.** Answered means a result, a measurement or a note — a checklist line left
-   completely blank need not be judged. The check is in `submitReport`, not the form, so a phone that skips it is
-   refused the same way. Grading a report whose type is not a Service Report is refused too, so grades cannot leak on
-   to an inspection report.
-5. **SR numbering happens on approval, in the approval month, via `DocumentSequence`.** The counter is one row keyed
-   `SR:<yymm>` (`SR:2606`), incremented with the same atomic `INSERT … ON CONFLICT … RETURNING` the yearly sequences
-   use, so the month rolls over by itself and two concurrent approvals cannot share a number. The year and month come
-   from the approval instant in the operating timezone, exactly as `RPT-…` does.
-6. **The office and the PDF read the grades worst-first.** A Failed line should be the first thing an approver or a
-   customer sees, so both sort 1 → 5. A grade of 1 or 2 is marked in the negative colour on the report page.
+   `null`, never `0` — a form that cannot tell "not looked at" from "failed" is worse than paper.
+4. **Every *answered* checklist line must be graded.** Answered means a result, a measurement or a note. The check is in
+   `submitReport`, so a phone that skips it is refused the same way. Grading a report whose type is not a Service
+   Report is refused too.
+5. **The Service Report is its own row, one per job** — `ServiceReport`, `@@unique([jobId])`. It belongs to the visit,
+   not to a crane: a report is signed against one crane and carries a signature; this is built from the checklists,
+   covers all of them, and its prose is editable until it is issued. Three differences that would have made one table
+   serve two documents badly.
+6. **The prose is generated from the grades and the office may reword it.** `buildServiceReportContent` writes one
+   sentence per graded part — `Hoist brake: Grade 2 of 5 — Repair soon. Lining at 1.8 mm, replace next visit.` — sorted
+   worst first, and `saveServiceReport` keeps whatever the office wrote instead. A part with no sentence is refused, so
+   an edit cannot blank one out.
+7. **SR numbering happens on `approveServiceReport`, in the approval month, via `DocumentSequence`.** The counter is one
+   row keyed `SR:<yymm>` (`SR:2606`), incremented with the same atomic `INSERT … ON CONFLICT … RETURNING` the yearly
+   sequences use. The per-crane report keeps `RPT-…`.
+8. **A crane with no graded checklist blocks the issue.** It is listed as missing on the job page and named in the
+   refusal. An ungraded checklist has not been filled in, and a report listing a crane nobody looked at is a lie.
 
-**As built.** `JobType.isServiceReport` plus migration `20261031100000_service_report_grades` (adds the column and flips
-`PM`); `formatServiceReportNumber` and `nextServiceReportNumber` in `src/server/documents/sequence.ts`;
-`SERVICE_GRADES`, `SERVICE_GRADE_LABELS`, `serviceGradesSchema` and `readGrades` in `src/lib/validation/reports.ts`,
-with the grade record spread into `reportSubmitSchema`; the answered-line gate and the label snapshot in
-`submitReport`; the numbering branch in `approveReport`; `isServiceReport` on the sync bundle's job detail so the phone
-knows offline; `grades` on the Dexie `DraftPayload`; `GradeInput` (five buttons plus a comment box) inside
-`ReportForm`; the **Component grades** card on `/reports/[id]` and the **Component grades (1–5)** table in the PDF.
-`JobType.pm.isServiceReport = true` in `prisma/seed-templates.ts`, and the seed flips it on once for existing rows.
+**As built.** `JobType.isServiceReport` (migration `…_service_report_grades`); the `grades` column contract in
+`src/lib/validation/reports.ts`; the answered-line gate and label snapshot in `submitReport`; the per-crane
+**Servicing checklist** screen (`GradeInput` in `ReportForm`) and the grade table on its PDF; the `ServiceReport` table
+and `ServiceReportStatus` (migration `…_service_report_documents`); the content contract and prose generator in
+`src/lib/validation/service-report.ts`; `serviceReportForJob`, `saveServiceReport`, `approveServiceReport` and
+`serviceReportPdfUrl` in `src/server/service-reports/service-reports.ts`; the PDF in
+`src/server/documents/service-report.ts`; the **Service Report** panel and editor on `/jobs/[id]`; the download route
+`/api/jobs/[id]/service-report/pdf`; `formatServiceReportNumber` / `nextServiceReportNumber` in
+`src/server/documents/sequence.ts`.
 
-**On the month in the number.** The number's month is the **approval** month, not the month of the site visit, because
-that is when the number is issued — the same rule `RPT-…` follows. A report signed on 31 May and approved on 1 June is
-the first of June. If the office ever wants the visit month instead, that is one line in `approveReport` (use the job's
-completion date), not a renumbering.
+**On the month in the number.** It is the **approval** month, not the visit month, because that is when the number is
+issued — the rule `RPT-…` follows too. If the office wants the visit month instead, that is one line in
+`approveServiceReport`.
 
 **Known limits.** Grading is per checklist line, so a component the checklist does not declare has no grade box — the
-checklist is the definition of "every component". Only `PM` is flagged; a second servicing type is a row edit. The
-migration had not been applied to the hosted database when this was written (see below).
+checklist is the definition of "every component". Only `PM` is flagged. A Service Report has **no amendment path**:
+once issued it refuses edits, and correcting one means the same manual route as any other issued document until an
+amendment slice covers it. The office can edit a sentence but not add a part, change a crane or change a grade.
 
-**Migration status.** `20261031100000_service_report_grades` must be applied with `npm run db:deploy` before the three
-service-report integration tests can run against the database.
+**Migration status.** Both migrations — `20261031100000_service_report_grades` and
+`20261031110000_service_report_documents` — must be applied with `npm run db:deploy` before the integration tests can
+run against the database.
 
  `VISIBLE`/`VISIBLE_UNREAD` (the one condition the list, the badge and
 Mark all read share), `listInbox` (newest first, last 100, optional unread-only), `markNotificationRead`,

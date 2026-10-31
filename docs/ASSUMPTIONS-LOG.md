@@ -1,8 +1,8 @@
-# ASSUMPTIONS-LOG.md — assumptions 62–231, in numeric order
+# ASSUMPTIONS-LOG.md — assumptions 62–239, in numeric order
 
 The running log split out of `docs/ASSUMPTIONS.md`, which keeps the reasoning framework and the
 Phase 1 questions. Items keep the numbers they were given; a heading appears where a slice added a
-batch. Continue this list numerically — the next item is 232.
+batch. Continue this list numerically — the next item is 240.
 
 ## Slice 9 — approval, locking and PDF
 
@@ -696,11 +696,13 @@ batch. Continue this list numerically — the next item is 232.
      the badge and Mark all read share one `VISIBLE`/`VISIBLE_UNREAD` condition — in-app, or a failed delivery. An
      integration test pins it.
 
-232. **A Service Report is a report with a flag, not a second document type.** `JobType.isServiceReport` makes an
-     existing type's reports graded and SR-numbered; approval, the PDF, amendment and immutability are untouched. A
-     second document type would have meant a second approval flow, a second PDF and a second place for the rules to
-     drift. *If wrong:* the flag is one column, and unsetting it returns that type to `RPT-…` numbering; reports already
-     issued keep their numbers, because a number is never rewritten (rule 5).
+232. **The paper is two documents, and the Service Report is its own row, one per job.** The technician fills a
+     **Servicing checklist form** per crane — an ordinary `Report` whose job type carries `JobType.isServiceReport` —
+     and the visit's **Service Report** is a separate `ServiceReport` row, `@@unique([jobId])`. It belongs to the
+     visit, not to a crane: it is built from every crane's checklist, its prose is edited after submission, and it
+     carries its own `SR…` number. Folding it into the per-crane report would give one table two owners and two
+     lifecycles. *If wrong:* the row is additive and one job's reports could be re-parented to it; nothing in the
+     checklist forms changes either way.
 233. **A grade is stored in `Report.data.grades`, keyed by `ChecklistItem.code`, with the line's wording snapshotted in
      it.** It sits beside the reserved `checklist` key because the two are two halves of one paper line, and the snapshot
      is what lets an old report render exactly as signed once the checklist template is superseded (rule 5). No new
@@ -719,14 +721,20 @@ batch. Continue this list numerically — the next item is 232.
 236. **The SR number is issued on approval and carries the approval month, in the operating timezone.** `SR2606001` is
      the first Service Report approved in June 2026; a report signed 31 May and approved 1 June is June's first. This is
      the rule `RPT-…` already follows, and the number is issued once, as the document becomes immutable. *If wrong:* the
-     office would want the visit month instead — one line in `approveReport` reading the job's completion date; reports
-     already issued keep their numbers.
+     office would want the visit month instead — one line in `approveServiceReport` reading the job's completion date;
+     reports already issued keep their numbers.
 237. **The monthly counter is one `DocumentSequence` row keyed `SR:<yymm>`, not a new table or a per-month column.**
      `nextServiceReportNumber` uses the same atomic `INSERT … ON CONFLICT … RETURNING` the yearly sequences use, so the
      month rolls over by itself and two concurrent approvals cannot share a number. The key embeds the month because a
      month must restart at 001. *If wrong:* a wrong key is a row to delete while nothing has been issued against it;
      after the first issue the key is history.
-238. **Only the seeded `PM` type is a Service Report, and the flag is office-owned data, not code.**
-     `prisma/seed-templates.ts` sets it on `PM`, and the seed flips an existing row on once, never off, so an office
-     decision to unset it survives the next seed. A second servicing type is a row edit. *If wrong:* it is a boolean on
-     a row an admin changes; no code change either way.
+238. **Only the seeded `PM` type's reports are graded, and the flag is office-owned data, not code.**
+     `prisma/seed-templates.ts` sets `isServiceReport` on `PM`, and the seed flips an existing row on once, never off,
+     so an office decision to unset it survives the next seed. A second servicing type is a row edit. *If wrong:* it is
+     a boolean on a row an admin changes; no code change either way.
+239. **The office may reword the generated prose but not restructure the Service Report.** `buildServiceReportContent`
+     writes one sentence per graded part, worst first; `saveServiceReport` keeps whatever the office wrote, but a part
+     with no sentence is refused, so an edit cannot blank one out, and there is no way to add a part, change a crane or
+     change a grade. Wording is judgement; the list of parts is what the technicians inspected, and changing it after
+     the visit would make the document claim an inspection that did not happen. *If wrong:* adding or removing a part is
+     a deliberate change to the content contract and the service, not an edit the office can make on the page.

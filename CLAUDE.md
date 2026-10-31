@@ -168,7 +168,8 @@ check permission, call a service, return. Logic lives in the service, tests live
 | **Crane / asset** | The centre of the data model. Every job, report, certificate, part and reminder hangs off a crane. Each crane belongs to one site and one customer |
 | **SWL** | Safe Working Load (kg) |
 | **PM** | Preventive maintenance — scheduled servicing |
-| **Service Report** | A PM report (`JobType.isServiceReport`) where every answered checklist line is graded 1–5 with a comment. Numbered `SR<yy><mm><nnn>` — `SR2606001` is the first of June 2026 — on approval; every other report is `RPT-…`. Grades live in `Report.data.grades`, keyed by checklist code |
+| **Servicing checklist form** | The per-crane `Report` a technician submits after a PM visit (`JobType.isServiceReport` seeds this on PM). Every answered checklist line is graded 1–5 with a short comment; grades live in `Report.data.grades` keyed by `ChecklistItem.code`, with the line's wording snapshotted. Keeps its `RPT-…` number |
+| **Service Report** | Its own row, one per job (`ServiceReport`, `@@unique([jobId])`) — it belongs to the visit, not the crane. Generated as prose from the job's graded checklist forms, rewordable by the office but not restructurable. Numbered `SR<yy><mm><nnn>` — `SR2606001` is the first of June 2026 — on approval |
 | **Statutory examination** | AE-led inspection producing a *certificate*. Not the same as our inspections |
 | **Company inspection** | Work our technicians do and report on. Never called a certificate, never implies statutory status |
 | **Finding** | A defect recorded on a report; can spawn a follow-up job |

@@ -12,7 +12,6 @@ import {
   submitAmendment,
 } from '@/server/reports/approval'
 import { submitReport } from '@/server/reports/reports'
-import { zonedParts } from '@/lib/time'
 import { craneFixtures, inRolledBackTx, technicianFixture, testSuffix, type Tx } from './helpers'
 
 /**
@@ -340,7 +339,7 @@ describe('an issued report re-renders as issued', () => {
 })
 
 describe('service reports', () => {
-  it('numbers an approved service report SR<yy><mm><nnn> instead of RPT-…', async () => {
+  it('keeps the general RPT series on the per-crane report, even for a Service Report job type', async () => {
     await inRolledBackTx(async (tx) => {
       const setup = await approvalSetup(tx)
       await tx.jobType.update({
@@ -348,34 +347,10 @@ describe('service reports', () => {
         data: { isServiceReport: true },
       })
 
+      // SR2606001 belongs to the job-level Service Report (tests/integration/service-reports.test.ts).
+      // The checklist form the technician signs in per crane is a report, not the issued document.
       const result = await approveReport(setup.dispatcher, setup.reportId, {}, tx)
-      expect(result.documentNumber).toMatch(/^SR\d{2}\d{2}\d{3,}$/)
-
-      // The month in the number is the approval month in the operating zone, which is the rule the
-      // office asked for: a report signed on 31 May and approved on 1 June is the first of June.
-      const settings = await tx.setting.findUnique({ where: { key: 'timezone' } })
-      const timeZone = typeof settings?.value === 'string' ? settings.value : 'Asia/Singapore'
-      const at = zonedParts(new Date(), timeZone)
-      expect(result.documentNumber.slice(2, 6)).toBe(
-        `${String(at.year).slice(-2)}${String(at.month).padStart(2, '0')}`,
-      )
-    })
-  })
-
-  it('gives two service reports in the same month consecutive numbers', async () => {
-    await inRolledBackTx(async (tx) => {
-      const first = await approvalSetup(tx)
-      const second = await approvalSetup(tx)
-      for (const setup of [first, second]) {
-        await tx.jobType.update({
-          where: { id: setup.jobType.id },
-          data: { isServiceReport: true },
-        })
-      }
-
-      const a = await approveReport(first.dispatcher, first.reportId, {}, tx)
-      const b = await approveReport(second.dispatcher, second.reportId, {}, tx)
-      expect(Number(b.documentNumber.slice(-3)) - Number(a.documentNumber.slice(-3))).toBe(1)
+      expect(result.documentNumber).toMatch(/^RPT-\d{4}-\d{4}$/)
     })
   })
 

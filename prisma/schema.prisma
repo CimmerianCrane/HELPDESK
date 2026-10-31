@@ -151,6 +151,37 @@ enum ReportStatus {
   RETURNED
 }
 
+enum ServiceReportStatus {
+  DRAFT
+  APPROVED
+}
+
+/**
+ * The Service Report a site visit issues (slice 39).
+ * One per job, not one per crane: the technician fills a **Servicing checklist form** on each crane
+ * (`Report`, one per crane, graded 1–5), and this document turns those grades into the prose the
+ * customer files — a section per crane, a paragraph per part, and one `SR<yy><mm><nnn>` number for
+ * the visit. It is a separate row rather than a Report because it belongs to the job, has no
+ * signature of its own and a different lifecycle; see `docs/PLAN-SLICES.md` §7.25.
+ */
+model ServiceReport {
+  id             String              @id @default(uuid(7))
+  jobId          String              @unique
+  job            Job                 @relation(fields: [jobId], references: [id])
+  status         ServiceReportStatus @default(DRAFT)
+  /// The prose, edited by the office: `{ cranes: [{ craneId, assetTag, type, sections: [...] }] }`.
+  /// Written through `src/lib/validation/service-report.ts`, which is also what the PDF reads.
+  content        Json
+  documentNumber String?             @unique
+  pdfFileId      String?
+  approvedAt     DateTime?
+  approvedById   String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([status, createdAt])
+}
+
 enum FindingSeverity {
   CRITICAL
   MAJOR
@@ -776,6 +807,7 @@ model Job {
   resources        JobResource[]
   statusHistory    JobStatusHistory[]
   reports          Report[]
+  serviceReport    ServiceReport?
   certificates     Certificate[]
   stockMovements   StockMovement[]
   deliveryOrders   DeliveryOrder[]
