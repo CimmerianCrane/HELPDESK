@@ -6,6 +6,34 @@ in `docs/PLAN-SLICES.md`; the slice tables are `docs/PLAN.md` §7.2, §7.13 and 
 
 ## The last slices, as they landed
 
+> **Slice 41 — install and update without losing work (31 Oct 2026).** Three things that only show
+> up once the app is installed, and one that does not.
+>
+> 1. **`beforeinstallprompt` fires before hydration.** Chrome offers it once, as soon as the manifest
+>    loads, and never again for that navigation. A `useEffect` capture would miss it, so a small inline
+>    script in the tech layout (server-rendered, outside React) stores the event on `window`; the
+>    install card subscribes to it. With no captured event the card still renders, pointing at
+>    Chrome's own menu — the card's job is getting the app installed, and a hidden card does nothing
+>    for a browser that chose not to fire the event. It shows on `/m/jobs` only.
+> 2. **`skipWaiting: false` makes the worker's `message` listener load-bearing.** A waiting worker
+>    activates on the banner tap or when no client is open. The banner lives in the tech layout,
+>    and it reloads once on `controllerchange` — guarded by a flag, because `clientsClaim` fires that
+>    event the first time a worker takes control and reloading then would be a reload for nothing.
+>    `reloadOnOnline: false` in `next.config.ts` removes Serwist's own reload, which would have undone
+>    the point of the banner.
+> 3. **The draft is flushed on `pagehide` and `visibilitychange → hidden`.** The 1.5s debounce is the
+>    normal save; those two events close the window a reload or an update tap can open.
+> 4. **A 401 from the outbox is not a failed attempt.** `flushOutbox` returns `sessionExpired` and
+>    leaves `attempts` alone, so a finished report does not look broken after the technician signs
+>    back in. The sync line says "Session ended · Sign in again" and links to `/m/login`; Retry would
+>    only fail again. The session lifetime moved to 24h (`updateAge: 1h`) for a shift-long tablet —
+>    `getAuthContext()` still re-reads the user on every request, so a role change or deactivation
+>    still bites immediately.
+>
+> Not covered: the install and update banners are invisible under `npm run dev` (no worker), and
+> `beforeinstallprompt` does not fire in headless Chrome. The e2e test asserts the card renders,
+> dismisses, stays dismissed and does not follow into a job.
+
 > **Slice 40 — the tablet shell (31 Oct 2026).** The first of the six tablet slices in
 > `docs/PLAN-TABLET-APP.md`. Four things are worth knowing before the next one.
 >

@@ -41,7 +41,10 @@ function decoy(): Promise<string> {
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
-  session: { strategy: 'jwt', maxAge: 12 * 60 * 60 },
+  // A shift on a tablet, not a laptop session. `getAuthContext()` re-reads the user from the
+  // database on every request, so a role change or a deactivation still takes effect on the next
+  // page load; only how long a token lives changes.
+  session: { strategy: 'jwt', maxAge: 24 * 60 * 60, updateAge: 60 * 60 },
   pages: { signIn: '/login' },
 
   providers: [

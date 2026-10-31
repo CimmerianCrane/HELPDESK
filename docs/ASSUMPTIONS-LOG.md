@@ -756,3 +756,19 @@ batch. Continue this list numerically — the next item is 240.
 244. **Icons are committed PNGs from `scripts/make-icons.ts`, not SVG or build-time rendering.** Chrome accepts SVG,
      but the TWA/Play path and Android's launcher want exact raster sizes and a real maskable square, and a
      build-time image render would add Chromium to every deploy for three files. *If wrong:* re-run the script.
+245. **The install card shows even when `beforeinstallprompt` never fires.** It then points at Chrome's own
+     "Add to Home screen" instead of offering a button. The plan said to hide it; hiding it installs nothing,
+     and the fallback is the same advice a technician would get from the browser anyway. It is on `/m/jobs`
+     only and dismissal lasts 30 days. *If wrong:* one condition on the card and one e2e assertion.
+246. **A new build never activates itself.** `skipWaiting: false` and a banner that needs a tap; a closed app
+     updates on its cold start. An open report can then never ask a new build for JavaScript it did not load.
+     `reloadOnOnline` is off so Serwist cannot reload the page behind the banner's back. *If wrong:* the setting
+     and one message handler in `src/app/sw.ts`.
+247. **The session is 24h for everybody, not only installs.** Auth.js sets `maxAge` per provider, not per
+     device, so the tablet's shift-long session and the office's are the same token lifetime. The cost is
+     bounded because `getAuthContext()` re-reads the user from the database on every request: a deactivation or
+     role change still takes effect on the next page load. *If wrong:* one line in `src/server/auth/config.ts`.
+248. **A 401 from the outbox stops the run and is not counted.** A dead session would otherwise burn a finished
+     report's retry count until it read as broken once the technician signed back in. The queue stays exactly as
+     it was, and the sync line offers sign-in rather than Retry. *If wrong:* the count comes back in
+     `keepFailed` and the banner shows the upload path instead.

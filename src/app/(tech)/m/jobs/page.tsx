@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { InstallPrompt } from '@/components/tech/install-prompt'
 import { JobList } from '@/components/tech/job-list'
 import { requireAuth } from '@/server/auth/context'
 import { getSettings } from '@/server/settings/settings'
@@ -23,6 +24,8 @@ export default async function MyJobsPage() {
           {jobs.length === 1 ? '1 open job' : `${jobs.length} open jobs`}
         </p>
       </div>
+      {/* Only here, never on a report: one screen, one decision. */}
+      <InstallPrompt />
       <JobList jobs={jobs} timeZone={settings.timezone} />
     </div>
   )

@@ -23,15 +23,16 @@ record behind it is split into the files below so no single one is a wall of tex
 > written and approved: **[`docs/PLAN-TABLET-APP.md`](docs/PLAN-TABLET-APP.md)** — slices 40–45
 > (tablet shell + manifest, install/update, background sync, push, QR scanning, Play Store TWA).
 >
-> **Slice 40 is built (31 Oct 2026)** — `npm run verify` (481 unit) and `npm run build` pass, the
-> technician phone suite is green (21 passed, 1 skipped: the worker test needs a production build) and
-> the new tablet project at 800×1280 is 4/4 green. What landed: the shell widens to
-> `max-w-6xl` with two-column job cards and report form, `viewportFit: 'cover'` with safe-area padding,
-> `/m/login` + `techSignOutAction` so an expired session and a sign-out stay inside the app, a manifest
-> with `id`, `orientation: any`, PNG + maskable icons (`scripts/make-icons.ts`), Cache Storage cleared on
-> sign-out, a two-step sign-out when reports are unsent, `navigator.storage.persist()` after the first
-> sync, and a storage-specific message when a photo will not fit. **Start at slice 41** (install and
-> update without losing work) — it touches the worker, so it also needs `npm run build`.
+> **Slice 41 is built (31 Oct 2026)** — install and update without losing work, and `npm run verify`
+> (483 unit) and `npm run build` pass; the technician phone suite is green (4 passed, 1 skipped: the
+> worker test needs a production build). What landed: an **Install on this tablet** card on `/m/jobs`
+> (fed by `beforeinstallprompt`, captured by an inline script before React hydrates; it points at
+> Chrome's own menu when the event never fires; dismissal lasts 30 days), an **update banner** in the
+> tech layout backed by `skipWaiting: false` plus a `SKIP_WAITING` message in `src/app/sw.ts`,
+> `reloadOnOnline: false`, the report draft flushed on `pagehide`/`visibilitychange`, a dead session
+> from the outbox reported as "Session ended · Sign in again" (linked to `/m/login`) instead of burning
+> the report's retry count, and a 24h session. **Start at slice 42** (offline that keeps working,
+> and uploads that finish on their own) — it touches the worker, so it also needs `npm run build`.
 >
 > **Check by eye at 768, 1024 and 1280**, not only in the emulator: `md:` is exactly tablet-portrait
 > width. Slice 40 closed the old "review the technician app at 390px" item on this list below; the
@@ -66,10 +67,10 @@ dead, and both were found on 31 Oct 2026 (see `docs/HISTORY.md`):
   `npm run dev:lan` — it finds the machine's address and starts `next dev --hostname <it>`; it prints the
   URL to open on the phone. `npm run dev` is still right for desktop-only work.
 
-**The gates all pass** — `npm run verify` (481 unit, slice 40 included) and `npm run build`. E2E is green
-after slice 40: technician project 21 passed / 1 skipped (the worker test needs a production build), tablet
-project 4/4. `npm run test:integration` last ran green at slice 39 (403 tests); slice 40 touched no server
-code, so it was not re-run.
+**The gates all pass** — `npm run verify` (483 unit, slice 41 included) and `npm run build`. E2E is green
+after slice 41: technician project 4 passed / 1 skipped (the worker test needs a production build), the
+manifest test included. `npm run test:integration` last ran green at slice 39 (403 tests); slices 40–41
+touched no server code beyond the session lifetime, so it was not re-run.
 
 **Next.js 16.4.3 (31 Oct 2026).** Upgraded from 15.5.28. What it forced:
 
@@ -98,7 +99,7 @@ Work through this in order:
 2. **Review the screens not yet seen at full resolution:** `/cranes`, `/invoices`, `/tickets`,
    `/schedule`, `/reports`, `/admin`, `/quotes`, `/stock-takes`, the `(portal)` screens. (The
    technician app at 390px is covered by the phone project; the tablet at 800×1280 by the tablet
-   project — both green as at slice 40. Check 768/1024/1280 by eye.)
+   project — both green as at slice 41. Check 768/1024/1280 by eye.)
 3. **Sweep for `text-hivis` on pale surfaces** app-wide. Any yellow running text not on charcoal or on
    a hivis fill is a contrast failure (white/yellow pairing is 1.6:1).
 4. **Reconcile the UI docs** — `docs/UI-REVIEW.md` was split on 31 Oct 2026 and its earlier sections

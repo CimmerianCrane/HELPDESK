@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { newId } from '@/lib/id'
 import { calibrationWarnings, type TemplateField, type TemplateSection } from '@/lib/templates/schema'
 import {
@@ -141,6 +141,29 @@ export function ReportForm({
     }, 1500)
     return () => clearTimeout(timer)
   }, [loaded])
+
+  // The debounce above is the normal save. These are the two moments it can be beaten to the
+  // finish line: the page being hidden (a reload the update banner causes, the app being swiped
+  // away) and the page being unloaded. Dexie writes the draft in the same shape the debounce does.
+  const latest = useRef(loaded)
+  useEffect(() => {
+    latest.current = loaded
+  }, [loaded])
+  useEffect(() => {
+    const flush = () => {
+      const draft = latest.current?.draft
+      if (draft) void techDb.drafts.put({ ...draft, updatedAt: new Date().toISOString() })
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', flush)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', flush)
+    }
+  }, [])
 
   const update = useCallback((change: (draft: ReportDraft) => ReportDraft) => {
     setLoaded((current) => (current ? { ...current, draft: change(current.draft) } : current))
@@ -392,6 +415,7 @@ export function ReportForm({
       } else {
         setMessage(stillQueued.lastError ?? result.errors[0] ?? 'Still queued for upload.')
       }
+      if (result.sessionExpired) setMessage('Saved on this tablet. Sign in again to send it.')
     } finally {
       setSending(false)
     }

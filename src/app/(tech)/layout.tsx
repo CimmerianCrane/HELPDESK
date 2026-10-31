@@ -3,6 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { AppUpdate } from '@/components/tech/app-update'
 import { SyncStatus } from '@/components/tech/sync-status'
 import { TechSignOut } from '@/components/tech/tech-sign-out'
 import { SyncProvider } from '@/offline/use-tech-sync'
@@ -53,7 +54,15 @@ export default async function TechLayout({ children }: { children: ReactNode }) 
 
   return (
     <SyncProvider>
+      {/* Must run before hydration: `beforeinstallprompt` fires once and cannot be re-asked for, so
+          the event is kept for the install card to use when the technician taps. */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__techInstallPrompt=e;(window.__techInstallListeners||[]).forEach(function(f){f()})})`,
+        }}
+      />
       <div className="min-h-dvh bg-sheet">
+        <AppUpdate />
         <header className="sticky top-0 z-10 bg-anchor">
           {/* The status bar sits over the hazard band in standalone mode, so the band is pushed
               clear of it rather than being hidden by it. */}

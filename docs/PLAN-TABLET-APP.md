@@ -1,7 +1,7 @@
 # PLAN-TABLET-APP.md — the technician Android tablet app
 
 **Read this after `KICKOFF.md`.** It is the plan for turning the existing technician PWA into a
-first-class Android tablet app. As at 31 Oct 2026 **slice 40 is built**; slices 41–45 are not. The
+first-class Android tablet app. As at 31 Oct 2026 **slices 40 and 41 are built**; slices 42–45 are not. The
 work continues the numbering in `docs/PLAN.md`.
 
 ## Context
@@ -113,6 +113,11 @@ eye, not only in the emulator. Removing `'use client'` from `outbox.ts`/`db.ts` 
 ---
 
 ### Slice 41 — Install and update without losing work
+
+**Built 31 Oct 2026.** How it landed, and where this file was wrong, are in `docs/HISTORY.md` ("Slice 41 —
+install and update"). Two corrections: the install card renders even when `beforeinstallprompt` never
+fires (it points at Chrome's own menu), because a hidden card installs nothing; and the event has to be
+captured by an inline script in the tech layout, since it fires before React hydrates.
 
 **Goal:** a technician can install the app from inside it, and a new deploy reaches them without
 interrupting a report.

@@ -14,6 +14,10 @@ import type { PrecacheEntry, SerwistGlobalConfig } from 'serwist'
  *
  * `defaultCache` covers Next's App Router payloads (documents, RSC, static chunks). The fallback
  * entry is what an uncached page gets with no network.
+ *
+ * Updates are opt-in (slice 41). `skipWaiting: false` means a new worker waits until the technician
+ * taps the banner, because an installed app swaps workers silently and an open report can then ask a
+ * new build for JavaScript it never loaded. A closed app updates on its next cold start.
  */
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -25,7 +29,7 @@ declare const self: ServiceWorkerGlobalScope
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
-  skipWaiting: true,
+  skipWaiting: false,
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: defaultCache,
@@ -44,3 +48,10 @@ const serwist = new Serwist({
 })
 
 serwist.addEventListeners()
+
+// The update banner's "Update now". Only a message from the page activates the waiting worker.
+self.addEventListener('message', (event) => {
+  if ((event.data as { type?: string } | null)?.type === 'SKIP_WAITING') {
+    void self.skipWaiting()
+  }
+})

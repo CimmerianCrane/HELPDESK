@@ -190,9 +190,15 @@ development and keeping Supabase for deployment; the app does not care which one
 
 ## The technician app on a tablet
 
-The field side (`/m/…`) is installable — Chrome on an Android tablet → **Add to Home screen**, or
-the install card once slice 41 lands. It opens standalone (no browser bars), works with no signal, and
-any screen width up to a 10-inch tablet.
+The field side (`/m/…`) is installable — the **Install on this tablet** card on My Jobs, or Chrome's
+**Add to Home screen** if the card was dismissed. It opens standalone (no browser bars), works with no
+signal, and any screen width up to a 10-inch tablet.
+
+**Updates are a tap.** A new deploy shows "A newer version of the app is ready" at the top of the
+field app; until it is tapped the old build keeps serving, and the report draft is saved before the
+reload. An app that is closed updates on its next launch by itself. To check it by hand: `npm run
+build && npm start`, change a visible string, rebuild, reload — the banner should appear, the draft
+should survive the tap.
 
 **Plain HTTP is not supported.** The service worker, `getUserMedia` and `crypto.randomUUID` all need a
 secure context, so test against the deployed HTTPS URL, or `npm run build && npm start` on

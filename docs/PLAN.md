@@ -832,6 +832,11 @@ moves the gate and the sign-out to an in-scope `/m/login`, makes the manifest in
 PNG + maskable icons via `scripts/make-icons.ts`), clears Cache Storage on sign-out and asks before deleting unsent
 reports. No schema change.
 
+Slice 41 (**built** 31 Oct 2026) makes updates opt-in (`skipWaiting: false` + a banner in the tech layout) and adds
+an install card on `/m/jobs` driven by a pre-hydration `beforeinstallprompt` capture. The report form also flushes
+its draft on `pagehide`/`visibilitychange`, and an outbox 401 now reports a dead session instead of counting a failed
+attempt. No schema change.
+
 Slice 29 was taken first because the contract is the one record the app has been *shaped* around and could not enter:
 `Contract` and contract-scoped `SlaPolicy` rows existed, `createJob` already resolved them, and the customer page
 already had a disabled Contracts tab. It also gives `sla.manage` its first use.

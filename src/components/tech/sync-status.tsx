@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useTechSync } from '@/offline/use-tech-sync'
 
 /**
@@ -10,11 +11,25 @@ import { useTechSync } from '@/offline/use-tech-sync'
  * them can still be trusted.
  */
 export function SyncStatus() {
-  const { online, syncing, lastSynced, pending, error, sync } = useTechSync()
+  const { online, syncing, lastSynced, pending, error, sessionExpired, sync } = useTechSync()
 
   const stamp = lastSynced
     ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(lastSynced)
     : null
+
+  // Nothing here blames the signal when the signal is fine: an ended session is the one case the
+  // technician can act on, and a Retry button would just fail again.
+  if (sessionExpired) {
+    return (
+      <p className="flex items-center gap-2 text-xs text-hivis">
+        <span className="inline-block h-2 w-2 rounded-full bg-hivis" aria-hidden />
+        <span>Session ended</span>
+        <Link href="/m/login" className="underline underline-offset-2">
+          Sign in again
+        </Link>
+      </p>
+    )
+  }
 
   if (syncing) {
     return (

@@ -73,6 +73,27 @@ test('the manifest is installable and stays inside the phone routes', async ({ r
   }
 })
 
+test('the install card is offered in a browser tab, and only on My jobs', async ({ page }) => {
+  await signIn(page, TECHNICIAN)
+  await expect(page).toHaveURL(/\/dashboard/)
+  await page.goto('/m/jobs')
+
+  // A browser context is never standalone, so this is the state a technician arrives in.
+  await expect(page.getByText('Install on this tablet')).toBeVisible()
+
+  // Dismissed for 30 days, not for ever — and it does not follow them into a form.
+  await page.getByRole('button', { name: 'Not now' }).click()
+  await expect(page.getByText('Install on this tablet')).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByText('Install on this tablet')).toHaveCount(0)
+
+  const job = page.getByRole('link').filter({ hasText: /\d{4}\s*·/ }).first()
+  if (await job.count()) {
+    await job.click()
+    await expect(page.getByText('Install on this tablet')).toHaveCount(0)
+  }
+})
+
 test('the phone still shows the last job with the network cut', async ({ page, context }) => {
   await signIn(page, TECHNICIAN)
   await page.goto('/m/jobs')

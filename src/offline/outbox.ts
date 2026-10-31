@@ -25,6 +25,8 @@ export interface FlushResult {
   failed: number
   /** Server messages, for the sync banner. The queued work stays on the phone either way. */
   errors: string[]
+  /** The session has ended. Saying so is better than a line that reads as "no signal". */
+  sessionExpired: boolean
 }
 
 const MAX_BATCH = 20
@@ -33,6 +35,9 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : 'The upload failed.'
 }
 
+/** An upload the server refused because the session is gone, rather than because of the work. */
+class SessionExpiredError extends Error {}
+
 async function postJson(url: string, body: unknown): Promise<Record<string, unknown>> {
   const response = await fetch(url, {
     method: 'POST',
@@ -40,6 +45,9 @@ async function postJson(url: string, body: unknown): Promise<Record<string, unkn
     body: JSON.stringify(body),
   })
   const data = (await response.json().catch(() => ({}))) as Record<string, unknown>
+  if (response.status === 401 || response.status === 403) {
+    throw new SessionExpiredError('Your session has ended. Sign in again to send this report.')
+  }
   if (!response.ok) {
     throw new Error(typeof data.error === 'string' ? data.error : 'The server refused the upload.')
   }
@@ -144,7 +152,7 @@ export function flushOutbox(): Promise<FlushResult> {
 
 async function run(): Promise<FlushResult> {
   const items = await techDb.outbox.orderBy('createdAt').toArray()
-  const outcome: FlushResult = { sent: 0, failed: 0, errors: [] }
+  const outcome: FlushResult = { sent: 0, failed: 0, errors: [], sessionExpired: false }
   if (items.length === 0) return outcome
 
   for (let index = 0; index < items.length; index += MAX_BATCH) {
@@ -157,6 +165,10 @@ async function run(): Promise<FlushResult> {
       try {
         prepared.push({ item, payload: await prepare(item) })
       } catch (error) {
+        // A dead session is not this item's fault: the rest of the queue would fail the same way,
+        // and burning its retry count would make the report look broken once the technician signs
+        // back in. Nothing is counted; the queue stays exactly as it was.
+        if (error instanceof SessionExpiredError) return { ...outcome, sessionExpired: true }
         const reason = messageOf(error)
         await keepFailed(item, reason)
         outcome.failed += 1
@@ -172,6 +184,7 @@ async function run(): Promise<FlushResult> {
       })
       applied = (data.results as typeof applied) ?? []
     } catch (error) {
+      if (error instanceof SessionExpiredError) return { ...outcome, sessionExpired: true }
       // The batch never reached the server: leave it queued rather than pretending it failed
       // item by item. The next sync tries the same ids again.
       const reason = messageOf(error)

@@ -15,6 +15,12 @@ const withSerwist = withSerwistInit({
    * against `npm run build && npm start`.
    */
   disable: process.env.NODE_ENV === 'development',
+  /**
+   * Serwist reloads the page when the network comes back. `SyncProvider` already reacts to that, and
+   * a reload mid-report loses up to the autosave window — and can land on a draft the form has not
+   * finished writing.
+   */
+  reloadOnOnline: false,
   /** The offline fallback is a static page, so it is precached rather than discovered at runtime. */
   additionalPrecacheEntries: [{ url: '/offline', revision: null }],
 })

@@ -34,6 +34,8 @@ export interface TechSyncState {
   /** Reports finished on this phone and not yet accepted by the server. */
   pending: number
   error: string | null
+  /** The session has gone. The sync line links to `/m/login` rather than blaming the signal. */
+  sessionExpired: boolean
   sync: () => Promise<void>
   refreshPending: () => Promise<void>
 }
@@ -62,6 +64,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
   const [pending, setPending] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
 
   // One sync at a time. The mount sync and the "back online" event can otherwise overlap after a
   // flaky lift, and two bundles written in the wrong order would leave the older one in place.
@@ -92,6 +95,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         // empty form for a second visit.
         const flushed = await flushOutbox()
         setPending(await pendingCount())
+        if (flushed.sessionExpired) {
+          setSessionExpired(true)
+          setError('Your session has ended. Sign in again to send this report.')
+          break
+        }
         if (flushed.errors.length > 0) {
           // Deliberately not fatal: a refused report must not stop the rest of the day's work from
           // syncing, and the queue is still on the phone for the next attempt.
@@ -105,6 +113,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (!response.ok) {
           // A 401 means the session has gone; the next page load sends them to sign in. Saying so
           // here is better than silently keeping a cache the server will no longer accept.
+          setSessionExpired(response.status === 401)
           setError(
             response.status === 401
               ? 'Your session has ended. Sign in again to sync.'
@@ -116,6 +125,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         const bundle = (await response.json()) as SyncBundle
         await storeBundle(bundle)
         setLastSynced(new Date(bundle.generatedAt))
+        setSessionExpired(false)
         if (flushed.errors.length === 0) setError(null)
         // Asked after the first successful sync, not at first paint: a tablet with nothing saved
         // yet has no reason to be granted persistent storage, and asking during page load is the
@@ -166,7 +176,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   return (
     <TechSyncContext.Provider
-      value={{ online, syncing, lastSynced, pending, error, sync, refreshPending }}
+      value={{ online, syncing, lastSynced, pending, error, sessionExpired, sync, refreshPending }}
     >
       {children}
     </TechSyncContext.Provider>
