@@ -1,5 +1,6 @@
 'use client'
 
+import { newId } from '@/lib/id'
 import { useActionState, useRef, useState } from 'react'
 import {
   CERTIFICATE_TYPES,
@@ -72,7 +73,7 @@ function CertificateFileField({
       return
     }
 
-    fileId.current ??= crypto.randomUUID()
+    fileId.current ??= newId()
     setMessage(null)
     onBusyChange(true)
     try {

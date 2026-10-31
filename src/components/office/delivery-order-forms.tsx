@@ -1,5 +1,6 @@
 'use client'
 
+import { newId } from '@/lib/id'
 import { useActionState, useRef, useState } from 'react'
 import { SignaturePad } from '@/components/tech/signature-pad'
 import { formatDate } from '@/lib/format'
@@ -207,7 +208,7 @@ export function ReceiveDeliveryOrderForm({
       return
     }
 
-    idRef.current ??= crypto.randomUUID()
+    idRef.current ??= newId()
     try {
       const response = await fetch('/api/files/upload-url', {
         method: 'POST',

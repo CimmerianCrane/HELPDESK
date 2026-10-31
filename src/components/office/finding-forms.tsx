@@ -1,5 +1,6 @@
 'use client'
 
+import { newId } from '@/lib/id'
 import { useActionState, useRef, useState } from 'react'
 import { SignaturePad } from '@/components/tech/signature-pad'
 import {
@@ -206,7 +207,7 @@ export function DeclineFindingForm({
     }
 
     // One id per form, so a redraw rewrites the same File row rather than orphaning the first.
-    idRef.current ??= crypto.randomUUID()
+    idRef.current ??= newId()
     try {
       const response = await fetch('/api/files/upload-url', {
         method: 'POST',

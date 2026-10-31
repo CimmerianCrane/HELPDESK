@@ -1,5 +1,6 @@
 'use client'
 
+import { newId } from '@/lib/id'
 import { useActionState, useRef, useState } from 'react'
 import {
   CALIBRATION_UPLOAD_TYPES,
@@ -72,7 +73,7 @@ function CalibrationFileField({
       return
     }
 
-    fileId.current ??= crypto.randomUUID()
+    fileId.current ??= newId()
     setMessage(null)
     onBusyChange(true)
     try {

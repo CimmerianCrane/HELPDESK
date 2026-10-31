@@ -6,6 +6,23 @@ in `docs/PLAN-SLICES.md`; the slice tables are `docs/PLAN.md` §7.2, §7.13 and 
 
 ## The last slices, as they landed
 
+> **The blank report form on a phone (31 Oct 2026).** Two faults, both only visible on a real device
+> reaching the dev machine over the LAN, and one that survives into production.
+>
+> 1. **`crypto.randomUUID` does not exist outside a secure context.** Opening `http://192.168.x.x:3000`
+>    is not one, so the call was `undefined()` in the report form's load effect, the promise rejected
+>    with nobody catching it, and the screen sat on *"Reading the draft on this phone…"* for ever. All
+>    client ids now go through `newId()` in `src/lib/id.ts`, which falls back to `crypto.getRandomValues`
+>    (not gated) and still builds an RFC 4122 v4 id, because those ids are the server's retry key
+>    (rule 11). The load effect also has a `.catch`, so a browser fault now says so and offers a reload
+>    instead of hanging. **HTTPS is still the real answer** — plain HTTP also means no service worker, so
+>    there is no offline mode at all. Never test the phone against an `http://` IP.
+> 2. **Next 16 blocks cross-origin dev requests.** With no `allowedDevOrigins` entry, `/_next/*` from the
+>    LAN host is refused, the HMR socket fails with `ERR_INVALID_HTTP_RESPONSE`, and React never hydrates
+>    — so *every* client component (the form, the sync provider, Dexie) is dead on the device, though the
+>    server-rendered HTML looks fine. The fix is `allowedDevOrigins` in `next.config.ts` (dev only;
+>    production ignores it). Not applied yet — it needs the owner's sign-off.
+
 **All four phases are complete, and slice 39 brings the paper Service Report into the app.** Slices 0–39 are built;
 Phase 1's acceptance path still passes untouched. **The slice write-ups are in `docs/PLAN-SLICES.md`**,
 which holds §7.3–§7.12 (Phase 2), §7.13 slices 22–28 and §7.15–§7.25 (slices 29–39), each keeping the

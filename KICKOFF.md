@@ -34,6 +34,19 @@ record behind it is split into the files below so no single one is a wall of tex
 
 ### What is left to be done (as at 31 Oct 2026)
 
+**Read this before testing the technician app on a real phone.** Two faults made every phone screen
+dead, and both were found on 31 Oct 2026 (see `docs/HISTORY.md`):
+
+- **`crypto.randomUUID` needs a secure context.** The report form hung on "Reading the draft…" when
+  the phone opened the dev machine over the LAN. Fixed — client ids now use `newId()` in
+  `src/lib/id.ts`. But **plain HTTP is still not a supported way to run this**: no secure context also
+  means **no service worker and no offline mode**. Give the dev machine HTTPS (or test against the
+  deployed URL) before checking field behaviour.
+- **Next 16 needs `allowedDevOrigins` for a LAN host.** Without it `/_next/*` is refused cross-origin
+  and React never hydrates, so every client component is dead while the HTML looks fine. **Not yet
+  applied** — the config edit needs sign-off:
+  `allowedDevOrigins: ['<the dev machine's LAN host or IP>']` in `next.config.ts`.
+
 **The gates all pass** — `npm run verify` (477 unit), `npm run test:integration` (403, slice 39 included) and
 `npm run build`. E2E was last green before slice 39 and has not been re-run since the migrations were applied.
 

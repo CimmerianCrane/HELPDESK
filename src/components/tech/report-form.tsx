@@ -16,6 +16,7 @@ import {
   type LocalFile,
   type ReportDraft,
 } from '@/offline/db'
+import { newId } from '@/lib/id'
 import { flushOutbox } from '@/offline/outbox'
 import type { TechCrane, TechJobDetail } from '@/server/tech/my-jobs'
 import { SignaturePad } from './signature-pad'
@@ -63,6 +64,8 @@ export function ReportForm({
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [done, setDone] = useState(false)
   const [templateChanged, setTemplateChanged] = useState(false)
+  // Without this a failed read left the screen saying "Reading the draft…" for ever.
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // --- loading ---------------------------------------------------------------------------------
 
@@ -120,7 +123,11 @@ export function ReportForm({
           : null,
         queued,
       })
-    })()
+    })().catch((error: unknown) => {
+      // A phone whose browser cannot build an id used to sit on "Reading the draft…" for ever. A
+      // sentence and a way to reload beats that, even when the cause is the browser itself.
+      setLoadError(error instanceof Error ? error.message : 'The draft could not be read.')
+    })
   }, [crane.id, job.id, submitted, technicianName, template])
 
   // --- autosave --------------------------------------------------------------------------------
@@ -202,7 +209,7 @@ export function ReportForm({
     if (!loaded) return
     try {
       const compressed = await compressImage(file)
-      const id = crypto.randomUUID()
+      const id = newId()
       const local: LocalFile = {
         id,
         jobId: job.id,
@@ -270,7 +277,7 @@ export function ReportForm({
       return
     }
 
-    const id = currentId ?? crypto.randomUUID()
+    const id = currentId ?? newId()
     const local: LocalFile = {
       id,
       jobId: job.id,
@@ -418,6 +425,22 @@ export function ReportForm({
       <div className="rounded-xl border border-pos/40 bg-pos/10 p-4 text-pos">
         <p className="font-medium">Report sent</p>
         <p className="mt-1 text-sm">The office has it. You can head off.</p>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-xl border border-neg/40 bg-neg/10 p-4 text-neg">
+        <p className="font-medium">This phone could not open the report</p>
+        <p className="mt-1 text-sm">{loadError}</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-3 rounded-md border border-neg/40 bg-field px-3 py-1.5 text-sm font-medium text-neg"
+        >
+          Try again
+        </button>
       </div>
     )
   }
@@ -743,7 +766,7 @@ function blankDraft(
   technicianName: string,
 ): ReportDraft {
   return {
-    id: crypto.randomUUID(),
+    id: newId(),
     jobId,
     craneId,
     templateId,
