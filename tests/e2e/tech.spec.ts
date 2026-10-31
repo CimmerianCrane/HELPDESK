@@ -96,7 +96,11 @@ test('the install card is offered in a browser tab, and only on My jobs', async 
 
 test('the phone still shows the last job with the network cut', async ({ page, context }) => {
   await signIn(page, TECHNICIAN)
+  // Without this the navigation below races the sign-in, lands on `/m/login`, and the worker is
+  // still installing when the check runs — the test then skipped itself against a production build.
+  await expect(page).toHaveURL(/\/dashboard/)
   await page.goto('/m/jobs')
+  await expect(page.getByRole('heading', { name: 'My jobs' })).toBeVisible()
 
   // The worker only exists in a production build — see the note at the top.
   const registered = await page.evaluate(async () => {

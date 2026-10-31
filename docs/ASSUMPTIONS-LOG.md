@@ -1,8 +1,8 @@
-# ASSUMPTIONS-LOG.md — assumptions 62–239, in numeric order
+# ASSUMPTIONS-LOG.md — assumptions 62–251, in numeric order
 
 The running log split out of `docs/ASSUMPTIONS.md`, which keeps the reasoning framework and the
 Phase 1 questions. Items keep the numbers they were given; a heading appears where a slice added a
-batch. Continue this list numerically — the next item is 240.
+batch. Continue this list numerically — the next item is 252.
 
 ## Slice 9 — approval, locking and PDF
 
@@ -772,3 +772,15 @@ batch. Continue this list numerically — the next item is 240.
      report's retry count until it read as broken once the technician signed back in. The queue stays exactly as
      it was, and the sync line offers sign-in rather than Retry. *If wrong:* the count comes back in
      `keepFailed` and the banner shows the upload path instead.
+249. **Background Sync resolves on refusals and rejects only what can pass.** Rejecting a `sync` event tells Chrome
+     to retry with backoff, so the worker rejects only for a network error, 5xx or 429; a 401/403 or a 4xx
+     refusal resolves and tells the page instead. Retrying a permanently refused report for days wastes battery
+     and never succeeds. *If wrong:* `isRetryableError` in `src/offline/outbox.ts`, plus its unit test.
+250. **Everything outside `/m/` and `/_next/` is `NetworkOnly` in the worker.** The previous `defaultCache` set
+     cached `/api/tech/sync` (under a 24h rule) and office documents, on a worker registered at scope `/`. Losing
+     the cache costs an office page its offline view, which the plan never promised; keeping it meant serving a
+     plausible-looking stale bundle. *If wrong:* delete the first `runtimeCaching` entry in `src/app/sw.ts`.
+251. **The page stays the primary uploader.** Background Sync is Chrome-on-Android and best-effort — Doze or a
+     force-stop delays it — so `online` still flushes on the page and the worker is the fallback for a pocketed
+     tablet. Both run the same queue through one Web Lock, so ordering holds either way. *If wrong:* nothing;
+     the page path alone was already correct, and the worker is additive.

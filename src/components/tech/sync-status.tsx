@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useSyncExternalStore } from 'react'
 import { useTechSync } from '@/offline/use-tech-sync'
 
 /**
@@ -12,6 +13,14 @@ import { useTechSync } from '@/offline/use-tech-sync'
  */
 export function SyncStatus() {
   const { online, syncing, lastSynced, pending, error, sessionExpired, sync } = useTechSync()
+
+  // Read through a store rather than `window`, so the server render is fixed instead of hydrating
+  // to a different word. The subscription never changes at runtime.
+  const autoUploads = useSyncExternalStore(
+    () => () => undefined,
+    () => 'SyncManager' in window,
+    () => false,
+  )
 
   const stamp = lastSynced
     ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(lastSynced)
@@ -41,11 +50,14 @@ export function SyncStatus() {
 
   // Finished field work that has not reached the office is the one thing a technician must not miss.
   if (pending > 0) {
+    // "Waiting to upload" reads as "until you do something". Where the browser can wake the worker
+    // on its own, say so — that is what actually happens once the tablet is in a bag.
     return (
       <p className="flex items-center gap-2 text-xs text-hivis">
         <span className="inline-block h-2 w-2 rounded-full bg-hivis" aria-hidden />
         <span>
-          {pending} report{pending === 1 ? '' : 's'} waiting to upload
+          {pending} report{pending === 1 ? '' : 's'}{' '}
+          {autoUploads ? 'will upload when signal returns' : 'waiting to upload'}
         </span>
         <button type="button" onClick={() => void sync()} className="underline underline-offset-2">
           Retry

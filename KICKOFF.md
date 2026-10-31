@@ -23,9 +23,15 @@ record behind it is split into the files below so no single one is a wall of tex
 > written and approved: **[`docs/PLAN-TABLET-APP.md`](docs/PLAN-TABLET-APP.md)** — slices 40–45
 > (tablet shell + manifest, install/update, background sync, push, QR scanning, Play Store TWA).
 >
-> **Slice 41 is built (31 Oct 2026)** — install and update without losing work, and `npm run verify`
-> (483 unit) and `npm run build` pass; the technician phone suite is green (4 passed, 1 skipped: the
-> worker test needs a production build). What landed: an **Install on this tablet** card on `/m/jobs`
+> **Slice 42 is built (31 Oct 2026)** — offline that keeps working, and uploads that finish on their
+> own. `npm run verify` (486 unit) and `npm run build` pass. The worker now sends any same-origin `GET`
+> outside `/m/` and `/_next/` straight to the network (it had been caching `/api/tech/sync` and office
+> pages), and runs the outbox on a Background Sync `tech-outbox` event using the same `flushOutbox` the
+> page uses, serialised across contexts with a Web Lock. It rejects the event only for a retryable
+> failure (network, 5xx, 429) and resolves on a 401/403 or a refused report. **Start at slice 43**
+> (push when a job is dispatched) — it needs Prisma, `web-push`, and `npm run test:integration`.
+>
+> **Slice 41 is built (31 Oct 2026)** — install and update without losing work. What landed: an **Install on this tablet** card on `/m/jobs`
 > (fed by `beforeinstallprompt`, captured by an inline script before React hydrates; it points at
 > Chrome's own menu when the event never fires; dismissal lasts 30 days), an **update banner** in the
 > tech layout backed by `skipWaiting: false` plus a `SKIP_WAITING` message in `src/app/sw.ts`,
@@ -67,9 +73,10 @@ dead, and both were found on 31 Oct 2026 (see `docs/HISTORY.md`):
   `npm run dev:lan` — it finds the machine's address and starts `next dev --hostname <it>`; it prints the
   URL to open on the phone. `npm run dev` is still right for desktop-only work.
 
-**The gates all pass** — `npm run verify` (483 unit, slice 41 included) and `npm run build`. E2E is green
-after slice 41: technician project 4 passed / 1 skipped (the worker test needs a production build), the
-manifest test included. `npm run test:integration` last ran green at slice 39 (403 tests); slices 40–41
+**The gates all pass** — `npm run verify` (486 unit, slice 42 included) and `npm run build`. E2E is green
+after slice 42 against the production server: technician + tablet projects **27 passed, 0 skipped**. The
+offline worker test had been skipping itself even under a build — it navigated before the sign-in
+redirect landed — and now runs for real. `npm run test:integration` last ran green at slice 39 (403 tests); slices 40–41
 touched no server code beyond the session lifetime, so it was not re-run.
 
 **Next.js 16.4.3 (31 Oct 2026).** Upgraded from 15.5.28. What it forced:

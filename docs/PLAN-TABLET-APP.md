@@ -1,7 +1,7 @@
 # PLAN-TABLET-APP.md — the technician Android tablet app
 
 **Read this after `KICKOFF.md`.** It is the plan for turning the existing technician PWA into a
-first-class Android tablet app. As at 31 Oct 2026 **slices 40 and 41 are built**; slices 42–45 are not. The
+first-class Android tablet app. As at 31 Oct 2026 **slices 40–42 are built**; slices 43–45 are not. The
 work continues the numbering in `docs/PLAN.md`.
 
 ## Context
@@ -161,6 +161,11 @@ not the only way in.
 ---
 
 ### Slice 42 — Offline that keeps working, and uploads that finish on their own
+
+**Built 31 Oct 2026.** Landed as written. Two things worth knowing: the retry classifier was extracted
+to `isRetryableError` in `outbox.ts` so it is unit-tested rather than living in the worker, and the
+existing offline e2e had been skipping itself in production builds too (it navigated before the
+sign-in redirect landed) — that is now fixed and runs for real. Details in `docs/HISTORY.md`.
 
 **Goal:** close the real gaps in today's worker, and let a queued report upload after the tablet is
 pocketed.

@@ -1,5 +1,3 @@
-'use client'
-
 import { techDb, type OutboxItem } from './db'
 
 /**
@@ -27,6 +25,12 @@ export interface FlushResult {
   errors: string[]
   /** The session has ended. Saying so is better than a line that reads as "no signal". */
   sessionExpired: boolean
+  /**
+   * The work could succeed later without anyone doing anything: no signal, a 5xx, a 429. The worker's
+   * Background Sync listener uses this to decide whether Chrome should keep retrying. A refused
+   * report or an ended session is not retryable — retrying those for days is a battery drain.
+   */
+  retryable: boolean
 }
 
 const MAX_BATCH = 20
@@ -37,6 +41,26 @@ function messageOf(error: unknown): string {
 
 /** An upload the server refused because the session is gone, rather than because of the work. */
 class SessionExpiredError extends Error {}
+
+/** A refusal that carries its status, so the caller can tell "try again later" from "never". */
+export class SyncHttpError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.status = status
+  }
+}
+
+/**
+ * Would the same request work if it ran again a while later? Network failures (no status at all),
+ * 5xx and 429 are the browser's or the server's bad day, not a problem with the report.
+ */
+export function isRetryableError(error: unknown): boolean {
+  if (error instanceof SessionExpiredError) return false
+  if (error instanceof SyncHttpError) return error.status === 429 || error.status >= 500
+  return true
+}
 
 async function postJson(url: string, body: unknown): Promise<Record<string, unknown>> {
   const response = await fetch(url, {
@@ -49,7 +73,10 @@ async function postJson(url: string, body: unknown): Promise<Record<string, unkn
     throw new SessionExpiredError('Your session has ended. Sign in again to send this report.')
   }
   if (!response.ok) {
-    throw new Error(typeof data.error === 'string' ? data.error : 'The server refused the upload.')
+    throw new SyncHttpError(
+      typeof data.error === 'string' ? data.error : 'The server refused the upload.',
+      response.status,
+    )
   }
   return data
 }
@@ -150,9 +177,29 @@ export function flushOutbox(): Promise<FlushResult> {
   return inFlight
 }
 
+/**
+ * Background Sync can run this in the worker while a page is flushing the same queue. `inFlight`
+ * only dedupes callers inside one context, so the upload is serialised across contexts too. Fallen
+ * back to a plain run where Web Locks do not exist — the ids make a double run a no-op, it just
+ * costs an extra request.
+ */
 async function run(): Promise<FlushResult> {
+  const locks = (globalThis as { navigator?: Navigator }).navigator?.locks
+  if (!locks) return runLocked()
+  // `Promise<Promise<…>>` in lib.dom's overload for a callback that returns a promise; it flattens
+  // at runtime.
+  return locks.request('tech-outbox', () => runLocked()) as unknown as Promise<FlushResult>
+}
+
+async function runLocked(): Promise<FlushResult> {
   const items = await techDb.outbox.orderBy('createdAt').toArray()
-  const outcome: FlushResult = { sent: 0, failed: 0, errors: [], sessionExpired: false }
+  const outcome: FlushResult = {
+    sent: 0,
+    failed: 0,
+    errors: [],
+    sessionExpired: false,
+    retryable: false,
+  }
   if (items.length === 0) return outcome
 
   for (let index = 0; index < items.length; index += MAX_BATCH) {
@@ -173,6 +220,7 @@ async function run(): Promise<FlushResult> {
         await keepFailed(item, reason)
         outcome.failed += 1
         outcome.errors.push(reason)
+        if (isRetryableError(error)) outcome.retryable = true
       }
     }
     if (prepared.length === 0) continue
@@ -191,6 +239,7 @@ async function run(): Promise<FlushResult> {
       for (const { item } of prepared) await keepFailed(item, reason)
       outcome.failed += prepared.length
       outcome.errors.push(reason)
+      if (isRetryableError(error)) outcome.retryable = true
       continue
     }
 

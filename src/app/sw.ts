@@ -1,7 +1,9 @@
 /// <reference lib="webworker" />
 import { defaultCache } from '@serwist/next/worker'
-import { Serwist } from 'serwist'
+import { NetworkOnly, Serwist } from 'serwist'
 import type { PrecacheEntry, SerwistGlobalConfig } from 'serwist'
+// Relative, not `@/`: the worker is built by esbuild, and this file must not depend on the alias.
+import { flushOutbox } from '../offline/outbox'
 
 /**
  * The service worker.
@@ -18,6 +20,9 @@ import type { PrecacheEntry, SerwistGlobalConfig } from 'serwist'
  * Updates are opt-in (slice 41). `skipWaiting: false` means a new worker waits until the technician
  * taps the banner, because an installed app swaps workers silently and an open report can then ask a
  * new build for JavaScript it never loaded. A closed app updates on its next cold start.
+ *
+ * Background Sync (slice 42) runs the same `flushOutbox` the page runs, with no page open. The
+ * outbox is ordered and idempotent, so there is no second queue and no second endpoint.
  */
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -32,7 +37,22 @@ const serwist = new Serwist({
   skipWaiting: false,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: defaultCache,
+  runtimeCaching: [
+    {
+      // Everything that is neither the technician app nor a build asset goes straight to the
+      // network. `defaultCache`'s generic `apis` rule cached `/api/tech/sync` for a day (the one
+      // request that must always be fresh) and its document rules cached office pages on a worker
+      // that is registered at scope `/`. Requests that fail here surface as failures, not as
+      // plausible-looking stale data.
+      matcher({ request, url }) {
+        if (request.method !== 'GET') return false
+        if (url.origin !== self.location.origin) return false
+        return !url.pathname.startsWith('/m/') && !url.pathname.startsWith('/_next/')
+      },
+      handler: new NetworkOnly(),
+    },
+    ...defaultCache,
+  ],
   fallbacks: {
     entries: [
       {
@@ -54,4 +74,33 @@ self.addEventListener('message', (event) => {
   if ((event.data as { type?: string } | null)?.type === 'SKIP_WAITING') {
     void self.skipWaiting()
   }
+})
+
+/**
+ * Background Sync (slice 42): upload the queue after the tablet is pocketed.
+ *
+ * Rejecting the event is what tells Chrome to retry later with backoff, so it is done only when the
+ * failure could pass — no signal, a 5xx, a 429. An ended session or a refused report resolves: a
+ * dead session must not make the browser retry for days, and the technician is told instead.
+ * Best-effort by design (Doze, a force-stop); the page's `online` handler is still the main path.
+ */
+self.addEventListener('sync', (event) => {
+  const syncEvent = event as ExtendableEvent & { tag?: string }
+  if (syncEvent.tag !== 'tech-outbox') return
+
+  syncEvent.waitUntil(
+    (async () => {
+      const clients = await self.clients.matchAll({ includeUncontrolled: true })
+      // A throw from `flushOutbox` itself means the queue could not be read — also worth a retry.
+      const result = await flushOutbox()
+      for (const client of clients) {
+        client.postMessage(
+          result.sessionExpired
+            ? { type: 'tech-auth-expired' }
+            : { type: 'tech-sync-result', result },
+        )
+      }
+      if (result.retryable) throw new Error('The queue was not all sent; retry when signal returns.')
+    })(),
+  )
 })

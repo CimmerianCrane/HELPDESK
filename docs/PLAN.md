@@ -837,6 +837,11 @@ an install card on `/m/jobs` driven by a pre-hydration `beforeinstallprompt` cap
 its draft on `pagehide`/`visibilitychange`, and an outbox 401 now reports a dead session instead of counting a failed
 attempt. No schema change.
 
+Slice 42 (**built** 31 Oct 2026) puts a `NetworkOnly` rule in front of `defaultCache` for every same-origin `GET`
+outside `/m/` and `/_next/` — the worker had been caching `/api/tech/sync` and office documents — and adds a
+Background Sync `tech-outbox` listener that runs the same `flushOutbox` the page runs, under a Web Lock, rejecting
+the `sync` event only for retryable failures. No schema change and no new endpoint.
+
 Slice 29 was taken first because the contract is the one record the app has been *shaped* around and could not enter:
 `Contract` and contract-scoped `SlaPolicy` rows existed, `createJob` already resolved them, and the customer page
 already had a disabled Contracts tab. It also gives `sla.manage` its first use.

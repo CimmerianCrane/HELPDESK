@@ -11,6 +11,7 @@ import {
 } from 'react'
 import type { ReactNode } from 'react'
 import type { SyncBundle } from '@/server/tech/my-jobs'
+import { requestOutboxSync } from './background-sync'
 import { lastSyncedAt, storeBundle } from './db'
 import { flushOutbox, pendingCount } from './outbox'
 
@@ -169,10 +170,41 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // Coming back online is new work, so it syncs. It subscribes after the initial sync above so a
   // mount never triggers two bundles at once.
   useEffect(() => {
-    const onOnline = () => void sync()
+    const onOnline = () => {
+      // The page is the primary uploader, but ask the worker too: the technician may pocket the
+      // tablet before this flush gets anywhere. Chrome ignores the registration if nothing queued
+      // fails, so registering optimistically is cheap.
+      void requestOutboxSync()
+      void sync()
+    }
     window.addEventListener('online', onOnline)
     return () => window.removeEventListener('online', onOnline)
   }, [sync])
+
+  // The worker flushes the same queue with no page open. When it reports back, the line has to
+  // change: "waiting to upload" after the worker has already sent it is a lie.
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
+
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as
+        | { type?: string; result?: { errors?: string[]; sent?: number } }
+        | null
+      if (data?.type === 'tech-auth-expired') {
+        setSessionExpired(true)
+        setError('Your session has ended. Sign in again to send this report.')
+        return
+      }
+      if (data?.type !== 'tech-sync-result') return
+      void pendingCount().then(setPending)
+      const first = data.result?.errors?.[0]
+      if (first) setError(first)
+      else if (data.result?.sent) setError(null)
+    }
+
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [])
 
   return (
     <TechSyncContext.Provider

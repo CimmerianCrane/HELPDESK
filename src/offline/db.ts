@@ -1,5 +1,3 @@
-'use client'
-
 import Dexie, { type Table } from 'dexie'
 import type { ChecklistAnswer, ComponentGrade } from '@/lib/validation/reports'
 import type {
@@ -19,6 +17,9 @@ import type {
  *
  * Types are reused from the service rather than restated. A cache that drifts from the thing it
  * caches is a class of bug worth designing out, and `import type` costs nothing at runtime.
+ *
+ * Not a `'use client'` module (slice 42): the service worker imports it to flush the outbox with no
+ * page open, and a client-only marker would keep it out of the worker's build.
  */
 
 export type CachedJob = TechJobDetail

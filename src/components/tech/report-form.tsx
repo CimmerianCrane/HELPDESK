@@ -17,6 +17,7 @@ import {
   type LocalFile,
   type ReportDraft,
 } from '@/offline/db'
+import { requestOutboxSync } from '@/offline/background-sync'
 import { flushOutbox } from '@/offline/outbox'
 import type { TechCrane, TechJobDetail } from '@/server/tech/my-jobs'
 import { SignaturePad } from './signature-pad'
@@ -399,6 +400,9 @@ export function ReportForm({
       lastError: null,
     })
     setLoaded((current) => (current ? { ...current, queued: true } : current))
+    // Registered before the attempt below, so a report that fails or is queued still gets the
+    // worker's retry once the tablet has signal and no page open.
+    void requestOutboxSync()
 
     if (!navigator.onLine) {
       setMessage('Saved on this phone. It will upload when there is signal.')

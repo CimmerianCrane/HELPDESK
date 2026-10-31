@@ -62,7 +62,7 @@ vi.mock('@/offline/db', () => ({
   },
 }))
 
-const { flushOutbox } = await import('@/offline/outbox')
+const { flushOutbox, isRetryableError, SyncHttpError } = await import('@/offline/outbox')
 
 describe('flushOutbox', () => {
   it('stops on a 401 without counting the attempt against the report', async () => {
@@ -89,5 +89,36 @@ describe('flushOutbox', () => {
     expect(result.sessionExpired).toBe(false)
     expect(result.failed).toBe(1)
     expect(result.errors).toEqual(['Template changed'])
+    // A 4xx the server means is not worth the worker retrying for days.
+    expect(result.retryable).toBe(false)
+  })
+
+  it('marks a 5xx as retryable so Background Sync tries again', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ error: 'Down' }), { status: 503 })),
+    )
+
+    const result = await flushOutbox()
+
+    expect(result.failed).toBe(1)
+    expect(result.retryable).toBe(true)
+  })
+})
+
+/**
+ * Slice 42: which failures the worker should hand back to Chrome. Rejecting the `sync` event is a
+ * promise to retry, so only a failure that can pass on its own may be rejected.
+ */
+describe('isRetryableError', () => {
+  it('retries the network, 5xx and 429', () => {
+    expect(isRetryableError(new TypeError('Failed to fetch'))).toBe(true)
+    expect(isRetryableError(new SyncHttpError('Down', 500))).toBe(true)
+    expect(isRetryableError(new SyncHttpError('Slow down', 429))).toBe(true)
+  })
+
+  it('does not retry a refused report', () => {
+    // 422: the report itself is the problem and will be refused again.
+    expect(isRetryableError(new SyncHttpError('Template changed', 422))).toBe(false)
   })
 })

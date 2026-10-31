@@ -6,6 +6,31 @@ in `docs/PLAN-SLICES.md`; the slice tables are `docs/PLAN.md` §7.2, §7.13 and 
 
 ## The last slices, as they landed
 
+> **Slice 42 — offline that keeps working, and uploads that finish on their own (31 Oct 2026).**
+> The worker gains a queue and loses a cache it should never have had.
+>
+> 1. **The generic `apis` rule was silently caching `/api/tech/sync`.** That is the request the phone
+>    makes *because* it wants the truth, under a 24h expiry, in a file whose own comment said it was
+>    never cached. `defaultCache`'s document rules also cached office pages, on a worker that
+>    registers at scope `/`. One `NetworkOnly` rule now sits in front of `defaultCache` for any
+>    same-origin `GET` that is neither `/m/` nor `/_next/`. Verified in the build: after a visit to
+>    `/dashboard` the only non-asset cache entry is the `/offline` precache.
+> 2. **`sync` event, one tag, and the rejection rule is the whole design.** Rejecting a `sync` event
+>    is a promise to Chrome that retrying later can help, so only a retryable failure rejects:
+>    network errors, 5xx, 429. A 401/403 or a 4xx refusal resolves — a dead session must not make the
+>    browser retry for days. That classification lives in `outbox.ts` (`isRetryableError`), not in the
+>    worker, so it is unit-tested and the page and the worker agree.
+> 3. **Web Locks, because `inFlight` only dedupes one context.** A page flush and a worker flush are
+>    different global scopes; `navigator.locks.request('tech-outbox', …)` serialises them. Feature-
+>    detected: without it the two runs are merely wasteful, not wrong, because every id is the client's.
+> 4. **`'use client'` had to come off `db.ts` and `outbox.ts`.** Neither touches React or `window`, but
+>    the directive keeps a module out of the worker's build, and the worker now imports the outbox
+>    directly. Imported as `../offline/outbox`, not `@/`, for the same reason.
+> 5. **The offline e2e was skipping itself in production builds too.** It navigated to `/m/jobs`
+>    without awaiting the sign-in redirect, so it sometimes landed on `/m/login` while the worker was
+>    still installing, and `registration.active` was false. Every other test in the file waits; this
+>    one now does too, and it runs for real (the whole technician + tablet suite: 27 passed, 0 skipped).
+
 > **Slice 41 — install and update without losing work (31 Oct 2026).** Three things that only show
 > up once the app is installed, and one that does not.
 >
