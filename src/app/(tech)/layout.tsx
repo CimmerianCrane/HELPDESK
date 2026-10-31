@@ -39,19 +39,28 @@ export const viewport: Viewport = {
   themeColor: '#1f2328',
   width: 'device-width',
   initialScale: 1,
+  // Draw under the tablet's system bars but keep the content inside them; each edge adds its own
+  // safe-area padding below. Zoom is deliberately left enabled.
+  viewportFit: 'cover',
 }
 
 export default async function TechLayout({ children }: { children: ReactNode }) {
   const context = await getAuthContext()
-  if (!context) redirect('/login')
+  // `/m/login`, not `/login`: inside an installed app a redirect out to the website leaves the app
+  // and opens Chrome, which is the one thing an installable field app must not do.
+  if (!context) redirect('/m/login')
   if (!context.technicianId) redirect('/dashboard')
 
   return (
     <SyncProvider>
-      <div className="min-h-screen bg-sheet">
+      <div className="min-h-dvh bg-sheet">
         <header className="sticky top-0 z-10 bg-anchor">
-          <div className="hazard-band h-2" aria-hidden />
-          <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-3">
+          {/* The status bar sits over the hazard band in standalone mode, so the band is pushed
+              clear of it rather than being hidden by it. */}
+          <div className="pt-[env(safe-area-inset-top)]">
+            <div className="hazard-band h-2" aria-hidden />
+          </div>
+          <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-3 md:max-w-4xl md:px-6 lg:max-w-6xl lg:px-8">
             <div className="flex min-w-0 items-center gap-2.5">
               <Image
                 src="/cimmerian-mark.png"
@@ -72,13 +81,15 @@ export default async function TechLayout({ children }: { children: ReactNode }) 
           </div>
         </header>
 
-        <main className="mx-auto max-w-lg px-4 pt-4 pb-24">{children}</main>
+        <main className="mx-auto max-w-lg px-4 pt-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:max-w-4xl md:px-6 lg:max-w-6xl lg:px-8">
+          {children}
+        </main>
 
         <nav
           aria-label="Main"
           className="fixed inset-x-0 bottom-0 border-t border-line bg-field pb-[env(safe-area-inset-bottom)]"
         >
-          <div className="mx-auto flex max-w-lg">
+          <div className="mx-auto flex max-w-lg md:max-w-4xl lg:max-w-6xl">
             <Link
               href="/m/jobs"
               className="flex-1 border-t-2 border-hivis py-4 text-center font-medium text-ink active:bg-raised"

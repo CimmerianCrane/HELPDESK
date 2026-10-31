@@ -58,7 +58,9 @@ export function JobList({
           <h2 id={`day-${key}`} className="text-sm font-semibold text-muted">
             {key === 'undated' ? 'Waiting for a date' : dayHeading(key, today, tomorrow, list[0]!, timeZone)}
           </h2>
-          <ul className="space-y-3">
+          {/* A tablet gets two columns of cards; a phone keeps the one, because two 170px cards
+              is worse than one readable one. Shared with the offline shell, which is the point. */}
+          <ul className="space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
             {list.map((job) => (
               <li key={job.id}>
                 <Link

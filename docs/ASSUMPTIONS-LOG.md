@@ -738,3 +738,21 @@ batch. Continue this list numerically — the next item is 240.
      change a grade. Wording is judgement; the list of parts is what the technicians inspected, and changing it after
      the visit would make the document claim an inspection that did not happen. *If wrong:* adding or removing a part is
      a deliberate change to the content contract and the service, not an edit the office can make on the page.
+240. **The tablet layout is one wider column, not a two-pane router.** At `md` the shell goes to `max-w-4xl` and
+     job cards and the report form form two columns; there is no list/detail split and no sidebar. A two-pane
+     router is a parallel-route rewrite of a navigation that already works with a back tap, and it can be added
+     later without undoing this. *If wrong:* the layout is Tailwind classes on three files.
+241. **The installed app opens in `standalone`, orientation `any`.** `standalone` is the window-without-chrome the
+     owner asked for; `fullscreen` would hide the clock and battery through an eight-hour shift. Landscape is how a
+     crane gets inspected, so nothing is locked. *If wrong:* one line each in the manifest route.
+242. **The tablet's login and sign-out stay inside `/m/`.** `/m/login` reuses the website's form and server action;
+     an expired session or a sign-out lands there rather than `/login`, which is outside the manifest scope and
+     opens Chrome. The cost is that the deep link is lost — login always returns to `/m/jobs`. *If wrong:* widening
+     it means carrying `next` through the redirect the gate already computes.
+243. **Signing out clears Dexie and Cache Storage, but not an expired session.** The two-step prompt guards the
+     pending queue. An expired session cannot safely clear anything (it would delete unsent reports), so cached
+     data stays readable through the offline fallback until someone signs in. Accepted while tablets are assigned
+     to one technician. *If wrong:* the fix is per-user cache partitioning, not a bigger clear.
+244. **Icons are committed PNGs from `scripts/make-icons.ts`, not SVG or build-time rendering.** Chrome accepts SVG,
+     but the TWA/Play path and Android's launcher want exact raster sizes and a real maskable square, and a
+     build-time image render would add Chromium to every deploy for three files. *If wrong:* re-run the script.

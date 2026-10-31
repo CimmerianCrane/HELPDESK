@@ -826,6 +826,12 @@ been migrated since Phase 1 — **no migration is expected for the first slices.
 
 | **39** | **The Service Report** (**built** — see §7.25) | Two documents. The per-crane **Servicing checklist form** is a `Report` whose job type is flagged `isServiceReport` (seeded on PM): every answered checklist line is graded 1–5 with a comment and submission is refused while one is ungraded. The **Service Report** is its own row per job — prose generated from the graded forms, rewordable by the office — and only it is numbered `SR<yy><mm><nnn>` on approval. Two additive migrations; the monthly counter reuses `DocumentSequence` | `src/server/service-reports/` (new), `src/server/documents/service-report.ts`, `src/server/documents/sequence.ts`, `src/lib/validation/service-report.ts`, `src/lib/validation/reports.ts`, `src/components/tech/report-form.tsx` | §6, §7.1 |
 
+Slices **40–45** — the Android tablet app — are planned separately in [`PLAN-TABLET-APP.md`](PLAN-TABLET-APP.md).
+Slice 40 (**built** 31 Oct 2026) widens the technician shell to a tablet (`max-w-lg md:max-w-4xl lg:max-w-6xl`),
+moves the gate and the sign-out to an in-scope `/m/login`, makes the manifest installable (`id`, `orientation: any`,
+PNG + maskable icons via `scripts/make-icons.ts`), clears Cache Storage on sign-out and asks before deleting unsent
+reports. No schema change.
+
 Slice 29 was taken first because the contract is the one record the app has been *shaped* around and could not enter:
 `Contract` and contract-scoped `SlaPolicy` rows existed, `createJob` already resolved them, and the customer page
 already had a disabled Contracts tab. It also gives `sla.manage` its first use.

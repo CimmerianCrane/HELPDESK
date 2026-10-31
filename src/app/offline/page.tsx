@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: 'Offline — Cimmerian Crane' }
  */
 export default function OfflinePage() {
   return (
-    <main className="mx-auto max-w-lg px-4 py-6">
+    <main className="mx-auto max-w-lg px-4 py-6 md:max-w-4xl md:px-6 lg:max-w-6xl lg:px-8">
       <OfflineShell />
     </main>
   )

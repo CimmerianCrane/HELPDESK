@@ -150,7 +150,8 @@ database it is talking to.
 | `npm run verify` | `typecheck && lint && test` — the gate before every commit |
 | `npm run test` | Vitest unit tests — fast, no database needed |
 | `npm run test:integration` | Vitest against the real database (needs `DATABASE_URL`) |
-| `npm run test:e2e` | Playwright end-to-end |
+| `npm run test:e2e` | Playwright end-to-end (projects: `office`, `technician` at 390px, `tablet` at 800×1280) |
+| `npx tsx scripts/make-icons.ts` | Re-render the launcher PNGs from the two SVGs (once, then commit) |
 | `npm run db:migrate` | Create and apply a migration |
 | `npm run db:reset` | Drop, re-migrate and re-seed |
 | `npm run db:studio` | Prisma Studio |
@@ -184,6 +185,32 @@ effect:
 If it is still too slow for day-to-day work, the real fix is a local Postgres (`npm run db:up`) for
 development and keeping Supabase for deployment; the app does not care which one it talks to.
 
+
+---
+
+## The technician app on a tablet
+
+The field side (`/m/…`) is installable — Chrome on an Android tablet → **Add to Home screen**, or
+the install card once slice 41 lands. It opens standalone (no browser bars), works with no signal, and
+any screen width up to a 10-inch tablet.
+
+**Plain HTTP is not supported.** The service worker, `getUserMedia` and `crypto.randomUUID` all need a
+secure context, so test against the deployed HTTPS URL, or `npm run build && npm start` on
+`localhost`. `npm run dev:lan` is for checking the layout on a real device over the LAN — it gives you
+the screens, not offline mode.
+
+**Launcher icons** are committed PNGs rendered from the two SVGs in `public/icons/`. If the mark
+changes, re-run once and commit the result — it is not part of any build:
+
+```bash
+npx tsx scripts/make-icons.ts
+```
+
+**Offline QA** (production build only — the worker is off under `npm run dev` by design): sign in, open
+My Jobs, `npm run build && npm start`, then Chrome DevTools → Application → Service Workers. Cut the
+network, reload, confirm the last job still opens and a report can be filled and submitted; restore the
+network and confirm it uploads once. Signing out must clear IndexedDB **and** Cache Storage — check
+both, because a shared tablet is the normal case.
 
 ---
 
@@ -278,3 +305,5 @@ session opened before the reset, including yours if you did it yourself.
 ## What each slice added
 
 Every slice from 0 to 38, with how to try it, is in [`docs/SLICES.md`](docs/SLICES.md).
+Slices 39+ are recorded in [`KICKOFF.md`](KICKOFF.md) and [`docs/HISTORY.md`](docs/HISTORY.md); the
+tablet app (40–45) is planned in [`docs/PLAN-TABLET-APP.md`](docs/PLAN-TABLET-APP.md).

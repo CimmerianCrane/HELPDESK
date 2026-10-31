@@ -231,8 +231,14 @@ export function ReportForm({
             }
           : current,
       )
-    } catch {
-      setMessage('That photo could not be read. Try taking it again.')
+    } catch (error) {
+      // A full tablet is a different problem from a bad photo, and the fix is different too: the
+      // generic "try again" leaves a technician retaking a shot that will never fit.
+      setMessage(
+        error instanceof DOMException && error.name === 'QuotaExceededError'
+          ? 'This tablet is out of storage — sync a report to free space.'
+          : 'That photo could not be read. Try taking it again.',
+      )
     }
   }
 
@@ -453,8 +459,10 @@ export function ReportForm({
   const findingsTable = template.schema.sections.find((section) => section.key === 'findings')
 
   return (
-    <div className="space-y-5 pb-24">
-      <header className="space-y-1">
+    // Two columns on a tablet: the wide template sections span both, and the pair of short panels
+    // (Photos, Signatures) sit side by side. `items-start` keeps them from stretching to match.
+    <div className="space-y-5 pb-24 md:grid md:grid-cols-2 md:items-start md:gap-5 md:space-y-0">
+      <header className="space-y-1 md:col-span-2">
         <p className="text-sm text-muted">
           {job.number} · {template.name}
         </p>
@@ -477,14 +485,14 @@ export function ReportForm({
       </header>
 
       {templateChanged && (
-        <p className="rounded-lg border border-warn/40 bg-warn/10 p-3 text-sm text-warn">
+        <p className="rounded-lg border border-warn/40 bg-warn/10 p-3 text-sm text-warn md:col-span-2">
           The office changed this report template, so the form has started again. Anything already
           sent is unaffected.
         </p>
       )}
 
       {message && (
-        <p role="alert" className="rounded-lg border border-neg/40 bg-neg/10 p-3 text-sm text-neg">
+        <p role="alert" className="rounded-lg border border-neg/40 bg-neg/10 p-3 text-sm text-neg md:col-span-2">
           {message}
         </p>
       )}
@@ -496,7 +504,7 @@ export function ReportForm({
             ? calibrationWarnings(template.schema, draft.data, calibrationBySerial)
             : []
           return section.layout === 'table' ? (
-            <div key={section.key} className="space-y-2">
+            <div key={section.key} className="space-y-2 md:col-span-2">
               <TableSection
                 section={section}
                 rows={asRows(draft.data[section.key])}
@@ -522,7 +530,7 @@ export function ReportForm({
               )}
             </div>
           ) : (
-            <div key={section.key} className="rounded-lg bg-panel p-4">
+            <div key={section.key} className="rounded-lg bg-panel p-4 md:col-span-2">
               <h2 className="text-base font-semibold text-ink">{section.label}</h2>
               <div className="mt-3 space-y-4">
                 {section.fields.map((field) => (
@@ -546,7 +554,7 @@ export function ReportForm({
       />
 
       {job.checklist.length > 0 && (
-        <section className="rounded-lg bg-panel p-4">
+        <section className="rounded-lg bg-panel p-4 md:col-span-2">
           <h2 className="text-base font-semibold text-ink">
             {job.isServiceReport ? 'Servicing checklist' : 'Checklist'}
           </h2>
@@ -631,7 +639,7 @@ export function ReportForm({
           {findingsTable ? 'Photograph anything you raised as a finding.' : 'Anything worth showing the office.'}
         </p>
         {loaded.photos.length > 0 && (
-          <ul className="mt-3 grid grid-cols-3 gap-2">
+          <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
             {loaded.photos.map((photo) => (
               <li key={photo.id} className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -693,7 +701,7 @@ export function ReportForm({
 
         <div className="mt-5 border-t border-rule pt-4">
           <h3 className="text-sm font-medium text-ink">Customer</h3>
-          <div className="mt-2 grid grid-cols-1 gap-2">
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <input
               aria-label="Customer name"
               placeholder="Name"
@@ -737,9 +745,10 @@ export function ReportForm({
         </div>
       </section>
 
-      {/* Sits above the layout's bottom nav rather than under it, so the button is never covered. */}
-      <div className="fixed inset-x-0 bottom-16 z-20 border-t border-line bg-field p-3">
-        <div className="mx-auto max-w-lg">
+      {/* Sits above the layout's bottom nav rather than under it, so the button is never covered.
+          Measured off the nav's own safe-area padding so the two never overlap on a notched tablet. */}
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t border-line bg-field p-3">
+        <div className="mx-auto max-w-lg md:max-w-4xl lg:max-w-6xl">
           <button
             type="button"
             onClick={() => void submit()}

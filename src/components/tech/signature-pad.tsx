@@ -114,7 +114,7 @@ export function SignaturePad({
         onPointerUp={end}
         onPointerCancel={end}
         onPointerLeave={end}
-        className="mt-1 h-32 w-full touch-none rounded-lg border border-line bg-field"
+        className="mt-1 h-32 w-full touch-none rounded-lg border border-line bg-field md:h-40"
       />
       <p className="mt-1 text-xs text-muted">
         {value ? 'Signed.' : 'Sign with a finger or a stylus.'}

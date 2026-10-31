@@ -246,6 +246,16 @@ export async function cachedTimeZone(): Promise<string | null> {
  * what the last one synced — and on a shared site phone that is the normal case, not an edge one.
  */
 export async function clearCache(): Promise<void> {
+  // The service worker's own cache is part of "what this phone remembers". Clearing Dexie alone
+  // left the previous technician's `/m/` documents and RSC payloads readable in Cache Storage on a
+  // shared tablet. The worker itself stays registered — the next sign-in still needs it offline.
+  // Kept unconditional: if the browser has no Cache Storage the Dexie clear below still runs.
+  if (typeof caches !== 'undefined') {
+    const names = await caches.keys()
+    await Promise.all(names.map((name) => caches.delete(name)))
+  }
+
+
   await techDb.transaction(
     'rw',
     [

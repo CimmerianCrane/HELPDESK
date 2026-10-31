@@ -36,7 +36,18 @@ export default defineConfig({
     {
       name: 'technician',
       use: { ...devices['Pixel 7'] },
-      testIgnore: /happy-path\.spec\.ts|phase2\.spec\.ts|portal\.spec\.ts/,
+      testIgnore: /happy-path\.spec\.ts|phase2\.spec\.ts|portal\.spec\.ts|tech-tablet\.spec\.ts/,
+    },
+    // 800x1280 is tablet-portrait, the width the `md:` breakpoint has to be right at.
+    {
+      name: 'tablet',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 800, height: 1280 },
+        hasTouch: true,
+        isMobile: false,
+      },
+      testMatch: /tech-tablet\.spec\.ts/,
     },
   ],
   webServer: {

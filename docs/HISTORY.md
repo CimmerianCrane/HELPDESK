@@ -6,6 +6,31 @@ in `docs/PLAN-SLICES.md`; the slice tables are `docs/PLAN.md` §7.2, §7.13 and 
 
 ## The last slices, as they landed
 
+> **Slice 40 — the tablet shell (31 Oct 2026).** The first of the six tablet slices in
+> `docs/PLAN-TABLET-APP.md`. Four things are worth knowing before the next one.
+>
+> 1. **`/m/login` is outside the `(tech)` layout on purpose.** That layout redirects unauthenticated
+>    visitors to `/m/login`, so the login page inside it would be a redirect loop. It sits at
+>    `src/app/m/login/page.tsx` — bare route, no group — and reuses the website's `LoginForm` and
+>    `signInAction` with `next=/m/jobs`. Sign-out needed the same treatment: `signOutAction` redirects
+>    to `/login`, which is outside the manifest's `/m/` scope and would leave the app for Chrome, so
+>    `techSignOutAction` lands on `/m/login` instead. The office and portal keep the old one.
+> 2. **The icon script cannot top-level `await`.** The project is CommonJS, and `tsx` refuses a
+>    top-level await with `Top-level await is currently not supported with the "cjs" output format`.
+>    `scripts/make-icons.ts` calls `void main()` instead. The three PNGs are committed; the script is
+>    the record, not a build step.
+> 3. **`clearCache()` clears Cache Storage as well as Dexie.** Clearing Dexie alone left the previous
+>    technician's cached `/m/` documents and RSC payloads readable offline on a shared tablet. The
+>    worker stays registered — the next sign-in still needs it.
+> 4. **Sign-out with a pending report is two-step.** It flushes the outbox first (the signal may have
+>    returned), then shows a full-width prompt naming the count; only "Delete and sign out" clears.
+>    With nothing pending it is still one tap. The prompt is a panel above the bottom nav, not an
+>    inline row in the header — at 390px the header has no room to be read in.
+>
+> The tablet spec (`tests/e2e/tech-tablet.spec.ts`, `--project=tablet` at 800×1280) asserts the grid
+> tracks rather than hunting for a day of the seed that happens to hold two jobs: asserting card
+> geometry made the test skip on seeds where the technician's work came one job a day.
+
 > **The blank report form on a phone (31 Oct 2026).** Two faults, both only visible on a real device
 > reaching the dev machine over the LAN, and one that survives into production.
 >

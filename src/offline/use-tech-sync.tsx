@@ -117,6 +117,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         await storeBundle(bundle)
         setLastSynced(new Date(bundle.generatedAt))
         if (flushed.errors.length === 0) setError(null)
+        // Asked after the first successful sync, not at first paint: a tablet with nothing saved
+        // yet has no reason to be granted persistent storage, and asking during page load is the
+        // shape browsers drop or prompt on. Best-effort — a refusal only affects eviction.
+        void navigator.storage?.persist?.().catch(() => undefined)
       } while (queued.current)
     } catch {
       // A network failure is not a bug: it is the normal state of a lift shaft.

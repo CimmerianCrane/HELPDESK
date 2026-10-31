@@ -50,10 +50,27 @@ test('the manifest is installable and stays inside the phone routes', async ({ r
   expect(response.headers()['content-type']).toContain('manifest+json')
 
   const manifest = await response.json()
+  expect(manifest.id).toBe('/m/')
   expect(manifest.start_url).toBe('/m/jobs')
   expect(manifest.scope).toBe('/m/')
   expect(manifest.display).toBe('standalone')
-  expect(manifest.icons.length).toBeGreaterThan(0)
+  // Landscape is how a crane gets inspected.
+  expect(manifest.orientation).toBe('any')
+  // The shell's own colours, so the launch screen does not flash white.
+  expect(manifest.theme_color).toBe('#1f2328')
+  expect(manifest.background_color).toBe('#f5f6f7')
+
+  // PNG at the two sizes Android's launcher asks for, plus a maskable square.
+  const icons = manifest.icons as Array<{ src: string; sizes: string; type: string; purpose: string }>
+  expect(icons.some((icon) => icon.sizes === '192x192' && icon.type === 'image/png')).toBe(true)
+  expect(icons.some((icon) => icon.sizes === '512x512' && icon.type === 'image/png')).toBe(true)
+  expect(icons.some((icon) => icon.purpose === 'maskable')).toBe(true)
+
+  // Every file it names must exist — a 404 icon is an install warning, not a broken test.
+  for (const icon of icons) {
+    const head = await request.get(icon.src)
+    expect(head.status(), `${icon.src} is missing`).toBe(200)
+  }
 })
 
 test('the phone still shows the last job with the network cut', async ({ page, context }) => {
