@@ -447,6 +447,14 @@ against `npm run build && npm start`.
   app page entry found for /login`, then 500s on every dev route. Next 16 separates them natively
   (dev writes `.next/dev`), so the home-grown `distDir` switch in `next.config.ts` is gone. A build
   no longer needs the server stopped.
+- **Dev chunks are served from unhashed URLs, so a browser can outlive an upgrade.** `app-pages-internals.js`
+  carries no content hash and no version query (only `main-app.js` gets `?v=`), so a tab holding the
+  pre-upgrade build keeps running Next 15's `OuterLayoutRouter` against a Next 16 server and dies with
+  `Cannot read properties of undefined (reading 'parallelRoutes')` — an error that exists nowhere in
+  Next 16. It is the browser, not the code: clear site data and unregister any service worker (a
+  `npm start` run leaves one registered, and `npm run dev` disables *registering* but never
+  *unregisters*). Delete `.next-dev/` too — it is the dead pre-upgrade `distDir` output, and nothing
+  in the repo should reference it any more.
 - **Only one `next dev` runs at a time.** Next 16 holds a lock. A second start refuses and prints the
   running PID and its port; the first stays on 3000 and the refused one offers 3001. `npm run
   dev:stop` the old one before starting again, or you end up hunting a server on 3001.
