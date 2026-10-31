@@ -1,8 +1,8 @@
-# ASSUMPTIONS-LOG.md — assumptions 62–264, in numeric order
+# ASSUMPTIONS-LOG.md — assumptions 62–267, in numeric order
 
 The running log split out of `docs/ASSUMPTIONS.md`, which keeps the reasoning framework and the
 Phase 1 questions. Items keep the numbers they were given; a heading appears where a slice added a
-batch. Continue this list numerically — the next item is 265.
+batch. Continue this list numerically — the next item is 268.
 
 ## Slice 9 — approval, locking and PDF
 
@@ -836,3 +836,16 @@ batch. Continue this list numerically — the next item is 265.
      Where `BarcodeDetector` is absent the action does not render and the typed code box is the whole
      entry path; the parser is the part with a unit test because it is the part that can be wrong.
      *If wrong:* `detectorSupported()` in `src/components/tech/qr-scanner.tsx`.
+265. **A missing `/.well-known/assetlinks.json` is a 404, and a malformed one is a 500.** Android then
+     shows the URL bar and the website is otherwise untouched; silently answering 200 with an empty
+     statement list would hide a deployment mistake behind a passing health check. *If wrong:* the
+     two early returns in `assetLinks`, `src/lib/assetlinks.ts`.
+266. **`twa-manifest.json` is committed with placeholder `host`/`webManifestUrl`.** It is the record
+     of the build config — `orientation: any`, `startUrl: /m/jobs`, `scope: /m/`, `display:
+     standalone` — and Bubblewrap reads it as `--manifest`. The keystore and the generated `android/`
+     project are gitignored; neither may ever be committed. *If wrong:* the `.gitignore` block and the
+     placeholders in `twa-manifest.json`.
+267. **Both signing fingerprints are expected in one env var.** Play re-signs the upload, so the
+     certificate the installed app runs with differs from the one signed locally; the wrapper shows
+     the URL bar until the Play App Signing SHA-256 is appended after the first upload. *If wrong:*
+     `ANDROID_SHA256_FINGERPRINTS` in `.env.example` and the README runbook's step 4.

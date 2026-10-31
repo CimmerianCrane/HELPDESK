@@ -6,6 +6,25 @@ in `docs/PLAN-SLICES.md`; the slice tables are `docs/PLAN.md` §7.2, §7.13 and 
 
 ## The last slices, as they landed
 
+> **Slice 45 — a Play Store listing (31 Oct 2026).** The smallest slice in the plan, and the only
+> one whose remaining work is outside the repo.
+>
+> 1. **A route file may only export HTTP methods and route config.** Writing the logic directly in
+>    `src/app/api/assetlinks/route.ts` and exporting it for the test failed `next build`
+>    (`OmitWithTag<…> does not satisfy { [x: string]: never }`). The pure `assetLinks()` moved to
+>    `src/lib/assetlinks.ts`; the route is the thin handler the codebase's convention already asks
+>    for.
+> 2. **`/.well-known/` cannot be an App Router directory** — a dotted segment breaks it — so the
+>    real path is a `rewrites()` entry in `next.config.ts` to `/api/assetlinks`.
+> 3. **The fingerprint Google checks is not the one you sign with.** Play re-signs the upload, so the
+>    Play App Signing SHA-256 only appears in the console after the first upload and has to be
+>    appended to the env; until then the internal-test build shows the URL bar. The README runbook
+>    says this in order.
+> 4. **The build is a rewrite, so it needs `npm run build`** and a check against `next start`:
+>    `.well-known/assetlinks.json` returns 200 with the statement list when the two env vars are set,
+>    and 404 when they are not (so a half-configured deploy never claims the origin). Both were
+>    checked by hand; the unit test covers the pure function.
+>
 > **Slice 44 — scan a crane QR label (31 Oct 2026).** The camera replaces the keyboard, and the
 > parser moves to where both builds can see it.
 >

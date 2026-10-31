@@ -3,7 +3,15 @@ import type { NextConfig } from 'next'
 
 // Next 16 puts dev and build in separate output directories itself (`.next/dev` vs `.next`), which is
 // what the old `distDir` switch here existed to fake. Nothing to override any more.
-const nextConfig: NextConfig = {}
+const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      // Digital Asset Links must sit at this exact path; a route directory called `.well-known`
+      // would put a dot segment in the app router.
+      { source: '/.well-known/assetlinks.json', destination: '/api/assetlinks' },
+    ]
+  },
+}
 
 const withSerwist = withSerwistInit({
   swSrc: 'src/app/sw.ts',

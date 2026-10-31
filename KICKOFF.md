@@ -18,10 +18,21 @@ record behind it is split into the files below so no single one is a wall of tex
 | `docs/UI-REVIEW.md` | The Hi-Vis Industrial direction and its contrast rules — **read this before touching any screen** |
 | `docs/UI-REVIEW-FINDINGS.md` | The design review that produced it |
 
-> **Where the next session starts — the Play Store listing.** The owner's request is to ship the
-> technician side as an installable Android tablet app while the office keeps the website. Slices
-> 40–44 are built; the plan is **[`docs/PLAN-TABLET-APP.md`](docs/PLAN-TABLET-APP.md)**. **Start at
-> slice 45** (Play Store TWA).
+> **Where the next session starts — the tablet app is code-complete.** The owner's request was to
+> ship the technician side as an installable Android tablet app while the office keeps the website.
+> Slices 40–45 are all built; the plan is **[`docs/PLAN-TABLET-APP.md`](docs/PLAN-TABLET-APP.md)**.
+> Nothing in the app is waiting on code. What is left is operational: set the three VAPID vars for
+> push (see slice 43) and run the Play Store steps (slice 45).
+>
+> **Slice 45 is built (31 Oct 2026)** — the app-side half of a Play Store listing. Digital Asset
+> Links are served at `/.well-known/assetlinks.json` (a `rewrites()` entry to `/api/assetlinks`, since
+> a dotted directory breaks the App Router) from `ANDROID_PACKAGE_NAME` and
+> `ANDROID_SHA256_FINGERPRINTS`; unset is a 404, malformed is a 500. The pure builder is
+> `src/lib/assetlinks.ts` (a route file may only export HTTP methods — exporting it from the route
+> failed the build). `twa-manifest.json` is committed as the build config with placeholder host;
+> the keystore and generated `android/` project are gitignored. Verified by hand against `next start`
+> (200 with the statement list, 404 unset); `npm run verify` (495 unit) and `npm run build` pass. The
+> rest is console and signing work — the runbook is the README's "Play Store (slice 45)".
 >
 > **Slice 44 is built (31 Oct 2026)** — scan a crane QR label. A technician points the tablet at the
 > printed label and lands on that crane's report instead of typing an asset tag. What landed: the

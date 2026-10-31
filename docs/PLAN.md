@@ -848,6 +848,11 @@ share one definition, and a new `QrScanner` uses `BarcodeDetector` + `getUserMed
 opens that crane's report from the job sheet, or jumps to the other visit the crane is cached under; the report
 form verifies the label without ever switching crane. No schema change and no new dependency.
 
+Slice 45 (**built** 31 Oct 2026) is the Play Store wrapper's only app-side piece: Digital Asset Links. A public
+`/.well-known/assetlinks.json` (rewritten to `/api/assetlinks`) returns the package and every SHA-256 fingerprint from
+two optional env vars, 404s when unset, and 500s on a malformed value. `twa-manifest.json` is committed as the build
+config; the keystore and Bubblewrap's generated project are gitignored. No schema change and no new dependency.
+
 Slice 29 was taken first because the contract is the one record the app has been *shaped* around and could not enter:
 `Contract` and contract-scoped `SlaPolicy` rows existed, `createJob` already resolved them, and the customer page
 already had a disabled Contracts tab. It also gives `sla.manage` its first use.

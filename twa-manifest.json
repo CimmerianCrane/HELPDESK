@@ -1,0 +1,26 @@
+{
+  "packageId": "sg.cimmeriancrane.field",
+  "host": "REPLACE-WITH-YOUR-DEPLOYED-HOST",
+  "name": "Cimmerian Crane — Field",
+  "launcherName": "Cimmerian",
+  "display": "standalone",
+  "themeColor": "#1f2328",
+  "themeColorDark": "#1f2328",
+  "navigationColor": "#1f2328",
+  "navigationColorDark": "#1f2328",
+  "backgroundColor": "#f5f6f7",
+  "startUrl": "/m/jobs",
+  "scope": "/m/",
+  "webManifestUrl": "https://REPLACE-WITH-YOUR-DEPLOYED-HOST/m/manifest",
+  "orientation": "any",
+  "enableNotifications": true,
+  "fallbackType": "customtabs",
+  "features": {},
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
+  },
+  "generatorApp": "bubblewrap-cli",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1
+}

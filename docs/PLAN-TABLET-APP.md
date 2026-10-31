@@ -1,8 +1,9 @@
 # PLAN-TABLET-APP.md — the technician Android tablet app
 
 **Read this after `KICKOFF.md`.** It is the plan for turning the existing technician PWA into a
-first-class Android tablet app. As at 31 Oct 2026 **slices 40–44 are built**; slice 45 is not. The
-work continues the numbering in `docs/PLAN.md`.
+first-class Android tablet app. As at 31 Oct 2026 **slices 40–45 are built** — the app side is
+complete and what remains is operational (VAPID keys, Play Console). The work continues the
+numbering in `docs/PLAN.md`.
 
 ## Context
 
@@ -318,6 +319,12 @@ says so. A label printed under an old domain still resolves: only the path is re
 ---
 
 ### Slice 45 — A Play Store listing (Trusted Web Activity)
+
+**Built 31 Oct 2026.** Landed as written with two corrections: a route file may only export HTTP
+methods and route config, so the pure builder lives in `src/lib/assetlinks.ts` and the route is a
+thin handler; and the fingerprints are checked by hand against `next start` (200/404), since there is
+no database-free way to exercise a rewrite in unit tests. Details in `docs/HISTORY.md`. Everything
+after the code is Play Console work — see the README runbook.
 
 **Goal:** ship the same app as an Android App Bundle, with no second codebase.
 

@@ -37,6 +37,12 @@ const schema = z.object({
   VAPID_PRIVATE_KEY: z.string().min(1).optional(),
   VAPID_SUBJECT: z.string().min(1).optional(),
 
+  // Play Store wrapper (slice 45). Both optional: without them the asset-links route is a 404 and
+  // the website is unaffected. The fingerprints are comma-separated SHA-256s — the upload key, and
+  // the Play App Signing key once Play has re-signed the first upload.
+  ANDROID_PACKAGE_NAME: z.string().min(1).optional(),
+  ANDROID_SHA256_FINGERPRINTS: z.string().min(1).optional(),
+
   // Accounting push (slice 37). `none` leaves the CSV export as the only way money leaves the app.
   // Xero uses a custom connection: client-credentials grant, so there is no refresh token to store
   // and no tenant id — the org is the one that authorised the connection.

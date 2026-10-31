@@ -29,3 +29,9 @@ blob-report/
 next-env.d.ts
 .DS_Store
 Thumbs.db
+
+# Play Store wrapper (slice 45): signing material and Bubblewrap's generated project never are.
+# `twa-manifest.json` itself is committed as the record of the build config.
+*.keystore
+*.jks
+/android/

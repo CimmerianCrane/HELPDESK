@@ -220,6 +220,51 @@ both, because a shared tablet is the normal case.
 
 ---
 
+## Play Store (slice 45)
+
+The tablet app can be shipped as an Android App Bundle with a Trusted Web Activity — the same
+codebase, wrapped. **No app code changes are needed:** the only server-side piece is
+`/.well-known/assetlinks.json` (rendered by `src/app/api/assetlinks/route.ts`, rewritten in
+`next.config.ts`), which tells Android the wrapper may open this origin without Chrome's address bar.
+
+Everything else is console and signing work, deliberately outside the repo. **Never commit the
+keystore or Bubblewrap's generated `android/` project.**
+
+1. **Set the env** in Vercel: `ANDROID_PACKAGE_NAME` (the `packageId` in `twa-manifest.json`) and
+   `ANDROID_SHA256_FINGERPRINTS` — comma-separated. Without them the route 404s and the site works
+   as before.
+2. **Create the upload key** (Bubblewrap asks for this and writes `android.keystore`, which is
+   gitignored):
+
+   ```bash
+   npx @bubblewrap/cli init --manifest https://<host>/m/manifest --manifest <path-to-twa-manifest.json>
+   ```
+
+   Copy the manifest URL and `host` into `twa-manifest.json` first — the committed file has
+   placeholders. Get the fingerprint with:
+
+   ```bash
+   keytool -list -v -keystore android.keystore --alias android
+   ```
+
+3. **Build:** `npx @bubblewrap/cli build` produces `app-release-bundle.aab`. Upload that in Play
+   Console → Internal testing.
+4. **Add the Play App Signing fingerprint.** Play re-signs the bundle, so the certificate your
+   deployed app actually runs with is *not* the upload key. After the first upload, Play Console →
+   App integrity → App signing key certificate shows its SHA-256; append it to
+   `ANDROID_SHA256_FINGERPRINTS` and redeploy. Until then the internal-test build runs with the URL
+   bar visible.
+5. **Verify:** `curl https://<host>/.well-known/assetlinks.json` returns the package and both
+   fingerprints. Google's [Statement List Tester](https://developers.google.com/digital-asset-links/tools/generator)
+   should say "verified". Install the build from internal testing and confirm there is no URL bar.
+
+A TWA is still the web app: day-to-day changes ship as web deploys, and only the wrapper version
+itself needs a Play update. Google rejects apps that are "just a wrapped website" with no offline or
+native value — the offline mode, push and QR scanner are what answer that, so ship the wrapper only
+after the internal testing build has been used in the field.
+
+---
+
 ## Database backups
 
 The brief requires automated backups to be documented rather than implemented, because the mechanism
