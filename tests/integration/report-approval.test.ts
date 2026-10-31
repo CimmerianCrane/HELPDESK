@@ -442,7 +442,11 @@ describe('service reports', () => {
         customerDeclinedReason: null,
       }
 
-      await expect(submitReport(techContext, input, tx)).rejects.toThrow(/ungraded/)
+      await expect(submitReport(techContext, input, tx)).rejects.toMatchObject({
+        fields: {
+          grades: ['Grade every component you recorded — 1 line(s) still ungraded.'],
+        },
+      })
 
       // Graded, it goes through, and the grade is snapshotted with the line's wording.
       const submitted = await submitReport(

@@ -25,7 +25,7 @@ Service Report, is §7.25.
 > per part — which they may reword but not restructure. `approveServiceReport` issues it as `SR2606001` (year, approval
 > month, month's running number) through a `DocumentSequence` key `SR:2606`; a crane with no graded checklist blocks
 > the issue. The per-crane form keeps its `RPT-…`. **Two additive migrations**,
-> `20261031100000_service_report_grades` and `20261031110000_service_report_documents`, neither deployed yet. See
+> `20261031100000_service_report_grades` and `20261031110000_service_report_documents`, both applied on 31/10/2026. See
 > `docs/PLAN.md` §7.25.
 
 > **Slice 38 — the notification inbox.** `/inbox` is where the alerts have been going all along: every

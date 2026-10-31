@@ -1306,8 +1306,8 @@ once issued it refuses edits, and correcting one means the same manual route as 
 amendment slice covers it. The office can edit a sentence but not add a part, change a crane or change a grade.
 
 **Migration status.** Both migrations — `20261031100000_service_report_grades` and
-`20261031110000_service_report_documents` — must be applied with `npm run db:deploy` before the integration tests can
-run against the database.
+`20261031110000_service_report_documents` — were applied with `npm run db:deploy` on 31/10/2026, and the full
+integration suite passes against them.
 
  `VISIBLE`/`VISIBLE_UNREAD` (the one condition the list, the badge and
 Mark all read share), `listInbox` (newest first, last 100, optional unread-only), `markNotificationRead`,

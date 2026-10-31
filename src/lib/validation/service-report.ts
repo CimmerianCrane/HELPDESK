@@ -93,7 +93,9 @@ export function buildServiceReportContent(cranes: GradedChecklist[]): ServiceRep
             }
           }),
       }))
-      .filter((crane) => crane.paragraphs.length > 0),
+      .filter((crane) => crane.paragraphs.length > 0)
+      // Worst crane first, by its worst part — the paragraphs are already sorted, so [0] is it.
+      .sort((a, b) => (a.paragraphs[0]!.grade ?? 6) - (b.paragraphs[0]!.grade ?? 6)),
   })
 }
 

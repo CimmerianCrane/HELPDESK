@@ -18,11 +18,9 @@ record behind it is split into the files below so no single one is a wall of tex
 | `docs/UI-REVIEW-FINDINGS.md` | The design review that produced it |
 
 > **Where the next session starts: finish the styling pass, then new feature work.** The feature plan
-> (§7 in `docs/PLAN.md`) is complete through slice 39. **Slice 39 — the Service Report — is built but neither
-> migration is deployed**: `npx prisma migrate deploy` (or `npm run db:deploy`) must apply both
-> `20261031100000_service_report_grades` (adds `JobType.isServiceReport`, flips `PM`) and
-> `20261031110000_service_report_documents` (adds the `ServiceReport` table), and the service-report integration
-> tests will fail with *"The column `isServiceReport` does not exist in the current database"* until it runs. The owner reviewed every screen on 31 October
+> (§7 in `docs/PLAN.md`) is complete through slice 39. **Slice 39 — the Service Report — is built and both
+> migrations are applied (31 Oct 2026)**: `20261031100000_service_report_grades` (added `JobType.isServiceReport`,
+> flipped `PM`) and `20261031110000_service_report_documents` (added the `ServiceReport` table). The owner reviewed every screen on 31 October
 > 2026 and rejected two things outright: **the sidebar is cluttered** and **the dashboard is not the
 > look they want**. Both were fixed, and the whole app was then restyled to the **Hi-Vis Industrial**
 > direction taken from the owner's taste board: charcoal chrome, a hazard-stripe band as the signature
@@ -36,9 +34,8 @@ record behind it is split into the files below so no single one is a wall of tex
 
 ### What is left to be done (as at 31 Oct 2026)
 
-**The gates all pass** — `npm run verify` (477 unit), `npm run build`. Integration (394 before slice 39, 405 after)
-and e2e were last green on the previous schema; slice 39's two migrations are undeployed (see above), so its 11 new
-integration tests are the only ones expected to fail until then.
+**The gates all pass** — `npm run verify` (477 unit), `npm run test:integration` (403, slice 39 included) and
+`npm run build`. E2E was last green before slice 39 and has not been re-run since the migrations were applied.
 
 **Next.js 16.4.3 (31 Oct 2026).** Upgraded from 15.5.28. What it forced:
 
