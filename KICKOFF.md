@@ -7,7 +7,7 @@ record behind it is split into the files below so no single one is a wall of tex
 |---|---|
 | `CLAUDE.md` | Conventions, stack, commands, domain glossary, and the rules that must never be violated |
 | `docs/PLAN.md` | Architecture, screens, the slice tables, testing strategy, risks |
-| `docs/PLAN-TABLET-APP.md` | **The next body of work** — the Android tablet app, slices 40–45 (nothing built yet) |
+| `docs/PLAN-TABLET-APP.md` | The Android tablet app, slices 40–45 — **43 built, 44–45 left** |
 | `docs/DATA-MODEL.md` | The full Prisma schema for all four phases, and the index set |
 | `docs/PLAN-SLICES.md` | Every slice as built — its fixed decisions, migration and known limits |
 | `docs/ASSUMPTIONS.md` | Every assumption where the brief was silent (the Phase 1 set; 62+ in the log) |
@@ -18,18 +18,32 @@ record behind it is split into the files below so no single one is a wall of tex
 | `docs/UI-REVIEW.md` | The Hi-Vis Industrial direction and its contrast rules — **read this before touching any screen** |
 | `docs/UI-REVIEW-FINDINGS.md` | The design review that produced it |
 
-> **Where the next session starts — the tablet app.** The owner's next request is to ship the
-> technician side as an installable Android tablet app while the office keeps the website. The plan is
-> written and approved: **[`docs/PLAN-TABLET-APP.md`](docs/PLAN-TABLET-APP.md)** — slices 40–45
-> (tablet shell + manifest, install/update, background sync, push, QR scanning, Play Store TWA).
+> **Where the next session starts — the tablet app.** The owner's request is to ship the
+> technician side as an installable Android tablet app while the office keeps the website. Slices
+> 40–43 are built; the plan is **[`docs/PLAN-TABLET-APP.md`](docs/PLAN-TABLET-APP.md)**. Start at
+> slice 44 (QR scanning).
+>
+> **Slice 43 is built (31 Oct 2026)** — push when a job is dispatched. A technician's tablet chimes
+> with the job and site, even with the app closed; tapping it focuses the open app on that job.
+> What landed: `PushSubscription` (one migration: the table plus `WEB_PUSH` on `NotificationChannel`),
+> `web-push` + three optional VAPID env vars (push is silently off until all three are set),
+> `POST/DELETE /api/push/subscribe` through `subscribePush` / `unsubscribePush` in
+> `src/server/notify/push.ts` (a subscription always belongs to the caller; an endpoint re-registered
+> from a shared tablet is reassigned), the dispatch writing a `WEB_PUSH` row per tablet reached, `push`
+> and `notificationclick` in `src/app/sw.ts` (only `/m/` links open, `tag` is the job id so a
+> re-dispatch collapses), a **Job alerts on this tablet** card on `/m/jobs`, and sign-out dropping the
+> subscription. `web-push` is installed and `20261031120000_slice43_web_push` is applied.
+> `npm run verify` (488 unit) and `npm run build` pass; `tests/integration/push.test.ts` and
+> `schedule.test.ts` are green (41). **Push stays off until VAPID is set** — generate keys with
+> `npx web-push generate-vapid-keys` and put the three values in `.env` / Vercel; real delivery is a
+> manual device check. Slice 44 (scanning) is next.
 >
 > **Slice 42 is built (31 Oct 2026)** — offline that keeps working, and uploads that finish on their
 > own. `npm run verify` (486 unit) and `npm run build` pass. The worker now sends any same-origin `GET`
 > outside `/m/` and `/_next/` straight to the network (it had been caching `/api/tech/sync` and office
 > pages), and runs the outbox on a Background Sync `tech-outbox` event using the same `flushOutbox` the
 > page uses, serialised across contexts with a Web Lock. It rejects the event only for a retryable
-> failure (network, 5xx, 429) and resolves on a 401/403 or a refused report. **Start at slice 43**
-> (push when a job is dispatched) — it needs Prisma, `web-push`, and `npm run test:integration`.
+> failure (network, 5xx, 429) and resolves on a 401/403 or a refused report.
 >
 > **Slice 41 is built (31 Oct 2026)** — install and update without losing work. What landed: an **Install on this tablet** card on `/m/jobs`
 > (fed by `beforeinstallprompt`, captured by an inline script before React hydrates; it points at
@@ -73,11 +87,12 @@ dead, and both were found on 31 Oct 2026 (see `docs/HISTORY.md`):
   `npm run dev:lan` — it finds the machine's address and starts `next dev --hostname <it>`; it prints the
   URL to open on the phone. `npm run dev` is still right for desktop-only work.
 
-**The gates all pass** — `npm run verify` (486 unit, slice 42 included) and `npm run build`. E2E is green
+**The gates all pass** — `npm run verify` (488 unit, slice 43 included) and `npm run build`. E2E is green
 after slice 42 against the production server: technician + tablet projects **27 passed, 0 skipped**. The
 offline worker test had been skipping itself even under a build — it navigated before the sign-in
-redirect landed — and now runs for real. `npm run test:integration` last ran green at slice 39 (403 tests); slices 40–41
-touched no server code beyond the session lifetime, so it was not re-run.
+redirect landed — and now runs for real. `npm run test:integration` was green at slice 43 for the two
+files it touched (`push`, `schedule` — 41 tests); the full integration suite last ran complete at slice
+39 (403 tests).
 
 **Next.js 16.4.3 (31 Oct 2026).** Upgraded from 15.5.28. What it forced:
 

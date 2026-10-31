@@ -7,6 +7,7 @@ import { assertCan } from '@/server/auth/permissions'
 import { jobReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { emailAdapter } from '@/server/email/email'
+import { sendPushToUsers } from '@/server/notify/push'
 import { canTransition } from '@/server/jobs/status'
 import { formatDateTime } from '@/lib/format'
 import { getSettings } from '@/server/settings/settings'
@@ -409,6 +410,36 @@ export async function dispatchJob(
         results.push({ name: user.name, channel: 'IN_APP', ok: true, error: null })
         results.push({ name: user.name, channel: 'EMAIL', ok: failure === null, error: failure })
         void inApp
+      }
+
+      // The tablet (slice 43). Best-effort like email: push is the same message on a second channel,
+      // and a tablet that cannot be reached must not stop the dispatch. Only subscriptions that
+      // exist get a row — a recipient with no installed app is not a broken channel, the same rule
+      // as a dispatcher with no phone.
+      try {
+        const body = `${pack.siteName}${pack.address ? `, ${pack.address}` : ''}`
+        const outcomes = await sendPushToUsers(
+          job.technicians.map((entry) => entry.technician.userId),
+          { title: subject, body, link, tag: pack.jobId },
+          tx,
+        )
+        for (const outcome of outcomes) {
+          await tx.notification.create({
+            data: {
+              userId: outcome.userId,
+              channel: 'WEB_PUSH',
+              title: subject,
+              body,
+              jobId: pack.jobId,
+              link,
+              sentAt: outcome.ok ? new Date() : null,
+              failedAt: outcome.ok ? null : new Date(),
+              error: outcome.error,
+            },
+          })
+        }
+      } catch (error) {
+        logger.warn('dispatch.push.failed', { jobId: pack.jobId, error: errorMessage(error) })
       }
 
       // Only the first dispatch moves the status. Dispatching an already-dispatched job re-sends the

@@ -289,6 +289,7 @@ enum NotificationChannel {
   EMAIL
   SMS
   WHATSAPP
+  WEB_PUSH
 }
 
 enum AuditAction {
@@ -347,6 +348,7 @@ model User {
   notifications   Notification[]
   auditLogs       AuditLog[]
   savedJobFilters SavedJobFilter[]
+  pushSubscriptions PushSubscription[]
 
   @@index([role, isActive])
   @@index([customerId])
@@ -1473,6 +1475,28 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([jobId])
+}
+
+/// A tablet's push endpoint (slice 43). One row per browser subscription, keyed by the endpoint the
+/// push service issued: a browser that re-registers must update its keys, never add a second row.
+///
+/// `disabledAt` is a write, not a delete. When Android answers 404/410 the subscription is gone for
+/// good and is marked so it stops being sent to; the row stays as the record that this tablet used to
+/// receive dispatches. `failureCount` counts the failures before that.
+model PushSubscription {
+  id           String    @id @default(uuid(7))
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  endpoint     String    @unique
+  p256dh       String
+  auth         String
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+  lastSeenAt   DateTime  @default(now())
+  failureCount Int       @default(0)
+  disabledAt   DateTime?
+
+  @@index([userId])
 }
 
 /// A named set of job-list filters (brief §8). It is a table rather than a `Setting` row because it

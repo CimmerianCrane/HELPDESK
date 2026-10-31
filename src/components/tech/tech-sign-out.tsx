@@ -15,14 +15,36 @@ import { flushOutbox, pendingCount } from '@/offline/outbox'
  *
  * Reports the office has not accepted yet are the one thing a silent clear would destroy, so a
  * pending queue makes this two-step: try to send, then ask before deleting. With nothing pending it
- * stays the one tap it was.
+ * stays the one tap it was. The tablet's push subscription goes at the same time, for the same
+ * reason: the next technician must not get the previous one's job alerts.
  */
+/** Ends this browser's job alerts: drop the subscription locally, then the server's copy of it. */
+async function dropPushSubscription() {
+  if (!('serviceWorker' in navigator)) return
+  const registration = await navigator.serviceWorker.getRegistration('/')
+  const subscription = await registration?.pushManager.getSubscription()
+  if (!subscription) return
+
+  const { endpoint } = subscription.toJSON()
+  await subscription.unsubscribe()
+  await fetch('/api/push/subscribe', {
+    method: 'DELETE',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ endpoint }),
+  })
+}
+
 export function TechSignOut() {
   const [pending, startTransition] = useTransition()
   const [asked, setAsked] = useState<{ count: number } | null>(null)
 
   function signOut() {
     startTransition(async () => {
+      // The tablet's push subscription goes with the session, or the next technician on this shared
+      // tablet keeps getting the previous one's job alerts. Both steps are best-effort: the browser
+      // unsubscribe can fail without a worker and the server may be unreachable, and neither is a
+      // reason to leave somebody signed in on a shared device.
+      await dropPushSubscription().catch(() => undefined)
       // A failed clear must not stop the sign-out — leaving somebody signed in on a shared tablet
       // is the worse of the two failures.
       await clearCache().catch(() => undefined)

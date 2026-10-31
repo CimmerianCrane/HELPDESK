@@ -30,6 +30,13 @@ const schema = z.object({
   SMS_DRIVER: z.enum(['console', 'twilio']).default('console'),
   WHATSAPP_DRIVER: z.enum(['console', 'meta']).default('console'),
 
+  // Web Push (slice 43). All three are optional, and push is off until all are set — the same
+  // "naming a driver never breaks the app" rule as EMAIL_DRIVER. `NEXT_PUBLIC_` because the browser
+  // needs the public half to subscribe; the private half never leaves the server.
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+  VAPID_SUBJECT: z.string().min(1).optional(),
+
   // Accounting push (slice 37). `none` leaves the CSV export as the only way money leaves the app.
   // Xero uses a custom connection: client-credentials grant, so there is no refresh token to store
   // and no tenant id — the org is the one that authorised the connection.

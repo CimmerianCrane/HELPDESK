@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
 import { InstallPrompt } from '@/components/tech/install-prompt'
 import { JobList } from '@/components/tech/job-list'
+import { PushPermission } from '@/components/tech/push-permission'
+import { env } from '@/lib/env'
 import { requireAuth } from '@/server/auth/context'
+import { pushConfigured } from '@/server/notify/push'
 import { getSettings } from '@/server/settings/settings'
 import { myJobs } from '@/server/tech/my-jobs'
 
@@ -26,6 +29,8 @@ export default async function MyJobsPage() {
       </div>
       {/* Only here, never on a report: one screen, one decision. */}
       <InstallPrompt />
+      {/* The public half is passed from the server; the private half never leaves it. */}
+      <PushPermission publicKey={pushConfigured() ? (env().NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null) : null} />
       <JobList jobs={jobs} timeZone={settings.timezone} />
     </div>
   )

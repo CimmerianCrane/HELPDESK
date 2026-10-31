@@ -104,3 +104,63 @@ self.addEventListener('sync', (event) => {
     })(),
   )
 })
+
+/**
+ * Push (slice 43): a job was dispatched.
+ *
+ * The payload is written by the server and shaped by `sendPushToUsers`. The link is re-checked here
+ * rather than trusted: anything but a `/m/` path opens nothing, because a notification is a tap that
+ * leaves the app's own power to validate anything. `tag` is the job id, so a re-dispatch replaces the
+ * first banner instead of stacking a second one for the same visit.
+ */
+self.addEventListener('push', (event) => {
+  const pushEvent = event as PushEvent
+  let payload: { title?: string; body?: string; link?: string; tag?: string } = {}
+  try {
+    payload = (pushEvent.data?.json() ?? {}) as typeof payload
+  } catch {
+    // A push with no readable body is still a dispatch; the title says so.
+  }
+  const title = payload.title ?? 'New job dispatched'
+  const link = payload.link
+  pushEvent.waitUntil(
+    self.registration.showNotification(title, {
+      body: payload.body ?? '',
+      tag: payload.tag,
+      data: { url: link && link.startsWith('/m/') && !link.startsWith('//') ? link : '/m/jobs' },
+      icon: '/icons/tech-192.png',
+      badge: '/icons/tech-192.png',
+    }),
+  )
+})
+
+/**
+ * Tapping the notification opens the job. An already-open app is focused rather than a second window
+ * being stacked on top of it, which on a tablet is the difference between returning to a shift's work
+ * and starting again.
+ */
+self.addEventListener('notificationclick', (event) => {
+  const clickEvent = event as NotificationEvent
+  clickEvent.notification.close()
+
+  const data = (clickEvent.notification.data ?? {}) as { url?: string }
+  const url = data.url && data.url.startsWith('/m/') ? data.url : '/m/jobs'
+  const target = new URL(url, self.location.origin).href
+
+  clickEvent.waitUntil(
+    (async () => {
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const client of clients) {
+        if (client.url === target && 'focus' in client) return client.focus()
+      }
+      if (clients.length > 0 && 'focus' in clients[0]) {
+        const focused = clients[0]
+        await focused.focus()
+        // The window can be navigated once it is focused; `navigate` is not on every client type.
+        if ('navigate' in focused) return focused.navigate(target)
+        return undefined
+      }
+      return self.clients.openWindow(target)
+    })(),
+  )
+})

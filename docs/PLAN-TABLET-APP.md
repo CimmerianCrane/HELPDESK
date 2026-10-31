@@ -217,6 +217,15 @@ on the device.
 
 ### Slice 43 — Push when a job is dispatched
 
+**Built 31 Oct 2026.** How it landed is in `docs/HISTORY.md` ("Slice 43 — push when a job is
+dispatched"). Two corrections to the plan below: the subscribe/unsubscribe logic lives in
+`src/server/notify/push.ts` as `subscribePush` / `unsubscribePush` taking an `AuthContext`, with the
+route a thin handler over it (`CLAUDE.md`: logic in the service, so the tests can use a transaction);
+and the `WEB_PUSH` notification row is written per tablet actually reached, not per recipient — a
+technician with no installed app is not a broken channel. `web-push` is installed and the migration
+is applied; the one remaining step is operational — set the three VAPID env vars, without which push
+is silently off.
+
 **Goal:** a technician's tablet chimes when the office dispatches a job, even with the app closed.
 
 **Files**
@@ -269,17 +278,15 @@ slice 41.
 **Files**
 
 - `src/server/tech/my-jobs.ts` — add `qrValue` to `TechCrane` and the two select/map sites that build
-  it (job detail and sync bundle). The label encodes `/c/<qrValue>` (`craneQrPayload`), which the
-  phone cannot resolve to a crane today; `assetTag` alone is only printed as text. No Dexie schema
-  change — the cached crane object simply gains a field.
+  it (job detail and sync bundle). No Dexie schema change — the cached crane object simply gains a
+  field.
 - `src/components/tech/qr-scanner.tsx` (new, client) — feature-detects `BarcodeDetector` and
   `getSupportedFormats()`, streams `getUserMedia({ video: { facingMode: 'environment' } })` into a
   full-screen `<video playsinline muted>`, scans on an interval until a match, and always stops every
   track in `finally`. Manual `CRN…` entry remains for a damaged label.
 - `src/components/tech/job-sheet.tsx` — a "Scan crane" action in the cranes section: parse the payload
-  locally, take the last path segment, validate `^CRN[0-9A-HJKMNP-TV-Z]{12}$`, match against
-  `job.cranes` then `techDb.cranes`, and open that crane's report. Unmatched says so rather than
-  guessing.
+  locally, match against `job.cranes` then the cranes of every job cached on the tablet, and open that
+  crane's report or that job. Unmatched says so rather than guessing.
 - `src/components/tech/report-form.tsx` — "Verify crane label" in the header (matches / different
   crane). Verification only; do not silently switch crane mid-report.
 
@@ -287,12 +294,14 @@ slice 41.
 labels keep working, and the in-app scanner never needs to navigate there. Part barcodes are
 deliberately deferred: `Part.barcode` exists but has no admin UI and is not in the tech bundle.
 
-**Tests:** unit-test the payload parser (URL, bare token, asset tag, junk, wrong host) — that is the
-part that can be wrong. Camera is manual on a device, including airplane mode.
+**Tests:** `tests/unit/crane-validation.test.ts` covers the payload parser (URL, bare token, asset
+tag, junk, wrong path) — that is the part that can be wrong. Camera is manual on a device, including
+airplane mode.
 
 **Risk:** `getUserMedia` needs HTTPS, so this works on the deployed URL, not `npm run dev:lan`.
 `BarcodeDetector` is Chromium/Android only and may depend on Play Services; where it is absent the
-button does not render. A crane assigned after the last sync is not scannable offline — say so.
+button does not render. A crane assigned after the last sync is not scannable offline — the message
+says so. A label printed under an old domain still resolves: only the path is read.
 
 ---
 
@@ -304,7 +313,8 @@ button does not render. A crane assigned after the last sync is not scannable of
 
 - `src/app/api/assetlinks/route.ts` (new) — public, no auth, returns the Digital Asset Links JSON
   from `ANDROID_PACKAGE_NAME` and `ANDROID_SHA256_FINGERPRINTS` (comma-separated), Zod-validated;
-  `Cache-Control: public, max-age=300`; 404 when unset.
+  `Cache-Control: public, max-age=300`; 404 when unset. The builder itself is
+  `src/lib/assetlinks.ts` (route files cannot export helpers).
 - `next.config.ts` — rewrite `/.well-known/assetlinks.json` → `/api/assetlinks` (a route directory
   containing a dot is avoidable).
 - `src/lib/env.ts` — the two optional env vars above.

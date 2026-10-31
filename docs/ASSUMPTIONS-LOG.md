@@ -1,8 +1,8 @@
-# ASSUMPTIONS-LOG.md — assumptions 62–251, in numeric order
+# ASSUMPTIONS-LOG.md — assumptions 62–256, in numeric order
 
 The running log split out of `docs/ASSUMPTIONS.md`, which keeps the reasoning framework and the
 Phase 1 questions. Items keep the numbers they were given; a heading appears where a slice added a
-batch. Continue this list numerically — the next item is 252.
+batch. Continue this list numerically — the next item is 257.
 
 ## Slice 9 — approval, locking and PDF
 
@@ -784,3 +784,28 @@ batch. Continue this list numerically — the next item is 252.
      force-stop delays it — so `online` still flushes on the page and the worker is the fallback for a pocketed
      tablet. Both run the same queue through one Web Lock, so ordering holds either way. *If wrong:* nothing;
      the page path alone was already correct, and the worker is additive.
+
+## Slice 43 — push when a job is dispatched
+
+252. **A `WEB_PUSH` notification row is written per subscription actually reached, not per recipient.** A
+     technician with no installed app is not a broken channel, the same rule as a dispatcher with no phone
+     number getting no phone row. *If wrong:* write a failed row per technician in `dispatchJob`'s push
+     block.
+253. **404 and 410 disable a subscription; every other failure only counts.** The endpoint is gone for good
+     (the app was uninstalled), so it stops being sent to and the row stays as the record. A push service that
+     is briefly down is not a dead tablet, so a 5xx increments `failureCount` and leaves the row enabled.
+     *If wrong:* the `gone` branch in `sendPushToUsers`.
+254. **A subscription belongs to the caller and an endpoint can be reassigned.** The subscribe body names
+     nobody, and an endpoint already registered is upserted to the new user — a shared tablet that changes
+     hands must stop sending the old technician's alerts. *If wrong:* drop `userId` from the upsert's
+     `update` in `subscribePush`, which turns a shared tablet into a leak.
+255. **Push is off until all three VAPID variables are set.** Matching `EMAIL_DRIVER`, a deployment without
+     them behaves exactly as before; nothing throws and no dispatch fails. The card on `/m/jobs` does not
+     render, so nobody is asked for permission that would buy nothing. *If wrong:* `pushConfigured()` and the
+     card's `publicKey` prop.
+256. **Sign-out ends the tablet's alerts before it clears the cache.** The local `unsubscribe()` and the
+     `DELETE` are both best-effort, because failing to leave somebody signed in on a shared tablet is the
+     worse outcome. *If wrong:* `dropPushSubscription` in `src/components/tech/tech-sign-out.tsx`.
+
+## Slice 44 — scan a crane QR label
+

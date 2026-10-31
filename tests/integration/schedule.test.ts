@@ -848,6 +848,9 @@ describe('dispatch', () => {
       expect(rows).toHaveLength(4)
       expect(rows.filter((row) => row.channel === 'IN_APP')).toHaveLength(2)
       expect(rows.filter((row) => row.channel === 'EMAIL')).toHaveLength(2)
+      // No tablet has subscribed in this fixture, and push is unconfigured here — the dispatch is
+      // unchanged rather than broken. The subscription path itself is tests/integration/push.test.ts.
+      expect(rows.filter((row) => row.channel === 'WEB_PUSH')).toHaveLength(0)
 
       const after = await tx.job.findUniqueOrThrow({
         where: { id: job.id },

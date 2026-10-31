@@ -6,6 +6,36 @@ in `docs/PLAN-SLICES.md`; the slice tables are `docs/PLAN.md` §7.2, §7.13 and 
 
 ## The last slices, as they landed
 
+> **Slice 43 — push when a job is dispatched (31 Oct 2026).** One message, a second channel.
+>
+> 1. **`WEB_PUSH` is a notification channel, not a new queue.** A dispatch already writes an IN_APP
+>    and an EMAIL row per technician; push adds a row per *subscription actually reached*, so a
+>    recipient with no installed app has no row — the same rule as a dispatcher with no phone. The
+>    enum value and the table share one migration, which is safe because nothing inserts a
+>    `WEB_PUSH` row during `migrate deploy`.
+> 2. **The subscription belongs to the caller, never to the body.** `subscribePush` reassigns an
+>    endpoint that is already registered: a shared tablet changing hands must stop sending the old
+>    technician's alerts. `unsubscribePush` deletes by endpoint *and* user, so holding an endpoint is
+>    not permission to delete it. Both are services taking an `AuthContext` (CLAUDE.md), tested
+>    against real rows — routing them through the handler would have written outside the test
+>    transaction.
+> 3. **404/410 disables, it does not delete and it does not fail the dispatch.** The endpoint is gone
+>    for good (app uninstalled); the row is marked `disabledAt` and kept as the record. Anything else
+>    increments `failureCount` and stays enabled — a push service briefly down is not a dead tablet.
+> 4. **The link guard is written once and re-checked in the worker.** `isAppLink` resolves the path
+>    rather than prefix-matching it (`/m/../dashboard` starts with `/m/` and is the dashboard); the
+>    worker checks again because a notification tap is the last chance to. `tag` is the job id, so a
+>    re-dispatch replaces the banner instead of stacking a second one.
+> 5. **Permission is asked on a tap, after the first sync.** `PushPermission` renders only when VAPID
+>    is configured, the first sync has succeeded and `Notification.permission === 'default'`. Chrome
+>    refuses an untied prompt and a refusal is sticky for the origin.
+> 6. **Sign-out drops the subscription before the session ends.** Local `unsubscribe()`, then
+>    `DELETE /api/push/subscribe` — the tablet's alerts go with the cache.
+>
+> Not covered: real delivery is a manual device check (no DevTools path through VAPID), and the card
+> is invisible under `npm run dev`, which has no service worker. `npm run verify` (488 unit) and
+> `npm run build` pass; push stays off until the three VAPID variables are set, by design.
+
 > **Slice 42 — offline that keeps working, and uploads that finish on their own (31 Oct 2026).**
 > The worker gains a queue and loses a cache it should never have had.
 >

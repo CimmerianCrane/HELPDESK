@@ -19,6 +19,7 @@ const CHANNEL_LABELS: Record<NotificationChannel, string> = {
   EMAIL: 'Email',
   SMS: 'SMS',
   WHATSAPP: 'WhatsApp',
+  WEB_PUSH: 'Tablet',
 }
 
 export function InboxList({ items, timeZone }: { items: InboxItem[]; timeZone: string }) {
