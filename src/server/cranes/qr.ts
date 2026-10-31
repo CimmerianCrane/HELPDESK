@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto'
+import { craneQrPayload, isCraneQrValue } from '@/lib/cranes/qr'
 
 /**
  * Crane QR identities — the token and the URL it encodes.
@@ -13,9 +14,12 @@ import { randomInt } from 'node:crypto'
  * The token alphabet excludes I, L, O and U: a technician reading one off a damaged label and typing
  * it in should not have to guess whether that is a one or an ell.
  *
- * This module uses `node:crypto`, so it is server-only. The words that appear on screen are in
- * `lib/cranes/labels.ts`, which a client component can import.
+ * This module uses `node:crypto`, so it is server-only. The shape of the token and of the payload
+ * is in `lib/cranes/qr.ts`, which a client component can import — including `craneQrPayload` and
+ * `isCraneQrValue`, re-exported here so existing server imports keep working.
  */
+
+export { craneQrPayload, isCraneQrValue }
 
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 const TOKEN_LENGTH = 12
@@ -27,22 +31,6 @@ export function generateQrValue(): string {
     token += ALPHABET[randomInt(ALPHABET.length)]
   }
   return `CRN${token}`
-}
-
-/** True when a string looks like a token this module produced — used before accepting an imported one. */
-export function isCraneQrValue(value: string): boolean {
-  return /^CRN[0-9A-HJKMNP-TV-Z]{12}$/.test(value)
-}
-
-/**
- * What the QR code actually contains. A URL rather than a bare token, so any phone camera opens the
- * crane record instead of showing the user a meaningless string.
- *
- * `APP_BASE_URL` is the deployment's own origin, so a move to a custom domain means re-printing the
- * labels printed under the old one. That is cheap and rare; guessing it later is neither.
- */
-export function craneQrPayload(qrValue: string, appUrl: string): string {
-  return `${appUrl.replace(/\/+$/, '')}/c/${qrValue}`
 }
 
 /** A suggested asset tag when the office leaves the field blank. They can always overwrite it. */

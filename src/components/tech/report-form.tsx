@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { craneQrValueFromPayload } from '@/lib/cranes/qr'
 import { newId } from '@/lib/id'
 import { calibrationWarnings, type TemplateField, type TemplateSection } from '@/lib/templates/schema'
 import {
@@ -20,6 +21,7 @@ import {
 import { requestOutboxSync } from '@/offline/background-sync'
 import { flushOutbox } from '@/offline/outbox'
 import type { TechCrane, TechJobDetail } from '@/server/tech/my-jobs'
+import { QrScanner, detectorSupported } from './qr-scanner'
 import { SignaturePad } from './signature-pad'
 
 /**
@@ -67,6 +69,10 @@ export function ReportForm({
   const [templateChanged, setTemplateChanged] = useState(false)
   // Without this a failed read left the screen saying "Reading the draft…" for ever.
   const [loadError, setLoadError] = useState<string | null>(null)
+  // Verifying the label is a check, not a crane switch: a report belongs to the machine it is
+  // about, and silently moving it mid-report is how a crane's history ends up wrong.
+  const [verifying, setVerifying] = useState(false)
+  const [verifyMessage, setVerifyMessage] = useState<string | null>(null)
 
   // --- loading ---------------------------------------------------------------------------------
 
@@ -169,6 +175,25 @@ export function ReportForm({
   const update = useCallback((change: (draft: ReportDraft) => ReportDraft) => {
     setLoaded((current) => (current ? { ...current, draft: change(current.draft) } : current))
   }, [])
+
+  const verifyLabel = (raw: string) => {
+    setVerifying(false)
+    const qrValue = craneQrValueFromPayload(raw)
+    if (!qrValue) {
+      setVerifyMessage('That code is not a crane label.')
+      return
+    }
+    if (qrValue === crane.qrValue) {
+      setVerifyMessage(`✓ This is ${crane.assetTag}.`)
+      return
+    }
+    const other = job.cranes.find((entry) => entry.qrValue === qrValue)
+    setVerifyMessage(
+      other
+        ? `This is ${other.assetTag}, not ${crane.assetTag}. The report stays on ${crane.assetTag} — open ${other.assetTag} from the job sheet for that one.`
+        : `This label is not ${crane.assetTag}. The report stays on ${crane.assetTag}.`,
+    )
+  }
 
   const setAnswer = useCallback(
     (key: string, value: string) => {
@@ -503,6 +528,23 @@ export function ReportForm({
             Do Not Operate{crane.restrictedReason ? `: ${crane.restrictedReason}` : ''}
           </p>
         )}
+        {detectorSupported() && (
+          <button
+            type="button"
+            onClick={() => {
+              setVerifyMessage(null)
+              setVerifying(true)
+            }}
+            className="mt-2 rounded-md border border-line px-3 py-1.5 text-sm font-medium text-ink active:bg-raised"
+          >
+            Verify crane label
+          </button>
+        )}
+        {verifyMessage && (
+          <p role="status" className="mt-2 rounded-md bg-raised px-3 py-2 text-sm text-ink">
+            {verifyMessage}
+          </p>
+        )}
         <p className="text-xs text-muted" aria-live="polite">
           {loaded.queued
             ? 'Waiting to upload. Everything stays on this phone until the office has it.'
@@ -772,6 +814,10 @@ export function ReportForm({
           />
         </div>
       </section>
+
+      {verifying && (
+        <QrScanner onScan={verifyLabel} onCancel={() => setVerifying(false)} />
+      )}
 
       {/* Sits above the layout's bottom nav rather than under it, so the button is never covered.
           Measured off the nav's own safe-area padding so the two never overlap on a notched tablet. */}

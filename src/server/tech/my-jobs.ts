@@ -27,6 +27,8 @@ export interface TechCrane {
   /** The report form records one report per crane, so the phone needs the id as well as the tag. */
   id: string
   assetTag: string
+  /** The token on the printed label, so the QR scanner can match what the camera read (slice 44). */
+  qrValue: string
   type: string
   swlKg: string
   status: string
@@ -192,6 +194,7 @@ const jobSelect = {
         select: {
           id: true,
           assetTag: true,
+          qrValue: true,
           type: true,
           swlKg: true,
           status: true,
@@ -332,6 +335,7 @@ async function toDetail(
   const cranes: TechCrane[] = row.cranes.map(({ crane }) => ({
     id: crane.id,
     assetTag: crane.assetTag,
+    qrValue: crane.qrValue,
     type: crane.type,
     swlKg: crane.swlKg.toString(),
     status: crane.status,

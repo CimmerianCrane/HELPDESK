@@ -7,7 +7,7 @@ record behind it is split into the files below so no single one is a wall of tex
 |---|---|
 | `CLAUDE.md` | Conventions, stack, commands, domain glossary, and the rules that must never be violated |
 | `docs/PLAN.md` | Architecture, screens, the slice tables, testing strategy, risks |
-| `docs/PLAN-TABLET-APP.md` | The Android tablet app, slices 40–45 — **43 built, 44–45 left** |
+| `docs/PLAN-TABLET-APP.md` | The Android tablet app, slices 40–45 — **44 built, 45 left** |
 | `docs/DATA-MODEL.md` | The full Prisma schema for all four phases, and the index set |
 | `docs/PLAN-SLICES.md` | Every slice as built — its fixed decisions, migration and known limits |
 | `docs/ASSUMPTIONS.md` | Every assumption where the brief was silent (the Phase 1 set; 62+ in the log) |
@@ -18,10 +18,22 @@ record behind it is split into the files below so no single one is a wall of tex
 | `docs/UI-REVIEW.md` | The Hi-Vis Industrial direction and its contrast rules — **read this before touching any screen** |
 | `docs/UI-REVIEW-FINDINGS.md` | The design review that produced it |
 
-> **Where the next session starts — the tablet app.** The owner's request is to ship the
+> **Where the next session starts — the Play Store listing.** The owner's request is to ship the
 > technician side as an installable Android tablet app while the office keeps the website. Slices
-> 40–43 are built; the plan is **[`docs/PLAN-TABLET-APP.md`](docs/PLAN-TABLET-APP.md)**. Start at
-> slice 44 (QR scanning).
+> 40–44 are built; the plan is **[`docs/PLAN-TABLET-APP.md`](docs/PLAN-TABLET-APP.md)**. **Start at
+> slice 45** (Play Store TWA).
+>
+> **Slice 44 is built (31 Oct 2026)** — scan a crane QR label. A technician points the tablet at the
+> printed label and lands on that crane's report instead of typing an asset tag. What landed: the
+> token's pattern and payload parser in `src/lib/cranes/qr.ts` (shared by the server's label generator
+> and the tablet — the server module is `node:crypto`, so the parser could not live there), a
+> `QrScanner` component over `BarcodeDetector` + the rear camera with a typed-in fallback, a **Scan
+> crane** action on the job sheet that opens the crane's report or jumps to the other visit it is
+> cached under, and **Verify crane label** in the report header (it confirms, it never switches crane).
+> `TechCrane` gained `qrValue`, so the Dexie cache needs a fresh sync after deploying — an old cached
+> crane has no token and scans nothing. No schema change and no new dependency. `npm run verify` (492
+> unit) and `npm run build` pass. Camera behaviour is a manual device check on HTTPS, in airplane mode
+> too. **Start at slice 45** (Play Store TWA).
 >
 > **Slice 43 is built (31 Oct 2026)** — push when a job is dispatched. A technician's tablet chimes
 > with the job and site, even with the app closed; tapping it focuses the open app on that job.
@@ -36,7 +48,7 @@ record behind it is split into the files below so no single one is a wall of tex
 > `npm run verify` (488 unit) and `npm run build` pass; `tests/integration/push.test.ts` and
 > `schedule.test.ts` are green (41). **Push stays off until VAPID is set** — generate keys with
 > `npx web-push generate-vapid-keys` and put the three values in `.env` / Vercel; real delivery is a
-> manual device check. Slice 44 (scanning) is next.
+> manual device check. Slice 44 (scanning) followed it; slice 45 is next.
 >
 > **Slice 42 is built (31 Oct 2026)** — offline that keeps working, and uploads that finish on their
 > own. `npm run verify` (486 unit) and `npm run build` pass. The worker now sends any same-origin `GET`

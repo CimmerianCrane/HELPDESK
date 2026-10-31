@@ -1,7 +1,14 @@
+'use client'
+
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { craneQrValueFromPayload } from '@/lib/cranes/qr'
 import { formatDate, formatDateTime } from '@/lib/format'
+import { techDb, type CachedJob } from '@/offline/db'
 import { JOB_STATUS_LABELS } from '@/server/jobs/labels'
 import type { TechJobDetail } from '@/server/tech/my-jobs'
+import { QrScanner, detectorSupported } from './qr-scanner'
 
 /**
  * One visit, as it reads on a phone held in one hand at a site gate.
@@ -15,6 +22,47 @@ import type { TechJobDetail } from '@/server/tech/my-jobs'
  * subtly different screen.
  */
 export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: string }) {
+  const router = useRouter()
+  const [scanning, setScanning] = useState(false)
+  const [scanMessage, setScanMessage] = useState<string | null>(null)
+
+  const handleScan = async (raw: string) => {
+    setScanning(false)
+    const qrValue = craneQrValueFromPayload(raw)
+    if (!qrValue) {
+      setScanMessage(`That code is not a crane label: ${raw.slice(0, 40)}`)
+      return
+    }
+
+    // This job's cranes first — the common case is the machine in front of you. Then whatever the
+    // super has cached, so a crane on another visit still resolves with no signal.
+    const onJob = job.cranes.find((crane) => crane.qrValue === qrValue)
+    if (onJob) {
+      if (job.reportTemplate && !job.reports.some((entry) => entry.craneId === onJob.id)) {
+        router.push(`/m/jobs/${job.id}/report?crane=${onJob.id}`)
+      } else {
+        setScanMessage(`${onJob.assetTag} is on this job.`)
+      }
+      return
+    }
+
+    // Then any other visit cached on this tablet, so a crane scanned from the van still lands
+    // somewhere useful with no signal. The cranes table is keyed by asset tag, hence the scan of the
+    // cached jobs rather than a lookup.
+    const jobs = await techDb.jobs.toArray().catch(() => [] as CachedJob[])
+    const other = jobs.find((entry) => entry.cranes.some((crane) => crane.qrValue === qrValue))
+    if (!other) {
+      setScanMessage(
+        `No crane on this tablet matches ${qrValue}. It may have been added since the last sync.`,
+      )
+      return
+    }
+
+    const crane = other.cranes.find((entry) => entry.qrValue === qrValue)
+    router.push(`/m/jobs/${other.id}`)
+    setScanMessage(`${crane?.assetTag ?? qrValue} is on job ${other.number}.`)
+  }
+
   const start = job.scheduledStart ? new Date(job.scheduledStart) : null
   const end = job.scheduledEnd ? new Date(job.scheduledEnd) : null
 
@@ -142,9 +190,28 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
 
       {job.cranes.length > 0 && (
         <section aria-labelledby="cranes" className="rounded-lg bg-panel p-4">
-          <h2 id="cranes" className="text-base font-semibold text-ink">
-            Cranes
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="cranes" className="text-base font-semibold text-ink">
+              Cranes
+            </h2>
+            {detectorSupported() && !scanning && (
+              <button
+                type="button"
+                onClick={() => {
+                  setScanMessage(null)
+                  setScanning(true)
+                }}
+                className="rounded-md border border-line px-3 py-1.5 text-sm font-medium text-ink active:bg-raised"
+              >
+                Scan crane
+              </button>
+            )}
+          </div>
+          {scanMessage && (
+            <p role="status" className="mt-2 rounded-md bg-raised px-3 py-2 text-sm text-ink">
+              {scanMessage}
+            </p>
+          )}
           <ul className="mt-2 space-y-4">
             {job.cranes.map((crane) => {
               // A bundle cached before slice 8 has neither field; it gets no link rather than an error.
@@ -224,6 +291,10 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
             ))}
           </div>
         </section>
+      )}
+
+      {scanning && (
+        <QrScanner onScan={(raw) => void handleScan(raw)} onCancel={() => setScanning(false)} />
       )}
     </article>
   )

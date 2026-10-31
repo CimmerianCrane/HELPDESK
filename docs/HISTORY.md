@@ -6,6 +6,40 @@ in `docs/PLAN-SLICES.md`; the slice tables are `docs/PLAN.md` §7.2, §7.13 and 
 
 ## The last slices, as they landed
 
+> **Slice 44 — scan a crane QR label (31 Oct 2026).** The camera replaces the keyboard, and the
+> parser moves to where both builds can see it.
+>
+> 1. **The generator was server-only, and the reader could not be.** `server/cranes/qr.ts` imports
+>    `node:crypto` for `generateQrValue`, so a client component importing `isCraneQrValue` from it
+>    would drag a Node module into the tablet bundle — the same trap the crane labels file already
+>    documents. The token pattern and the payload's shape moved to `lib/cranes/qr.ts`; the server
+>    module re-exports them, so no import at the call sites changed. `craneQrValueFromPayload` is new.
+> 2. **`job-sheet.tsx` became a client component.** It now renders the scanner overlay and reads the
+>    cached jobs from Dexie, and `JobSheet` is rendered by a server page (`/m/jobs/[id]`) *and* by the
+>    client-only offline shell. Both trees are fine with a client component, but the build is what
+>    says so — `npm run typecheck` does not.
+> 3. **`qrValue` had to reach the cache, one field, no migration.** `TechCrane` gained it through the
+>    existing select, so Dexie stores it with the rest of the crane and nothing about the schema
+>    changes. The consequence is real: a tablet whose cache predates the deploy has cranes with no
+>    token, so every scan reports "no crane on this tablet matches" until the next sync. That is the
+>    documented offline rule, not a bug — say it in the message, which the scanner does.
+> 4. **The payload is parsed, never navigated to.** The label is
+>    `<origin>/c/<CRN…>`, and `/c/` is deliberately outside the app's manifest scope and stays that
+>    way. The scanner reads the path, validates the token, and matches it against cranes already on
+>    the tablet; a hostile URL gains nothing because a token that is not cached matches nothing. A
+>    label printed under an old domain still works — only the path is read.
+> 5. **Verification is not a crane switch.** "Verify crane label" on the report says "this is it" or
+>    "this is a different one", and leaves the report on the crane it was opened for. Silently moving
+>    a report mid-fill is how a machine's history ends up wrong.
+> 6. **The camera stream is stopped in the effect's cleanup, not only on a match.** Cancel, unmount
+>    and a read error all go through the same `stop()`, because a tablet whose camera light stays on
+>    through a shift is a battery the technician needed.
+>
+> Not covered: the camera is a manual check on a device over HTTPS (plain HTTP has no `getUserMedia`),
+> including airplane mode. `BarcodeDetector` is Chromium/Android; where it is absent the action does
+> not render and the typed code box is the whole entry path. `npm run verify` (492 unit) and
+> `npm run build` pass.
+>
 > **Slice 43 — push when a job is dispatched (31 Oct 2026).** One message, a second channel.
 >
 > 1. **`WEB_PUSH` is a notification channel, not a new queue.** A dispatch already writes an IN_APP

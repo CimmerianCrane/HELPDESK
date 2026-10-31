@@ -1,8 +1,8 @@
-# ASSUMPTIONS-LOG.md — assumptions 62–256, in numeric order
+# ASSUMPTIONS-LOG.md — assumptions 62–264, in numeric order
 
 The running log split out of `docs/ASSUMPTIONS.md`, which keeps the reasoning framework and the
 Phase 1 questions. Items keep the numbers they were given; a heading appears where a slice added a
-batch. Continue this list numerically — the next item is 257.
+batch. Continue this list numerically — the next item is 265.
 
 ## Slice 9 — approval, locking and PDF
 
@@ -809,3 +809,30 @@ batch. Continue this list numerically — the next item is 257.
 
 ## Slice 44 — scan a crane QR label
 
+257. **The label's shape lives in `lib/cranes/qr.ts`, not beside the generator.** The generator needs
+     `node:crypto` and is server-only; the scanner and the report form both run on the tablet. The server
+     module re-exports `isCraneQrValue` and `craneQrPayload`, so the split costs no call-site change.
+     *If wrong:* move them back and make the client bundle pull a Node module — the build will say so.
+258. **Only the token reaches the tablet, not the full label URL.** The client compares what it parsed to
+     `TechCrane.qrValue`, so shipping `craneQrPayload(...)` as well would be a second source of truth in
+     the cache for no gain. *If wrong:* add the field in `toDetail` and compare on it.
+259. **Any host is accepted in a scanned URL; only the path is read.** Labels printed under an old domain
+     keep working, and a token that is not in the tablet's cache matches nothing, so a hostile URL buys
+     nothing. *If wrong:* the `new URL` branch of `craneQrValueFromPayload`.
+260. **A bare token is accepted, in any case.** A damaged label gets typed in, and a keyboard may produce
+     lower case; rejecting it would send the technician back to squinting at the QR. *If wrong:* drop the
+     `toUpperCase()` line and require the manual box to carry the exact token.
+261. **A scan on the job sheet opens the report for that crane, or jumps to the visit it is cached
+     under.** It never guesses: a token on no cached job says so. This is the offline path — a crane
+     assigned after the last sync is deliberately not scannable. *If wrong:* the fallback branch in
+     `handleScan`, `src/components/tech/job-sheet.tsx`.
+262. **"Verify crane label" confirms; it never switches the report's crane.** A report belongs to the
+     machine it was opened for, and moving it mid-fill is how a crane's history goes wrong. *If wrong:*
+     the different-crane branch in `verifyLabel`, `src/components/tech/report-form.tsx`.
+263. **`JobSheet` is a client component now.** It renders the scanner overlay and reads Dexie for the
+     other-visit lookup; it is already rendered by both a server page and the client-only offline shell.
+     *If wrong:* move the scan action into its own small client component and leave `JobSheet` server.
+264. **The camera is Chromium/Android only and HTTPS only, and a mobile camera is not testable in CI.**
+     Where `BarcodeDetector` is absent the action does not render and the typed code box is the whole
+     entry path; the parser is the part with a unit test because it is the part that can be wrong.
+     *If wrong:* `detectorSupported()` in `src/components/tech/qr-scanner.tsx`.

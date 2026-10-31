@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { craneQrValueFromPayload } from '@/lib/cranes/qr'
 import { createCraneSchema, craneFilterSchema, restrictCraneSchema } from '@/lib/validation/cranes'
 import { createSiteSchema } from '@/lib/validation/sites'
 import {
@@ -146,5 +147,36 @@ describe('crane QR identities', () => {
 
   it('suggests an asset tag when the office leaves the field blank', () => {
     expect(suggestAssetTag()).toMatch(/^CC-[0-9A-HJKMNP-TV-Z]{6}$/)
+  })
+})
+
+/** What the tablet's camera read, turned back into a crane token (slice 44). */
+describe('craneQrValueFromPayload', () => {
+  const token = 'CRN0123456789AB'
+
+  it('reads the token out of the label URL', () => {
+    expect(craneQrValueFromPayload(`https://cranes.example.com/c/${token}`)).toBe(token)
+    expect(craneQrValueFromPayload(`https://cranes.example.com/c/${token}/`)).toBe(token)
+    // Labels printed under an old domain keep working: only the path is read.
+    expect(craneQrValueFromPayload(`https://old.example.org/c/${token}`)).toBe(token)
+  })
+
+  it('accepts a bare token, because that is what a damaged label gets typed as', () => {
+    expect(craneQrValueFromPayload(token)).toBe(token)
+    expect(craneQrValueFromPayload(`  ${token}  `)).toBe(token)
+    expect(craneQrValueFromPayload(token.toLowerCase())).toBe(token)
+  })
+
+  it('rejects an asset tag, junk and another site’s path', () => {
+    expect(craneQrValueFromPayload('OVH-01')).toBeNull()
+    expect(craneQrValueFromPayload('not a code at all')).toBeNull()
+    expect(craneQrValueFromPayload('')).toBeNull()
+    expect(craneQrValueFromPayload(`https://cranes.example.com/cranes/${token}`)).toBeNull()
+    expect(craneQrValueFromPayload(`https://cranes.example.com/c/${token}/report`)).toBeNull()
+  })
+
+  it('rejects a token that is not one of ours, whatever the URL says', () => {
+    expect(craneQrValueFromPayload('https://cranes.example.com/c/CRN123')).toBeNull()
+    expect(craneQrValueFromPayload('https://cranes.example.com/c/../../etc/passwd')).toBeNull()
   })
 })

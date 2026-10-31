@@ -842,6 +842,12 @@ outside `/m/` and `/_next/` — the worker had been caching `/api/tech/sync` and
 Background Sync `tech-outbox` listener that runs the same `flushOutbox` the page runs, under a Web Lock, rejecting
 the `sync` event only for retryable failures. No schema change and no new endpoint.
 
+Slice 44 (**built** 31 Oct 2026) reads the printed crane label with the camera. `TechCrane` gains `qrValue`, the
+token's shape and the payload parser move to `lib/cranes/qr.ts` so the scanner (client) and the generator (server)
+share one definition, and a new `QrScanner` uses `BarcodeDetector` + `getUserMedia` with a typed-in fallback. A scan
+opens that crane's report from the job sheet, or jumps to the other visit the crane is cached under; the report
+form verifies the label without ever switching crane. No schema change and no new dependency.
+
 Slice 29 was taken first because the contract is the one record the app has been *shaped* around and could not enter:
 `Contract` and contract-scoped `SlaPolicy` rows existed, `createJob` already resolved them, and the customer page
 already had a disabled Contracts tab. It also gives `sla.manage` its first use.

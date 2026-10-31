@@ -1,7 +1,7 @@
 # PLAN-TABLET-APP.md — the technician Android tablet app
 
 **Read this after `KICKOFF.md`.** It is the plan for turning the existing technician PWA into a
-first-class Android tablet app. As at 31 Oct 2026 **slices 40–42 are built**; slices 43–45 are not. The
+first-class Android tablet app. As at 31 Oct 2026 **slices 40–44 are built**; slice 45 is not. The
 work continues the numbering in `docs/PLAN.md`.
 
 ## Context
@@ -273,6 +273,15 @@ slice 41.
 
 ### Slice 44 — Scan a crane QR label
 
+**Built 31 Oct 2026.** Landed mostly as written, with three corrections. `qrValue` alone was not
+enough: the scanner needs a *client* parser, and the generator module is server-only (it imports
+`node:crypto`), so the token pattern and `craneQrValueFromPayload` moved to `src/lib/cranes/qr.ts`
+and the server module re-exports them — no caller changed except the payload parser, which was
+added. `craneQrPayload` (`qrPayload` in the plan) is not sent to the phone: the client compares the
+parsed token to `qrValue`, so the URL would have been dead weight in the cache. And `job-sheet.tsx`
+became a client component — it now renders the scanner and reads Dexie — which changes how it
+renders in the offline shell (it still does; both are client trees).
+
 **Goal:** replace typing an asset tag with the camera, using the QR labels already printed.
 
 **Files**
@@ -280,10 +289,13 @@ slice 41.
 - `src/server/tech/my-jobs.ts` — add `qrValue` to `TechCrane` and the two select/map sites that build
   it (job detail and sync bundle). No Dexie schema change — the cached crane object simply gains a
   field.
-- `src/components/tech/qr-scanner.tsx` (new, client) — feature-detects `BarcodeDetector` and
-  `getSupportedFormats()`, streams `getUserMedia({ video: { facingMode: 'environment' } })` into a
-  full-screen `<video playsinline muted>`, scans on an interval until a match, and always stops every
-  track in `finally`. Manual `CRN…` entry remains for a damaged label.
+- `src/lib/cranes/qr.ts` (new) — `isCraneQrValue`, `craneQrPayload` and `craneQrValueFromPayload`, shared
+  by the server generator and the tablet. The payload parser accepts the URL, a bare token (typed off
+  a damaged label, any case) and rejects junk, asset tags and paths that are not `/c/<token>`.
+- `src/components/tech/qr-scanner.tsx` (new, client) — feature-detects `BarcodeDetector`, streams
+  `getUserMedia({ video: { facingMode: 'environment' } })` into a full-screen `<video playsinline
+  muted>`, scans on an interval until a match, and always stops every track in `finally`. Manual entry
+  remains for a damaged label.
 - `src/components/tech/job-sheet.tsx` — a "Scan crane" action in the cranes section: parse the payload
   locally, match against `job.cranes` then the cranes of every job cached on the tablet, and open that
   crane's report or that job. Unmatched says so rather than guessing.
