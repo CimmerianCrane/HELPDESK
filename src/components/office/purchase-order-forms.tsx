@@ -43,10 +43,10 @@ export function RaisePurchaseOrderForm({
     <form action={formAction} className="mt-3 space-y-3">
       <FormMessage state={state} />
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-lg bg-field">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Parts to order from {supplierName}</caption>
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+          <thead className="border-b border-line bg-sheet text-xs text-muted">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">Part</th>
               <th scope="col" className="px-4 py-3 text-right font-medium">On hand</th>
@@ -55,22 +55,22 @@ export function RaisePurchaseOrderForm({
               <th scope="col" className="px-4 py-3 text-right font-medium">Order</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-rule">
             {lines.map((line) => (
               <tr key={line.partId} className="align-top">
                 <td className="px-4 py-3">
-                  <span className="font-mono text-sm font-medium text-slate-900">
+                  <span className="font-mono text-sm font-medium text-ink">
                     {line.partNumber}
                   </span>
-                  <span className="block text-slate-700">{line.description}</span>
+                  <span className="block text-ink">{line.description}</span>
                 </td>
-                <td className="px-4 py-3 text-right text-amber-800">
+                <td className="px-4 py-3 text-right text-warn">
                   {line.onHand} {line.uom}
                 </td>
-                <td className="px-4 py-3 text-right text-slate-600">
+                <td className="px-4 py-3 text-right text-muted">
                   {line.reorderLevel === null ? '—' : `${line.reorderLevel} ${line.uom}`}
                 </td>
-                <td className="px-4 py-3 text-right text-slate-700">
+                <td className="px-4 py-3 text-right text-ink">
                   {formatMoney(line.cost, currency)}
                 </td>
                 <td className="px-4 py-3 text-right">
@@ -85,7 +85,7 @@ export function RaisePurchaseOrderForm({
                       aria-label={`Quantity of ${line.partNumber} to order`}
                       className={`${inputClass} mt-0 w-28 text-right`}
                     />
-                    <span className="text-xs text-slate-500">{line.uom}</span>
+                    <span className="text-xs text-muted">{line.uom}</span>
                   </div>
                 </td>
               </tr>
@@ -93,7 +93,7 @@ export function RaisePurchaseOrderForm({
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         Blank a quantity to leave that part off the order. Cost is the catalogue&rsquo;s, copied onto the
         order as it stands today.
       </p>
@@ -145,10 +145,10 @@ export function ReceivePurchaseOrderForm({
     <form action={formAction} className="mt-3 space-y-3">
       <FormMessage state={state} />
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-lg bg-field">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Lines on {number}</caption>
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+          <thead className="border-b border-line bg-sheet text-xs text-muted">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">Part</th>
               <th scope="col" className="px-4 py-3 text-right font-medium">On order</th>
@@ -157,19 +157,19 @@ export function ReceivePurchaseOrderForm({
               <th scope="col" className="px-4 py-3 font-medium">Serial or batch</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-rule">
             {lines.map((line) => (
               <tr key={line.id} className="align-top">
                 <td className="px-4 py-3">
-                  <span className="font-mono text-sm font-medium text-slate-900">
+                  <span className="font-mono text-sm font-medium text-ink">
                     {line.partNumber ?? '—'}
                   </span>
-                  <span className="block text-slate-700">{line.description}</span>
+                  <span className="block text-ink">{line.description}</span>
                 </td>
-                <td className="px-4 py-3 text-right text-slate-600">
+                <td className="px-4 py-3 text-right text-muted">
                   {line.quantity} {line.uom ?? ''}
                 </td>
-                <td className="px-4 py-3 text-right text-slate-600">{line.receivedQuantity}</td>
+                <td className="px-4 py-3 text-right text-muted">{line.receivedQuantity}</td>
                 <td className="px-4 py-3 text-right">
                   <input type="hidden" name="lineId" value={line.id} />
                   <input

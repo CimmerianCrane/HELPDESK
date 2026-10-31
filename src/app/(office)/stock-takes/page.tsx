@@ -39,16 +39,16 @@ export default async function StockTakesPage() {
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/parts" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/parts" className="text-sm text-muted underline hover:text-ink">
           ← Parts
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Stock takes</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="mt-2 text-title font-semibold text-ink">Stock takes</h1>
+        <p className="mt-1 text-muted">
           {open.length === 0
             ? 'Nothing is being counted.'
             : `${open.length} session${open.length === 1 ? '' : 's'} open.`}
         </p>
-        <p className="mt-2 max-w-3xl text-sm text-slate-500">
+        <p className="mt-2 max-w-3xl text-sm text-muted">
           A count is opened over one location and snapshots what the books say. Counting blind — without
           seeing that figure — is what makes the variance worth reading. Approving posts one correction
           per line that disagrees, through the stock ledger, with the count&rsquo;s reference on it.
@@ -57,16 +57,16 @@ export default async function StockTakesPage() {
 
       {takes.length === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">No counts yet.</p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="font-medium text-ink">No counts yet.</p>
+          <p className="mt-1 text-sm text-muted">
             The first one starts with the store&rsquo;s shelf.
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg bg-field">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Stock take sessions</caption>
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="border-b border-line bg-sheet text-xs text-muted">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Reference</th>
                 <th scope="col" className="px-4 py-3 font-medium">Location</th>
@@ -76,26 +76,26 @@ export default async function StockTakesPage() {
                 <th scope="col" className="px-4 py-3 font-medium">Opened</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-rule">
               {takes.map((take) => (
-                <tr key={take.id} className="align-top hover:bg-slate-50">
+                <tr key={take.id} className="align-top hover:bg-sheet">
                   <td className="px-4 py-3">
                     <Link
                       href={`/stock-takes/${take.id}`}
-                      className="font-mono font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                      className="font-mono font-medium text-ink underline decoration-line hover:decoration-ink"
                     >
                       {take.reference}
                     </Link>
                     {take.blindCount ? (
-                      <span className="ml-2 rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
+                      <span className="ml-2 rounded border border-line bg-raised px-1.5 py-0.5 text-xs text-muted">
                         Blind
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 text-ink">
                     {take.locationName ?? '—'}
                     {take.scopeCategory ? (
-                      <span className="block text-xs text-slate-500">
+                      <span className="block text-xs text-muted">
                         Part numbers starting {take.scopeCategory}
                       </span>
                     ) : null}
@@ -104,24 +104,24 @@ export default async function StockTakesPage() {
                     <span
                       className={
                         take.status === 'APPROVED'
-                          ? 'rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800'
+                          ? 'rounded border border-pos/40 bg-pos/10 px-2 py-0.5 text-xs text-pos'
                           : take.status === 'CANCELLED'
-                            ? 'rounded border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs text-slate-600'
-                            : 'rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-900'
+                            ? 'rounded border border-line bg-raised px-2 py-0.5 text-xs text-muted'
+                            : 'rounded border border-warn/40 bg-warn/10 px-2 py-0.5 text-xs text-warn'
                       }
                     >
                       {STOCK_TAKE_STATUS_LABELS[take.status]}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-700">
+                  <td className="px-4 py-3 text-right text-ink">
                     {take.countedCount} of {take.lineCount}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span className={take.varianceLines > 0 ? 'font-medium text-amber-800' : 'text-slate-500'}>
+                    <span className={take.varianceLines > 0 ? 'font-medium text-warn' : 'text-muted'}>
                       {take.varianceLines}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-slate-600">
+                  <td className="px-4 py-3 whitespace-nowrap text-muted">
                     {formatDate(take.createdAt, settings.timezone)}
                   </td>
                 </tr>
@@ -133,13 +133,13 @@ export default async function StockTakesPage() {
 
       {mayCount ? (
         <details className={cardClass}>
-          <summary className="cursor-pointer font-semibold text-slate-900">Open a count</summary>
+          <summary className="cursor-pointer font-semibold text-ink">Open a count</summary>
           <div className="mt-4">
             <StockTakeForm action={createStockTakeAction} locations={locations} />
           </div>
         </details>
       ) : (
-        <p className="text-sm text-slate-500">The store counts the shelves.</p>
+        <p className="text-sm text-muted">The store counts the shelves.</p>
       )}
     </div>
   )

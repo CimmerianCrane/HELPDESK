@@ -72,7 +72,7 @@ export function CreateDeliveryOrderForm({
 
   if (parts.length === 0) {
     return (
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-muted">
         Nothing to deliver yet. A delivery order is raised from the parts a technician issues on the
         job, so it appears here once a report records them.
       </p>
@@ -86,8 +86,8 @@ export function CreateDeliveryOrderForm({
         {parts.map((part) => {
           const checked = selected.includes(part.movementId)
           return (
-            <div key={part.movementId} className="rounded-md border border-slate-200 p-3">
-              <label className="flex items-start gap-3 text-sm text-slate-800">
+            <div key={part.movementId} className="rounded-md border border-line p-3">
+              <label className="flex items-start gap-3 text-sm text-ink">
                 <input
                   type="checkbox"
                   name="movementId"
@@ -100,12 +100,12 @@ export function CreateDeliveryOrderForm({
                         : [...current, part.movementId],
                     )
                   }
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                  className="mt-0.5 h-4 w-4 rounded border-line"
                 />
                 <span>
-                  <span className="font-medium text-slate-900">{part.partNumber}</span> —{' '}
+                  <span className="font-medium text-ink">{part.partNumber}</span> —{' '}
                   {part.description}
-                  <span className="text-slate-500">
+                  <span className="text-muted">
                     {' '}
                     · {part.quantity}
                     {part.serialOrBatch ? ` · serial ${part.serialOrBatch}` : ''} · issued{' '}
@@ -163,7 +163,7 @@ export function CreateDeliveryOrderForm({
         })}
       </div>
       <FieldError state={state} name="lines" />
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         Raised from what was issued, never typed again — so the delivery and the stock ledger cannot
         disagree. An expected return date is only meaningful for loan kit.
       </p>
@@ -249,7 +249,7 @@ export function ReceiveDeliveryOrderForm({
   }
 
   return (
-    <form action={formAction} className="mt-3 space-y-3 rounded border border-slate-200 bg-slate-50 p-3">
+    <form action={formAction} className="mt-3 space-y-3 rounded border border-line bg-sheet p-3">
       <FormMessage state={state} />
       <div>
         <label className={labelClass} htmlFor={`receiver-${deliveryOrderId}`}>
@@ -269,9 +269,9 @@ export function ReceiveDeliveryOrderForm({
         {lines.map((line) => (
           <div key={line.id} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="lineId" value={line.id} />
-            <span className="flex-1 text-sm text-slate-800">
+            <span className="flex-1 text-sm text-ink">
               {line.description}
-              <span className="text-slate-500"> · {line.quantity} ordered</span>
+              <span className="text-muted"> · {line.quantity} ordered</span>
             </span>
             <div className="w-28">
               <label className={labelClass} htmlFor={`received-${line.id}`}>
@@ -296,7 +296,7 @@ export function ReceiveDeliveryOrderForm({
       <input ref={hidden} type="hidden" name="signatureFileId" />
       <FieldError state={state} name="signatureFileId" />
       {uploadError ? (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-neg">
           {uploadError}
         </p>
       ) : null}
@@ -324,15 +324,15 @@ export function ReturnDeliveryOrderForm({
   if (loans.length === 0) return null
 
   return (
-    <form action={formAction} className="mt-3 space-y-3 rounded border border-slate-200 bg-white p-3">
+    <form action={formAction} className="mt-3 space-y-3 rounded border border-line bg-field p-3">
       <FormMessage state={state} />
       <div className="space-y-2">
         {loans.map((line) => (
           <div key={line.id} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="lineId" value={line.id} />
-            <span className="flex-1 text-sm text-slate-800">
+            <span className="flex-1 text-sm text-ink">
               {line.description}
-              <span className={line.outstanding ? ' text-amber-800' : ' text-slate-500'}>
+              <span className={line.outstanding ? ' text-warn' : ' text-muted'}>
                 {' '}
                 · {line.quantity} out, {line.returnedQuantity} back
               </span>

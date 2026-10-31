@@ -36,10 +36,10 @@ export default async function PortalLayout({ children }: { children: ReactNode }
   if (!context.customerId) redirect('/dashboard')
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <div className="min-h-screen bg-sheet">
+      <header className="border-b border-line bg-field">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:gap-x-6 sm:px-6">
-          <Link href="/portal" className="shrink-0 font-semibold text-slate-900">
+          <Link href="/portal" className="shrink-0 font-semibold text-ink">
             Cimmerian Crane
           </Link>
 
@@ -51,7 +51,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
               <Link
                 key={item.href}
                 href={item.href}
-                className="shrink-0 rounded-md px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                className="shrink-0 rounded-md px-3 py-1.5 text-sm text-muted hover:bg-raised hover:text-ink"
               >
                 {item.label}
               </Link>
@@ -60,13 +60,13 @@ export default async function PortalLayout({ children }: { children: ReactNode }
 
           <div className="ml-auto flex items-center gap-3">
             <div className="hidden text-right sm:block">
-              <p className="text-sm leading-tight font-medium text-slate-900">{context.name}</p>
-              <p className="text-xs leading-tight text-slate-500">Customer</p>
+              <p className="text-sm leading-tight font-medium text-ink">{context.name}</p>
+              <p className="text-xs leading-tight text-muted">Customer</p>
             </div>
             <form action={signOutAction} className="shrink-0">
               <button
                 type="submit"
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+                className="rounded-md border border-line px-3 py-1.5 text-sm text-ink hover:bg-raised"
               >
                 Sign out
               </button>

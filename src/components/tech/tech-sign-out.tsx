@@ -26,7 +26,7 @@ export function TechSignOut() {
           await signOutAction()
         })
       }}
-      className="shrink-0 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 active:bg-slate-100 disabled:opacity-60"
+      className="shrink-0 rounded-md border border-on-anchor-muted/40 px-3 py-1.5 text-sm text-on-anchor active:bg-white/10 disabled:opacity-60"
     >
       {pending ? 'Signing out…' : 'Sign out'}
     </button>

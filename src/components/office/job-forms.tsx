@@ -99,7 +99,7 @@ export function CreateJobForm({
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted">
             A job happens somewhere. Leave this blank and it comes from the first crane chosen.
           </p>
           <FieldError state={state} name="siteId" />
@@ -137,7 +137,7 @@ export function CreateJobForm({
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-500">{PRIORITY_DESCRIPTIONS[priority]}</p>
+          <p className="mt-1 text-xs text-muted">{PRIORITY_DESCRIPTIONS[priority]}</p>
           <FieldError state={state} name="priority" />
         </div>
       </div>
@@ -145,33 +145,33 @@ export function CreateJobForm({
       <fieldset>
         <legend className={labelClass}>Cranes</legend>
         {!customer ? (
-          <p className="mt-1 text-sm text-slate-500">Choose a customer first.</p>
+          <p className="mt-1 text-sm text-muted">Choose a customer first.</p>
         ) : cranes.length === 0 ? (
-          <p className="mt-1 text-sm text-slate-500">This customer has no cranes on record here.</p>
+          <p className="mt-1 text-sm text-muted">This customer has no cranes on record here.</p>
         ) : (
-          <div className="mt-2 grid gap-2 rounded-md border border-slate-200 p-3 sm:grid-cols-2">
+          <div className="mt-2 grid gap-2 rounded-md border border-line p-3 sm:grid-cols-2">
             {cranes.map((crane) => (
-              <label key={crane.id} className="flex items-center gap-2 text-sm text-slate-800">
+              <label key={crane.id} className="flex items-center gap-2 text-sm text-ink">
                 <input
                   type="checkbox"
                   name="craneIds"
                   value={crane.id}
                   checked={checkedCranes.includes(crane.id)}
                   onChange={() => toggleCrane(crane.id)}
-                  className="h-4 w-4 rounded border-slate-300"
+                  className="h-4 w-4 rounded border-line"
                 />
                 <span>
                   {crane.assetTag}
-                  {siteId ? '' : <span className="text-slate-500"> — {crane.siteName}</span>}
+                  {siteId ? '' : <span className="text-muted"> — {crane.siteName}</span>}
                   {crane.status === 'RESTRICTED' ? (
-                    <span className="text-red-700"> (restricted)</span>
+                    <span className="text-neg"> (restricted)</span>
                   ) : null}
                 </span>
               </label>
             ))}
           </div>
         )}
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           A job covers cranes at one site. Leave all unticked for work that is not about a particular
           machine — a delivery, say.
         </p>
@@ -194,7 +194,7 @@ export function CreateJobForm({
 
       <div>
         <label htmlFor="job-notes" className={labelClass}>
-          Internal notes <span className="font-normal text-slate-500">(optional)</span>
+          Internal notes <span className="font-normal text-muted">(optional)</span>
         </label>
         <textarea
           id="job-notes"
@@ -265,7 +265,7 @@ export function TransitionJobForm({
             </option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-slate-500">{JOB_STATUS_DESCRIPTIONS[target]}</p>
+        <p className="mt-1 text-xs text-muted">{JOB_STATUS_DESCRIPTIONS[target]}</p>
         <FieldError state={state} name="status" />
       </div>
 
@@ -296,7 +296,7 @@ export function TransitionJobForm({
         <div>
           <label htmlFor="transition-part" className={labelClass}>
             Part it is waiting for{' '}
-            <span className="font-normal text-slate-500">(optional)</span>
+            <span className="font-normal text-muted">(optional)</span>
           </label>
           <select id="transition-part" name="onHoldPartId" defaultValue="" className={inputClass}>
             <option value="">Not a particular catalogue part</option>
@@ -306,7 +306,7 @@ export function TransitionJobForm({
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted">
             The job page then shows what is still on order for it and when it lands.
           </p>
           <FieldError state={state} name="onHoldPartId" />
@@ -314,28 +314,28 @@ export function TransitionJobForm({
       ) : null}
 
       {completing ? (
-        <fieldset className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
-          <legend className="px-1 text-sm font-medium text-slate-700">
+        <fieldset className="space-y-2 rounded-md border border-line bg-sheet p-3">
+          <legend className="px-1 text-sm font-medium text-ink">
             Schedules this visit completed
           </legend>
           {completionSchedules.map((schedule) => (
-            <label key={schedule.id} className="flex items-start gap-3 text-sm text-slate-800">
+            <label key={schedule.id} className="flex items-start gap-3 text-sm text-ink">
               <input
                 type="checkbox"
                 name="scheduleIds"
                 value={schedule.id}
-                className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                className="mt-0.5 h-4 w-4 rounded border-line"
               />
               <span>
                 {schedule.label}
-                <span className={schedule.overdue ? ' text-red-800' : ' text-slate-500'}>
+                <span className={schedule.overdue ? ' text-neg' : ' text-muted'}>
                   {' — '}
                   {schedule.dueLabel}
                 </span>
               </span>
             </label>
           ))}
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted">
             Recording one marks it done on the day this job completed and moves it on by its interval.
             Leave it clear if this visit did not do that work.
           </p>
@@ -346,7 +346,7 @@ export function TransitionJobForm({
       <div>
         <label htmlFor="transition-note" className={labelClass}>
           Note{' '}
-          <span className="font-normal text-slate-500">
+          <span className="font-normal text-muted">
             {goingOnHold ? '(what is being waited on)' : '(optional)'}
           </span>
         </label>
@@ -458,8 +458,8 @@ export function ConvertTicketForm({
       <FormMessage state={state} />
 
       {rows.map((row, index) => (
-        <fieldset key={row} className="rounded-md border border-slate-200 p-4">
-          <legend className="px-1 text-sm font-medium text-slate-700">Job {index + 1}</legend>
+        <fieldset key={row} className="rounded-md border border-line p-4">
+          <legend className="px-1 text-sm font-medium text-ink">Job {index + 1}</legend>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor={`job-type-${row}`} className={labelClass}>
@@ -514,7 +514,7 @@ export function ConvertTicketForm({
             <button
               type="button"
               onClick={() => setRows((current) => current.filter((value) => value !== row))}
-              className="mt-3 text-sm text-slate-600 underline hover:text-slate-900"
+              className="mt-3 text-sm text-muted underline hover:text-ink"
             >
               Remove this job
             </button>

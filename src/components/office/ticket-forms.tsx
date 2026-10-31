@@ -98,7 +98,7 @@ export function CreateTicketForm({
 
         <div>
           <label htmlFor="ticket-site" className={labelClass}>
-            Site <span className="font-normal text-slate-500">(optional)</span>
+            Site <span className="font-normal text-muted">(optional)</span>
           </label>
           <select
             id="ticket-site"
@@ -123,7 +123,7 @@ export function CreateTicketForm({
 
         <div>
           <label htmlFor="ticket-crane" className={labelClass}>
-            Crane <span className="font-normal text-slate-500">(optional)</span>
+            Crane <span className="font-normal text-muted">(optional)</span>
           </label>
           <select
             id="ticket-crane"
@@ -178,7 +178,7 @@ export function CreateTicketForm({
             </option>
           ))}
         </select>
-        <p id="ticket-priority-help" className="mt-1 text-xs text-slate-500">
+        <p id="ticket-priority-help" className="mt-1 text-xs text-muted">
           {PRIORITY_DESCRIPTIONS.P1} A first guess is fine — triage confirms it. A P1 alerts every
           dispatcher as soon as this is saved.
         </p>
@@ -187,7 +187,7 @@ export function CreateTicketForm({
 
       <div>
         <label htmlFor="ticket-notes" className={labelClass}>
-          Notes <span className="font-normal text-slate-500">(optional)</span>
+          Notes <span className="font-normal text-muted">(optional)</span>
         </label>
         <textarea
           id="ticket-notes"
@@ -242,7 +242,7 @@ export function TriageTicketForm({
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-500">{PRIORITY_DESCRIPTIONS[priority]}</p>
+          <p className="mt-1 text-xs text-muted">{PRIORITY_DESCRIPTIONS[priority]}</p>
           <FieldError state={state} name="priority" />
         </div>
 
@@ -378,7 +378,7 @@ export function CloseTicketForm({ action }: { action: FormAction }) {
 
       <div>
         <label htmlFor="close-note" className={labelClass}>
-          Note <span className="font-normal text-slate-500">(optional)</span>
+          Note <span className="font-normal text-muted">(optional)</span>
         </label>
         <textarea
           id="close-note"

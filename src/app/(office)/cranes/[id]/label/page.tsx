@@ -64,23 +64,23 @@ export default async function CraneLabelPage({ params }: { params: Promise<{ id:
 
       <div className="no-print flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link href={`/cranes/${crane.id}`} className="text-sm text-slate-600 underline hover:text-slate-900">
+          <Link href={`/cranes/${crane.id}`} className="text-sm text-muted underline hover:text-ink">
             ← {crane.assetTag}
           </Link>
-          <h1 className="mt-1 text-xl font-semibold text-slate-900">Label for {crane.assetTag}</h1>
-          <p className="mt-1 text-sm text-slate-600">
+          <h1 className="mt-1 text-xl font-semibold text-ink">Label for {crane.assetTag}</h1>
+          <p className="mt-1 text-sm text-muted">
             Print at 100% — do not use “fit to page”, which changes the size and can blur the code.
           </p>
         </div>
-        <p className="text-xs break-all text-slate-500">{payload}</p>
+        <p className="text-xs break-all text-muted">{payload}</p>
       </div>
 
-      <div className="crane-label flex border border-slate-900 bg-white">
+      <div className="crane-label flex border border-ink bg-field">
         <div className="flex w-[30mm] items-center justify-center p-1">
           {/* Server-rendered SVG markup, not user content: the payload is a generated token. */}
           <div dangerouslySetInnerHTML={{ __html: svg }} className="h-full w-full [&>svg]:h-full [&>svg]:w-full" />
         </div>
-        <div className="flex flex-1 flex-col justify-between border-l border-slate-300 p-2">
+        <div className="flex flex-1 flex-col justify-between border-l border-line p-2">
           <div>
             <p className="text-[11pt] leading-tight font-bold text-black">{crane.assetTag}</p>
             <p className="text-[7pt] leading-tight text-black">{CRANE_TYPE_LABELS[crane.type]}</p>

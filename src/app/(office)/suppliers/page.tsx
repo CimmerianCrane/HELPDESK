@@ -30,14 +30,14 @@ export default async function SuppliersPage() {
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/parts" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/parts" className="text-sm text-muted underline hover:text-ink">
           ← Parts
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Suppliers</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="mt-2 text-title font-semibold text-ink">Suppliers</h1>
+        <p className="mt-1 text-muted">
           {suppliers.length} {suppliers.length === 1 ? 'supplier' : 'suppliers'} · {active} active
         </p>
-        <p className="mt-2 max-w-3xl text-sm text-slate-500">
+        <p className="mt-2 max-w-3xl text-sm text-muted">
           A supplier is retired, never deleted: the parts that prefer it and every order raised from it
           keep naming it. A supplier still named by a part cannot be retired until those parts are
           pointed elsewhere.
@@ -46,8 +46,8 @@ export default async function SuppliersPage() {
 
       {suppliers.length === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">No suppliers yet.</p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="font-medium text-ink">No suppliers yet.</p>
+          <p className="mt-1 text-sm text-muted">
             Add the trade counters you buy from, then point each part at one so the reorder list can
             group it.
           </p>
@@ -62,10 +62,10 @@ export default async function SuppliersPage() {
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
-                  <h2 id={`supplier-${supplier.id}`} className="font-semibold text-slate-900">
+                  <h2 id={`supplier-${supplier.id}`} className="font-semibold text-ink">
                     {supplier.name}
                   </h2>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-muted">
                     {[supplier.contactName, supplier.phone, supplier.email]
                       .filter(Boolean)
                       .join(' · ') || 'No contact details'}
@@ -77,8 +77,8 @@ export default async function SuppliersPage() {
                 <span
                   className={
                     supplier.isActive
-                      ? 'rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800'
-                      : 'rounded border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs text-slate-600'
+                      ? 'rounded border border-pos/40 bg-pos/10 px-2 py-0.5 text-xs text-pos'
+                      : 'rounded border border-line bg-raised px-2 py-0.5 text-xs text-muted'
                   }
                 >
                   {supplier.isActive ? 'Active' : 'Retired'}
@@ -86,14 +86,14 @@ export default async function SuppliersPage() {
               </div>
 
               {supplier.notes ? (
-                <p className="mt-2 text-sm text-slate-600">{supplier.notes}</p>
+                <p className="mt-2 text-sm text-muted">{supplier.notes}</p>
               ) : null}
 
               <div className="mt-4 grid gap-6 lg:grid-cols-2">
                 <div>
-                  <h3 className="text-xs tracking-wide text-slate-500 uppercase">Parts it supplies</h3>
+                  <h3 className="text-xs text-muted">Parts it supplies</h3>
                   {supplier.parts.length === 0 ? (
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-muted">
                       No part prefers this supplier yet. Choose it on a part in the{' '}
                       <Link href="/parts" className="underline">
                         catalogue
@@ -107,7 +107,7 @@ export default async function SuppliersPage() {
                           <Link href={`/parts/${part.id}`} className="font-mono underline">
                             {part.partNumber}
                           </Link>
-                          <span className="text-slate-600">
+                          <span className="text-muted">
                             {formatMoney(part.cost, settings.currency)}
                           </span>
                         </li>
@@ -117,11 +117,11 @@ export default async function SuppliersPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-xs tracking-wide text-slate-500 uppercase">
+                  <h3 className="text-xs text-muted">
                     Orders and price history
                   </h3>
                   {supplier.orders.length === 0 ? (
-                    <p className="mt-1 text-sm text-slate-500">No purchase orders raised yet.</p>
+                    <p className="mt-1 text-sm text-muted">No purchase orders raised yet.</p>
                   ) : (
                     <ul className="mt-1 space-y-1 text-sm">
                       {supplier.orders.map((order) => (
@@ -130,12 +130,12 @@ export default async function SuppliersPage() {
                             <Link href="/parts/reorder" className="font-mono underline">
                               {order.number}
                             </Link>{' '}
-                            <span className="text-slate-500">
+                            <span className="text-muted">
                               {PURCHASE_ORDER_STATUS_LABELS[order.status]} ·{' '}
                               {formatDate(order.orderedAt, settings.timezone)}
                             </span>
                           </span>
-                          <span className="text-slate-900">
+                          <span className="text-ink">
                             {formatMoney(order.total, settings.currency)}
                           </span>
                         </li>
@@ -147,7 +147,7 @@ export default async function SuppliersPage() {
 
               {mayWrite ? (
                 <details className="mt-4">
-                  <summary className="cursor-pointer text-sm text-slate-700 underline">Edit</summary>
+                  <summary className="cursor-pointer text-sm text-ink underline">Edit</summary>
                   <div className="mt-3 max-w-2xl">
                     <SupplierForm
                       action={updateSupplierAction.bind(null, supplier.id)}
@@ -164,13 +164,13 @@ export default async function SuppliersPage() {
 
       {mayWrite ? (
         <details className={cardClass}>
-          <summary className="cursor-pointer font-semibold text-slate-900">Add a supplier</summary>
+          <summary className="cursor-pointer font-semibold text-ink">Add a supplier</summary>
           <div className="mt-4 max-w-2xl">
             <SupplierForm action={createSupplierAction} values={null} submitLabel="Add supplier" />
           </div>
         </details>
       ) : (
-        <p className="text-sm text-slate-500">The store maintains the supplier book.</p>
+        <p className="text-sm text-muted">The store maintains the supplier book.</p>
       )}
     </div>
   )

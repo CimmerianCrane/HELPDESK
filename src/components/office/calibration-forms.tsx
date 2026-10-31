@@ -122,14 +122,14 @@ function CalibrationFileField({
           const file = event.target.files?.[0]
           if (file) void upload(file)
         }}
-        className="mt-1 block w-full text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
+        className="mt-1 block w-full text-sm text-ink file:mr-3 file:rounded-md file:border-0 file:bg-accent file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
       />
       <input ref={hidden} type="hidden" name="fileId" />
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-muted">
         {label
           ? `On file: ${label}`
           : 'Optional. The certificate from the calibration lab — a PDF or a photograph, up to 5 MB.'}
-        {message ? <span className="ml-1 text-red-700">{message}</span> : null}
+        {message ? <span className="ml-1 text-neg">{message}</span> : null}
       </p>
     </div>
   )
@@ -233,7 +233,7 @@ export function CalibrationForm({
             defaultValue={toDayInput(values?.calibrationDueDate ?? null)}
             className={inputClass}
           />
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted">
             The date on the calibration certificate. Leave it blank if there is none on file — the
             register shows that as its own state rather than guessing.
           </p>
@@ -249,7 +249,7 @@ export function CalibrationForm({
           onBusyChange={setUploading}
         />
       ) : (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted">
           Save the item first, then attach its calibration certificate.
         </p>
       )}

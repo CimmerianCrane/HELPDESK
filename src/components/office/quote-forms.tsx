@@ -91,23 +91,23 @@ export function QuoteForm({
       <FormMessage state={state} />
 
       {findings.length > 0 ? (
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-          <p className="text-sm font-medium text-amber-900">Open findings on this job</p>
-          <p className="mt-1 text-xs text-amber-800">
+        <div className="rounded-md border border-warn/40 bg-warn/10 p-3">
+          <p className="text-sm font-medium text-warn">Open findings on this job</p>
+          <p className="mt-1 text-xs text-warn">
             Add one to prefill a line, then put a price on it. Quoting a finding does not change its
             status — the finding form records that it has been quoted.
           </p>
           <ul className="mt-2 space-y-1">
             {findings.map((finding) => (
               <li key={finding.id} className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-sm text-amber-900">
+                <span className="text-sm text-warn">
                   <span className="font-medium">{finding.component}</span> —{' '}
                   {finding.recommendation ?? finding.description}
                 </span>
                 <button
                   type="button"
                   onClick={() => addFinding(finding)}
-                  className="text-sm text-amber-900 underline hover:text-amber-950"
+                  className="text-sm text-warn underline hover:text-ink"
                 >
                   Add to quote
                 </button>
@@ -119,7 +119,7 @@ export function QuoteForm({
 
       <div className="space-y-3">
         {lines.map((line) => (
-          <div key={line.key} className="grid gap-2 rounded-md border border-slate-200 p-3 sm:grid-cols-12">
+          <div key={line.key} className="grid gap-2 rounded-md border border-line p-3 sm:grid-cols-12">
             <div className="sm:col-span-6">
               <label className={labelClass} htmlFor={`description-${line.key}`}>
                 Description
@@ -186,7 +186,7 @@ export function QuoteForm({
                 <button
                   type="button"
                   onClick={() => setLines((current) => current.filter((row) => row.key !== line.key))}
-                  className="text-sm text-slate-500 underline hover:text-slate-800"
+                  className="text-sm text-muted underline hover:text-ink"
                 >
                   Remove this line
                 </button>
@@ -235,7 +235,7 @@ export function QuoteForm({
         </div>
       </div>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         GST is added at the rate in Settings when the quote is saved. A draft can be edited; once it
         is sent, the lines are the numbers the customer was offered.
       </p>

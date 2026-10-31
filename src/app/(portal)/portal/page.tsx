@@ -20,8 +20,8 @@ export default async function PortalHomePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">{summary.customerName}</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">{summary.customerName}</h1>
+        <p className="mt-1 text-muted">
           Your jobs, cranes and compliance documents. This view is read-only — to change a booking or
           raise a fault, contact the office.
         </p>
@@ -40,35 +40,35 @@ export default async function PortalHomePage() {
 
       <section>
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
+          <h2 className="text-sm font-semibold text-muted">
             Recent work
           </h2>
-          <Link href="/portal/jobs" className="text-sm text-slate-700 underline hover:text-slate-900">
+          <Link href="/portal/jobs" className="text-sm text-ink underline hover:text-ink">
             All jobs
           </Link>
         </div>
 
         {summary.recent.length === 0 ? (
-          <p className={`${cardClass} mt-3 text-sm text-slate-600`}>No jobs on this account yet.</p>
+          <p className={`${cardClass} mt-3 text-sm text-muted`}>No jobs on this account yet.</p>
         ) : (
-          <ul className={`${cardClass} mt-3 divide-y divide-slate-100 p-0`}>
+          <ul className={`${cardClass} mt-3 divide-y divide-rule p-0`}>
             {summary.recent.map((job) => (
               <li key={job.id} className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3">
                 <div className="min-w-0">
                   <Link
                     href={`/portal/jobs/${job.id}`}
-                    className="font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                    className="font-medium text-ink underline decoration-line hover:decoration-ink"
                   >
                     {job.number}
                   </Link>
-                  <span className="ml-2 text-sm text-slate-600">{job.jobTypeName}</span>
+                  <span className="ml-2 text-sm text-muted">{job.jobTypeName}</span>
                   {job.cranes.length > 0 ? (
-                    <span className="block text-xs text-slate-500">{job.cranes.join(', ')}</span>
+                    <span className="block text-xs text-muted">{job.cranes.join(', ')}</span>
                   ) : null}
                 </div>
-                <div className="text-right text-sm text-slate-600">
+                <div className="text-right text-sm text-muted">
                   <span className="block">{job.status.replace(/_/g, ' ').toLowerCase()}</span>
-                  <span className="block text-xs text-slate-500">
+                  <span className="block text-xs text-muted">
                     {formatDate(job.visitAt ?? job.raisedAt, settings.timezone)}
                   </span>
                 </div>
@@ -94,13 +94,13 @@ function Stat({
 }) {
   return (
     <div className={cardClass}>
-      <dt className="text-sm font-medium text-slate-600">{label}</dt>
-      <dd className="mt-1 text-2xl font-semibold text-slate-900">
+      <dt className="text-sm font-medium text-muted">{label}</dt>
+      <dd className="mt-1 text-2xl font-semibold text-ink">
         <Link href={href} className="hover:underline">
           {value}
         </Link>
       </dd>
-      <p className="mt-1 text-xs text-slate-500">{hint}</p>
+      <p className="mt-1 text-xs text-muted">{hint}</p>
     </div>
   )
 }

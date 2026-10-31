@@ -35,9 +35,9 @@ export default async function AuditPage({
   const context = await requireAuth()
   if (!can(context.role, 'audit.read')) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
-        <h1 className="font-semibold text-amber-900">The audit log is for administrators</h1>
-        <p className="mt-1 text-sm text-amber-900">
+      <div className="rounded-lg border border-warn/40 bg-warn/10 p-6">
+        <h1 className="font-semibold text-warn">The audit log is for administrators</h1>
+        <p className="mt-1 text-sm text-warn">
           It holds a before-and-after of every business record in the system. You are signed in as a{' '}
           {context.role.toLowerCase()}.
         </p>
@@ -67,26 +67,26 @@ export default async function AuditPage({
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/admin/users" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/admin/users" className="text-sm text-muted underline hover:text-ink">
           ← Administration
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Audit log</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="mt-2 text-title font-semibold text-ink">Audit log</h1>
+        <p className="mt-1 text-muted">
           Every create, change and deletion, newest first. Append-only: nothing here can be edited or
           removed.
         </p>
       </div>
 
-      <form method="get" className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <form method="get" className="flex flex-wrap items-end gap-3 rounded-lg bg-panel p-4">
         <div>
-          <label htmlFor="entity" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="entity" className="block text-sm font-medium text-ink">
             Record type
           </label>
           <select
             id="entity"
             name="entity"
             defaultValue={params.entity ?? ''}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           >
             <option value="">Everything</option>
             {AUDIT_ENTITIES.map((entity) => (
@@ -98,7 +98,7 @@ export default async function AuditPage({
         </div>
 
         <div>
-          <label htmlFor="entityId" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="entityId" className="block text-sm font-medium text-ink">
             Record id
           </label>
           <input
@@ -106,12 +106,12 @@ export default async function AuditPage({
             name="entityId"
             defaultValue={params.entityId ?? ''}
             placeholder="The row's id"
-            className="mt-1 block w-64 rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block w-64 rounded-md border border-line bg-field px-3 py-2 font-mono text-xs text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
 
         <div>
-          <label htmlFor="from" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="from" className="block text-sm font-medium text-ink">
             From
           </label>
           <input
@@ -119,12 +119,12 @@ export default async function AuditPage({
             name="from"
             type="date"
             defaultValue={params.from ?? ''}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
 
         <div>
-          <label htmlFor="to" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="to" className="block text-sm font-medium text-ink">
             to
           </label>
           <input
@@ -132,19 +132,19 @@ export default async function AuditPage({
             name="to"
             type="date"
             defaultValue={params.to ?? ''}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
 
         <button
           type="submit"
-          className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800"
+          className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft"
         >
           Filter
         </button>
 
         {filtered ? (
-          <Link href="/admin/audit" className="text-sm text-slate-600 underline">
+          <Link href="/admin/audit" className="text-sm text-muted underline">
             Clear
           </Link>
         ) : null}
@@ -152,10 +152,10 @@ export default async function AuditPage({
 
       {rows.length === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">
+          <p className="font-medium text-ink">
             {filtered ? 'Nothing matches those filters.' : 'Nothing has been recorded yet.'}
           </p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             Entries appear here as soon as anything is created, changed or deleted.
           </p>
         </div>
@@ -164,7 +164,7 @@ export default async function AuditPage({
       )}
 
       {truncated ? (
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-muted">
           Showing the newest 100 entries. Narrow the filters, or use a record&apos;s own page and its
           id to see its whole trail.
         </p>
@@ -184,10 +184,10 @@ function AuditRowsTable({
 }) {
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-lg bg-field">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Audit entries</caption>
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+          <thead className="border-b border-line bg-sheet text-xs text-muted">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">When</th>
               <th scope="col" className="px-4 py-3 font-medium">Who</th>
@@ -195,23 +195,23 @@ function AuditRowsTable({
               <th scope="col" className="px-4 py-3 font-medium">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-rule">
             {rows.map((row) => {
               const label = labels.get(`${row.entity}:${row.entityId}`)
               return (
                 <tr key={row.id} className="align-top">
-                  <td className="px-4 py-3 whitespace-nowrap text-slate-600">
+                  <td className="px-4 py-3 whitespace-nowrap text-muted">
                     {formatDateTime(row.createdAt, timezone)}
                   </td>
-                  <td className="px-4 py-3 text-slate-900">
+                  <td className="px-4 py-3 text-ink">
                     {row.user?.name ?? 'System'}
                     {row.user ? (
-                      <span className="block text-xs text-slate-500">{row.user.email}</span>
+                      <span className="block text-xs text-muted">{row.user.email}</span>
                     ) : null}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-xs tracking-wide text-slate-500 uppercase">{row.entity}</span>
-                    <span className="block text-slate-900">
+                    <span className="text-xs text-muted">{row.entity}</span>
+                    <span className="block text-ink">
                       {label?.href ? (
                         <Link href={label.href} className="underline">
                           {label.label}
@@ -225,10 +225,10 @@ function AuditRowsTable({
                     <span
                       className={
                         row.action === 'CREATE'
-                          ? 'rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800'
+                          ? 'rounded border border-pos/40 bg-pos/10 px-2 py-0.5 text-xs text-pos'
                           : row.action === 'DELETE'
-                            ? 'rounded border border-red-200 bg-red-50 px-2 py-0.5 text-xs text-red-800'
-                            : 'rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700'
+                            ? 'rounded border border-neg/40 bg-neg/10 px-2 py-0.5 text-xs text-neg'
+                            : 'rounded border border-line bg-sheet px-2 py-0.5 text-xs text-ink'
                       }
                     >
                       {row.action.toLowerCase()}

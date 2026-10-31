@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
@@ -17,6 +18,11 @@ import { getAuthContext } from '@/server/auth/context'
  * Somebody with `job.read.own` but no technician record would otherwise be scoped to nothing and
  * spend a morning wondering why they have no work.
  *
+ * Hi-Vis Industrial, at arm's length in sunlight: the charcoal bar with its hazard stripe and the
+ * Cimmerian mark is the same chrome as the office, so the phone and the desk read as one product. The bar stays charcoal
+ * rather than yellow because a yellow header at full width is a glare patch, and the yellow is worth
+ * more on the one action a shift turns on.
+ *
  * The cached pages are still gated on the way in: the service worker only ever serves documents
  * that were fetched with a session, and signing out clears the data cache (see `TechSignOut`).
  */
@@ -30,7 +36,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0f172a',
+  themeColor: '#1f2328',
   width: 'device-width',
   initialScale: 1,
 }
@@ -42,12 +48,25 @@ export default async function TechLayout({ children }: { children: ReactNode }) 
 
   return (
     <SyncProvider>
-      <div className="min-h-screen bg-slate-50">
-        <header className="sticky top-0 z-10 border-b border-slate-200 bg-white">
+      <div className="min-h-screen bg-sheet">
+        <header className="sticky top-0 z-10 bg-anchor">
+          <div className="hazard-band h-2" aria-hidden />
           <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-3">
-            <div className="min-w-0">
-              <p className="truncate font-semibold text-slate-900">{context.name}</p>
-              <SyncStatus />
+            <div className="flex min-w-0 items-center gap-2.5">
+              <Image
+                src="/cimmerian-mark.png"
+                width={26}
+                height={26}
+                alt=""
+                className="size-[26px] shrink-0 rounded-[3px]"
+                priority
+              />
+              <div className="min-w-0">
+                <p className="truncate font-display text-lg leading-none font-semibold text-on-anchor">
+                  {context.name}
+                </p>
+                <SyncStatus />
+              </div>
             </div>
             <TechSignOut />
           </div>
@@ -57,12 +76,12 @@ export default async function TechLayout({ children }: { children: ReactNode }) 
 
         <nav
           aria-label="Main"
-          className="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]"
+          className="fixed inset-x-0 bottom-0 border-t border-line bg-field pb-[env(safe-area-inset-bottom)]"
         >
           <div className="mx-auto flex max-w-lg">
             <Link
               href="/m/jobs"
-              className="flex-1 py-4 text-center font-medium text-slate-900 active:bg-slate-100"
+              className="flex-1 border-t-2 border-hivis py-4 text-center font-medium text-ink active:bg-raised"
             >
               My jobs
             </Link>

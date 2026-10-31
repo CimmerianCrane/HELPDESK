@@ -18,8 +18,8 @@ export default async function MyJobsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">My jobs</h1>
-        <p className="text-sm text-slate-600">
+        <h1 className="text-title font-semibold text-ink">My jobs</h1>
+        <p className="text-sm text-muted">
           {jobs.length === 1 ? '1 open job' : `${jobs.length} open jobs`}
         </p>
       </div>

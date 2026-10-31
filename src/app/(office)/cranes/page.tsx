@@ -11,10 +11,10 @@ export const metadata: Metadata = { title: 'Crane register — Cimmerian Crane S
 export const dynamic = 'force-dynamic'
 
 const STATUS_STYLES: Record<string, string> = {
-  IN_SERVICE: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  RESTRICTED: 'border-red-300 bg-red-50 font-medium text-red-800',
-  OUT_OF_SERVICE: 'border-amber-200 bg-amber-50 text-amber-800',
-  DECOMMISSIONED: 'border-slate-200 bg-slate-100 text-slate-600',
+  IN_SERVICE: 'border-pos/40 bg-pos/10 text-pos',
+  RESTRICTED: 'border-neg/40 bg-neg/10 font-medium text-neg',
+  OUT_OF_SERVICE: 'border-warn/40 bg-warn/10 text-warn',
+  DECOMMISSIONED: 'border-line bg-raised text-muted',
 }
 
 export default async function CranesPage({
@@ -33,8 +33,8 @@ export default async function CranesPage({
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Crane register</h1>
-          <p className="mt-1 text-slate-600">
+          <h1 className="text-title font-semibold text-ink">Crane register</h1>
+          <p className="mt-1 text-muted">
             {cranes.length === 0
               ? filtered
                 ? 'No cranes match those filters.'
@@ -46,7 +46,7 @@ export default async function CranesPage({
         {mayImport ? (
           <Link
             href="/cranes/import"
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            className="rounded-md border border-line bg-field px-4 py-2 text-sm font-medium text-ink hover:bg-raised"
           >
             Import from CSV
           </Link>
@@ -55,7 +55,7 @@ export default async function CranesPage({
 
       <form method="get" className="flex flex-wrap items-end gap-3">
         <div className="min-w-56 flex-1">
-          <label htmlFor="q" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="q" className="block text-sm font-medium text-ink">
             Search
           </label>
           <input
@@ -63,19 +63,19 @@ export default async function CranesPage({
             name="q"
             defaultValue={q ?? ''}
             placeholder="Asset tag, serial number, customer or site"
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
 
         <div>
-          <label htmlFor="type" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="type" className="block text-sm font-medium text-ink">
             Type
           </label>
           <select
             id="type"
             name="type"
             defaultValue={type ?? ''}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           >
             <option value="">All</option>
             {CRANE_TYPES.map((value) => (
@@ -87,14 +87,14 @@ export default async function CranesPage({
         </div>
 
         <div>
-          <label htmlFor="status" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="status" className="block text-sm font-medium text-ink">
             Status
           </label>
           <select
             id="status"
             name="status"
             defaultValue={status ?? ''}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           >
             <option value="">All</option>
             {CRANE_STATUSES.map((value) => (
@@ -105,12 +105,12 @@ export default async function CranesPage({
           </select>
         </div>
 
-        <button type="submit" className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800">
+        <button type="submit" className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft">
           Filter
         </button>
 
         {filtered ? (
-          <Link href="/cranes" className="px-2 py-2 text-sm text-slate-600 underline">
+          <Link href="/cranes" className="px-2 py-2 text-sm text-muted underline">
             Clear
           </Link>
         ) : null}
@@ -118,20 +118,20 @@ export default async function CranesPage({
 
       {cranes.length === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">
+          <p className="font-medium text-ink">
             {filtered ? 'Nothing matches those filters.' : 'The register is empty.'}
           </p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             {filtered
               ? 'Try a shorter search, or clear the filters.'
               : 'Cranes are added to a site: open a customer, then one of its sites.'}
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg bg-field">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Cranes</caption>
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="border-b border-line bg-sheet text-xs text-muted">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Asset tag</th>
                 <th scope="col" className="px-4 py-3 font-medium">Type</th>
@@ -141,32 +141,32 @@ export default async function CranesPage({
                 <th scope="col" className="px-4 py-3 font-medium">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-rule">
               {cranes.map((crane) => (
-                <tr key={crane.id} className="hover:bg-slate-50">
+                <tr key={crane.id} className="hover:bg-sheet">
                   <td className="px-4 py-3">
                     <Link
                       href={`/cranes/${crane.id}`}
-                      className="font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                      className="font-medium text-ink underline decoration-line hover:decoration-ink"
                     >
                       {crane.assetTag}
                     </Link>
                     {crane.serialNumber ? (
-                      <span className="block text-xs text-slate-500">S/N {crane.serialNumber}</span>
+                      <span className="block text-xs text-muted">S/N {crane.serialNumber}</span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{CRANE_TYPE_LABELS[crane.type]}</td>
+                  <td className="px-4 py-3 text-muted">{CRANE_TYPE_LABELS[crane.type]}</td>
                   <td className="px-4 py-3">
-                    <Link href={`/customers/${crane.site.customerId}`} className="text-slate-900 underline">
+                    <Link href={`/customers/${crane.site.customerId}`} className="text-ink underline">
                       {crane.site.customerName}
                     </Link>
                   </td>
                   <td className="px-4 py-3">
-                    <Link href={`/sites/${crane.site.id}`} className="text-slate-600 underline">
+                    <Link href={`/sites/${crane.site.id}`} className="text-muted underline">
                       {crane.site.name}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-600">{crane.swlKg.toLocaleString()} kg</td>
+                  <td className="px-4 py-3 text-right text-muted">{crane.swlKg.toLocaleString()} kg</td>
                   <td className="px-4 py-3">
                     <span className={`rounded border px-2 py-0.5 text-xs ${STATUS_STYLES[crane.status] ?? ''}`}>
                       {CRANE_STATUS_LABELS[crane.status]}

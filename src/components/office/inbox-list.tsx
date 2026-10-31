@@ -27,7 +27,7 @@ export function InboxList({ items, timeZone }: { items: InboxItem[]; timeZone: s
   if (rows.length === 0) {
     return (
       <div className={`${cardClass} text-center`}>
-        <p className="text-slate-600">
+        <p className="text-muted">
           No alerts yet. P1 tickets, due-service reminders and dispatch notifications arrive here.
         </p>
       </div>
@@ -41,11 +41,11 @@ export function InboxList({ items, timeZone }: { items: InboxItem[]; timeZone: s
         return (
           <li
             key={item.id}
-            className={`${cardClass} ${item.readAt ? '' : 'border-l-4 border-l-slate-900'}`}
+            className={`${cardClass} ${item.readAt ? '' : 'border-l-4 border-l-hivis'}`}
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="font-medium text-slate-900">
+                <p className="font-medium text-ink">
                   {item.link ? (
                     <Link href={item.link} className="hover:underline">
                       {item.title}
@@ -54,7 +54,7 @@ export function InboxList({ items, timeZone }: { items: InboxItem[]; timeZone: s
                     item.title
                   )}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-muted">
                   {formatDateTime(item.createdAt, timeZone)}
                   {item.readAt ? '' : ' · unread'}
                   {failed ? ` · ${CHANNEL_LABELS[item.channel]} failed` : ''}
@@ -65,10 +65,10 @@ export function InboxList({ items, timeZone }: { items: InboxItem[]; timeZone: s
 
             {/* Newline-preserving: a dispatch pack is multi-line, and collapsing it removes the
                 point of the pack. */}
-            <p className="mt-2 text-sm whitespace-pre-line text-slate-700">{item.body}</p>
+            <p className="mt-2 text-sm whitespace-pre-line text-ink">{item.body}</p>
 
             {failed ? (
-              <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+              <p className="mt-2 rounded-md border border-neg/40 bg-neg/10 px-3 py-2 text-xs text-neg">
                 The {CHANNEL_LABELS[item.channel].toLowerCase()} copy was not delivered
                 {item.error ? `: ${item.error}` : '.'} The in-app copy above did reach you.
               </p>

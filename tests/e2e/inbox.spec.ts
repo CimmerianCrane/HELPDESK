@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { expect, test, type Page } from './fixtures'
-import { DEMO_PASSWORD, signIn } from './helpers'
+import { DEMO_PASSWORD, openNav, signIn } from './helpers'
 
 /**
  * The inbox in a browser (slice 38).
@@ -59,6 +59,7 @@ test.describe('the inbox', () => {
     const inboxLink = page.getByRole('link', { name: /Inbox/ })
     await expect(inboxLink).toContainText('1')
 
+    await openNav(page)
     await inboxLink.click()
     await expect(page).toHaveURL(/\/inbox$/)
     await expect(page.getByText(TITLE)).toBeVisible()
@@ -74,6 +75,7 @@ test.describe('the inbox', () => {
     const adminLink = page.getByRole('link', { name: /Inbox/ })
     await expect(adminLink).not.toContainText('1')
 
+    await openNav(page)
     await adminLink.click()
     await expect(page.getByText(TITLE)).not.toBeVisible()
   })
@@ -95,6 +97,7 @@ test.describe('the inbox', () => {
 
     await signIn(page, DISPATCHER, DEMO_PASSWORD)
     await expect(page).toHaveURL(/\/dashboard/)
+    await openNav(page)
     await page.getByRole('link', { name: /Inbox/ }).click()
     await expect(page).toHaveURL(/\/inbox$/)
 
@@ -130,6 +133,7 @@ test.describe('the inbox', () => {
 
     await signIn(page, DISPATCHER, DEMO_PASSWORD)
     await expect(page).toHaveURL(/\/dashboard/)
+    await openNav(page)
     await page.getByRole('link', { name: /Inbox/ }).click()
 
     await expect(page.getByText(TITLE)).toBeVisible()

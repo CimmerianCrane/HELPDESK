@@ -21,8 +21,10 @@ test('an administrator can sign in and reach the dashboard', async ({ page }) =>
   await signIn(page, ADMIN, PASSWORD)
 
   await expect(page).toHaveURL(/\/dashboard/)
-  await expect(page.getByRole('heading', { name: /Hello, Alice/ })).toBeVisible()
-  // The nav link only exists for a role that holds user.manage.
+  // The board is titled with its finding, not a greeting (UI-REVIEW §5).
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  // The nav shows the area you are in; Users lives inside Admin, so open that area first.
+  await page.goto('/admin/users')
   await expect(page.getByRole('link', { name: 'Users' })).toBeVisible()
 })
 

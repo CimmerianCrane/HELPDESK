@@ -98,29 +98,29 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/reports" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/reports" className="text-sm text-muted underline hover:text-ink">
           ← Reports
         </Link>
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">
+            <h1 className="text-title font-semibold text-ink">
               {report.documentNumber ?? 'Submitted report'}
             </h1>
-            <p className="mt-1 text-slate-600">
-              <Link href={`/jobs/${report.job.id}`} className="underline hover:text-slate-900">
+            <p className="mt-1 text-muted">
+              <Link href={`/jobs/${report.job.id}`} className="underline hover:text-ink">
                 {report.job.number}
               </Link>
               {' · '}
               {report.job.jobType.name}
               {' · '}
-              <Link href={`/cranes/${report.crane.id}`} className="underline hover:text-slate-900">
+              <Link href={`/cranes/${report.crane.id}`} className="underline hover:text-ink">
                 {report.crane.assetTag}
               </Link>
               {' · '}
               <Link
                 href={`/customers/${report.job.customer.id}`}
-                className="underline hover:text-slate-900"
+                className="underline hover:text-ink"
               >
                 {report.job.customer.tradingName ?? report.job.customer.legalName}
               </Link>
@@ -128,11 +128,11 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           </div>
 
           <div className="text-right">
-            <p className="rounded border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700">
+            <p className="rounded border border-line bg-field px-2 py-1 text-sm text-ink">
               {REPORT_STATUS_LABELS[report.status]}
             </p>
             {report.safeToOperate ? (
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-muted">
                 Safe to operate:{' '}
                 {SAFE_TO_OPERATE_LABELS[
                   report.safeToOperate as keyof typeof SAFE_TO_OPERATE_LABELS
@@ -144,14 +144,14 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       </div>
 
       {report.status === 'RETURNED' ? (
-        <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4">
-          <h2 className="font-semibold text-amber-900">Sent back for correction</h2>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-amber-900">{report.returnReason}</p>
+        <div role="alert" className="rounded-lg border border-warn/40 bg-warn/10 p-4">
+          <h2 className="font-semibold text-warn">Sent back for correction</h2>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-warn">{report.returnReason}</p>
         </div>
       ) : null}
 
       {report.amendmentOfId ? (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        <div className="rounded-lg border border-line bg-sheet p-4 text-sm text-ink">
           This is an amendment of{' '}
           <Link href={`/reports/${report.amendmentOfId}`} className="underline">
             {report.amendmentOf?.documentNumber ?? 'the original report'}
@@ -161,7 +161,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       ) : null}
 
       {report.amendments.length > 0 ? (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        <div className="rounded-lg border border-line bg-sheet p-4 text-sm text-ink">
           Corrected by{' '}
           {report.amendments.map((entry, index) => (
             <span key={entry.id}>
@@ -177,16 +177,16 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
       <section className={cardClass}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-semibold text-slate-900">The document</h2>
+          <h2 className="font-semibold text-ink">The document</h2>
           {downloadUrl ? (
             <a
               href={downloadUrl}
-              className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700 hover:bg-slate-100"
+              className="rounded-md border border-line bg-field px-4 py-2 font-medium text-ink hover:bg-raised"
             >
               Download the issued PDF
             </a>
           ) : (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted">
               The PDF is rendered when the report is approved.
             </p>
           )}
@@ -194,41 +194,41 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Signed by</dt>
-            <dd className="text-slate-900">
+            <dt className="text-xs font-medium text-muted">Signed by</dt>
+            <dd className="text-ink">
               {report.technicianSignerName ?? '—'} ·{' '}
               {formatDateTime(report.technicianSignedAt, settings.timezone)}
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Customer</dt>
-            <dd className="text-slate-900">
+            <dt className="text-xs font-medium text-muted">Customer</dt>
+            <dd className="text-ink">
               {report.customerDeclinedReason
                 ? `Did not sign: ${report.customerDeclinedReason}`
                 : `${report.customerSignerName ?? '—'}${report.customerSignerDesignation ? `, ${report.customerSignerDesignation}` : ''} · ${formatDateTime(report.customerSignedAt, settings.timezone)}`}
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Submitted</dt>
-            <dd className="text-slate-900">{formatDateTime(report.submittedAt, settings.timezone)}</dd>
+            <dt className="text-xs font-medium text-muted">Submitted</dt>
+            <dd className="text-ink">{formatDateTime(report.submittedAt, settings.timezone)}</dd>
           </div>
           <div>
-            <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Approved</dt>
-            <dd className="text-slate-900">{formatDateTime(report.approvedAt, settings.timezone)}</dd>
+            <dt className="text-xs font-medium text-muted">Approved</dt>
+            <dd className="text-ink">{formatDateTime(report.approvedAt, settings.timezone)}</dd>
           </div>
           <div>
-            <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+            <dt className="text-xs font-medium text-muted">
               Template version
             </dt>
-            <dd className="text-slate-900">
+            <dd className="text-ink">
               {report.template.name} · v{report.templateVersion}
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+            <dt className="text-xs font-medium text-muted">
               Emailed to customer
             </dt>
-            <dd className="text-slate-900">
+            <dd className="text-ink">
               {formatDateTime(report.emailedToCustomerAt, settings.timezone)}
               {report.approvedAt && !report.emailedToCustomerAt
                 ? ' · waiting for the daily retry'
@@ -240,10 +240,10 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
       {parsed.success ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">What was recorded</h2>
+          <h2 className="font-semibold text-ink">What was recorded</h2>
           {/* The same check the phone ran, on the dates as recorded — the reviewer decides what to do. */}
           {calibration.length > 0 ? (
-            <div role="alert" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <div role="alert" className="mt-4 rounded-lg border border-warn/40 bg-warn/10 p-4 text-sm text-warn">
               <p className="font-medium">An instrument was out of calibration on the test date</p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 {calibration.map((warning) => (
@@ -261,19 +261,19 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
               return (
                 <div key={section.key}>
-                  <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                  <h3 className="text-xs font-medium text-muted">
                     {section.label}
                   </h3>
                   {rows ? (
                     rows.length === 0 ? (
-                      <p className="mt-1 text-sm text-slate-600">None recorded.</p>
+                      <p className="mt-1 text-sm text-muted">None recorded.</p>
                     ) : (
                       <ul className="mt-1 space-y-2 text-sm">
                         {rows.map((row, index) => (
-                          <li key={index} className="rounded border border-slate-200 p-2">
+                          <li key={index} className="rounded border border-line p-2">
                             {section.fields.map((field) => (
-                              <p key={field.key} className="text-slate-700">
-                                <span className="text-slate-500">{field.label}: </span>
+                              <p key={field.key} className="text-ink">
+                                <span className="text-muted">{field.label}: </span>
                                 {display(row[field.key], field.unit)}
                               </p>
                             ))}
@@ -285,8 +285,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                     <dl className="mt-1 grid gap-1 text-sm">
                       {section.fields.map((field) => (
                         <div key={field.key} className="flex gap-2">
-                          <dt className="w-56 shrink-0 text-slate-500">{field.label}</dt>
-                          <dd className="text-slate-900">{display(data[field.key], field.unit)}</dd>
+                          <dt className="w-56 shrink-0 text-muted">{field.label}</dt>
+                          <dd className="text-ink">{display(data[field.key], field.unit)}</dd>
                         </div>
                       ))}
                     </dl>
@@ -297,7 +297,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           </div>
         </section>
       ) : (
-        <p role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <p role="alert" className="rounded-md border border-warn/40 bg-warn/10 p-3 text-sm text-warn">
           This report was written against a template that no longer parses. The stored answers are
           below; the issued PDF is the record of what was signed.
         </p>
@@ -305,8 +305,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
       {report.findings.length > 0 ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Findings</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Findings</h2>
+          <p className="mt-1 text-sm text-muted">
             A defect raised on this report. It stays open until the work is recorded as done or the
             customer declines it in writing — a declined repair keeps their signature with it.
           </p>
@@ -314,24 +314,24 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
             {report.findings.map((finding) => {
               const summary = findings.find((row) => row.id === finding.id)
               return (
-                <li key={finding.id} className="border-l-2 border-slate-200 pl-3">
-                  <p className="font-medium text-slate-900">
+                <li key={finding.id} className="border-l-2 border-line pl-3">
+                  <p className="font-medium text-ink">
                     {finding.component} · {FINDING_SEVERITY_LABELS[finding.severity]}
-                    <span className="ml-2 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-normal text-slate-700">
+                    <span className="ml-2 rounded border border-line bg-field px-1.5 py-0.5 text-xs font-normal text-ink">
                       {FINDING_STATUS_LABELS[finding.status]}
                     </span>
                   </p>
-                  <p className="text-slate-700">{finding.description}</p>
+                  <p className="text-ink">{finding.description}</p>
                   {finding.recommendation ? (
-                    <p className="text-slate-500">Recommendation: {finding.recommendation}</p>
+                    <p className="text-muted">Recommendation: {finding.recommendation}</p>
                   ) : null}
 
                   {summary?.followUpJob ? (
-                    <p className="mt-1 text-slate-600">
+                    <p className="mt-1 text-muted">
                       Follow-up job:{' '}
                       <Link
                         href={`/jobs/${summary.followUpJob.id}`}
-                        className="underline hover:text-slate-900"
+                        className="underline hover:text-ink"
                       >
                         {summary.followUpJob.number}
                       </Link>
@@ -339,7 +339,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                   ) : null}
 
                   {summary?.declined ? (
-                    <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                    <div className="mt-2 rounded border border-warn/40 bg-warn/10 p-2 text-xs text-warn">
                       Declined by {summary.declined.name ?? 'the customer'}
                       {summary.declined.at
                         ? ` on ${formatDate(summary.declined.at, settings.timezone)}`
@@ -367,7 +367,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
                       {mayHandleFindings && summary.open && !summary.followUpJob ? (
                         <details>
-                          <summary className="cursor-pointer text-sm font-medium text-slate-900 underline">
+                          <summary className="cursor-pointer text-sm font-medium text-ink underline">
                             Raise a follow-up job
                           </summary>
                           <FollowUpJobForm
@@ -382,7 +382,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
                       {mayWriteFindings && summary.open && finding.recommendation ? (
                         <details>
-                          <summary className="cursor-pointer text-sm font-medium text-slate-900 underline">
+                          <summary className="cursor-pointer text-sm font-medium text-ink underline">
                             Customer declined this repair
                           </summary>
                           <DeclineFindingForm
@@ -403,7 +403,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
       {mayDecide && report.status === 'SUBMITTED' ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Decide</h2>
+          <h2 className="font-semibold text-ink">Decide</h2>
           <div className="mt-4 grid gap-6 lg:grid-cols-2">
             <ApproveReportForm
               action={approveReportAction.bind(null, report.id)}
@@ -416,8 +416,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
       {mayAmend && report.status === 'APPROVED' && !openAmendment ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Correct this report</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Correct this report</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
             An issued report is never edited. A correction is a new report that copies these answers,
             links back here with your reason, and gets its own number when it is approved.
           </p>
@@ -429,8 +429,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
       {mayAmend && report.status === 'DRAFT' && report.amendmentOfId ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Submit the amendment</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Submit the amendment</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
             It goes back into the queue for approval, and is issued with its own document number.
           </p>
           <SubmitAmendmentForm action={submitAmendmentAction.bind(null, report.id)} />

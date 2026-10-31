@@ -10,6 +10,72 @@ and the state of the build. Everything else is in the repository:
 | `docs/PLAN.md` | Architecture, data model, screen list, the canonical slice table, testing strategy, risks |
 | `docs/ASSUMPTIONS.md` | Every assumption made where the brief was silent |
 | `README.md` | How to run it, and what works today |
+| `docs/UI-REVIEW.md` | The design review of 31 Oct 2026, the agreed fix plan, and the Hi-Vis Industrial direction — **read this next if you are touching any screen** |
+
+> **Where the next session starts: finish the styling pass, then new feature work.** The feature plan
+> (§7 in `docs/PLAN.md`) is complete through slice 38. The owner reviewed every screen on 31 October
+> 2026 and rejected two things outright: **the sidebar is cluttered** and **the dashboard is not the
+> look they want**. Both were fixed, and the whole app was then restyled to the **Hi-Vis Industrial**
+> direction taken from the owner's taste board: charcoal chrome, a hazard-stripe band as the signature
+> device, safety yellow spent only on the active nav row and the one primary action, Barlow Condensed
+> headings, and the Cimmerian mark in the shell, login and app icons. See `docs/UI-REVIEW.md` §"Done"
+> and §5b for the direction and its contrast rules.
+>
+> No new capabilities and no schema changes were made — styling, layout and information architecture only.
+
+### What is left to be done (as at 31 Oct 2026)
+
+**The gates have been re-run and all pass** — `npm run verify` (463 unit), `npm run
+test:integration` (394), `npm run test:e2e` (51 passed / 2 skipped), `npm run build`, taste lint
+0 FAIL. Items 1–9 below are done except 2, 3, 5, 6 and 7 (see each).
+
+**Next.js 16.4.3 (31 Oct 2026).** Upgraded from 15.5.28. What it forced:
+
+- **Both scripts pass `--webpack`.** `@serwist/next` integrates through a `webpack(config)` hook, and
+  Next 16 fails a build that finds one unless you opt out of its new Turbopack default.
+- **`eslint.config.mjs` spreads the flat config directly.** `eslint-config-next@16` ships native flat
+  config; the old `FlatCompat` wrapper threw "Converting circular structure to JSON". `@eslint/eslintrc`
+  is no longer a dependency.
+- **`next.config.ts` lost its `distDir` switch.** Next 16 already puts dev in `.next/dev` and build in
+  `.next`, which is what that switch existed to fake. The concurrency comment it carried is gone with
+  it — the framework now holds a lock that refuses a second dev server itself.
+- **Three `react-hooks/set-state-in-effect` errors**, new in the v16 rule set, fixed rather than
+  silenced: the nav's rail preference and the phone's connection state are now `useSyncExternalStore`
+  (they were mirroring an external store into state), and the sheet's open flag is derived from the
+  route it was opened on instead of being reset by an effect.
+- **One dev-server lock**, so only one `next dev` can run per project. `npm run dev:stop` still works.
+- `tsconfig.json` was rewritten by `next dev` (`jsx: react-jsx`, extra `.next/dev` include paths) and
+  `AGENTS.md` was generated. Both are framework-owned; keep them.
+
+A session that ran without shell access closed the last code defect but could not run commands.
+Work through this in order:
+
+1. ~~**Re-run the gates**~~ — **done 31 Oct 2026**, see above.
+2. **Look at the dashboard at 1440** — the two-card row under "Today on the board" had ragged bottom
+   edges; `items-start` was removed from the grid in `src/app/(office)/dashboard/page.tsx`, so the
+   cards should now share a bottom edge. Confirm by eye and check the shorter panel does not now read
+   as dead space.
+3. **Review the screens not yet seen at full resolution:** `/cranes`, `/invoices`, `/tickets`,
+   `/schedule`, `/reports`, `/admin`, `/quotes`, `/stock-takes`, the `(portal)` screens and the
+   technician app at 390px.
+4. ~~**Two known visual nits**~~ — **done.** The SLA badge nits came from the jobs table scrolling
+   sideways at 390px; it is now a two-line list below `md` and the badges carry `whitespace-nowrap`.
+   The Parts title was already resolving to Barlow — every office `h1` shares `text-title` and the
+   global `h1` rule in `globals.css` supplies the face.
+5. **Sweep for `text-hivis` on pale surfaces** app-wide. Any yellow running text not on charcoal or on
+   a hivis fill is a contrast failure (white/yellow pairing is 1.6:1).
+6. **Reconcile `docs/UI-REVIEW.md`** — its tail documents Hi-Vis, but earlier sections still describe
+   the old sage palette and list step 3 as outstanding. The doc must not contradict the build.
+7. **Confirm "ADA MORALES"** in the customers table — the office header reads "Alice Tan", so the
+   uppercase string looks like seed sample data. Check no CSS `uppercase` is applied to names; if it
+   is only seed copy, leave it.
+8. ~~**Delete the temporary artefacts**~~ — **done.** `shot.mjs`, `titles.mjs`, `try-login*.mjs`,
+   `marktest.png`, `.shots/` and `test-results/` are gone; the migration scripts had already been
+   removed.
+9. **Taste-skill gate** — `lint.mjs` on the changed source is **0 FAIL / 0 WARN**. `inspect.mjs`
+   **cannot be run on the office screens**: it has no session support, so pointed at `/dashboard` it
+   measures the login screen and warns about *that* (`CRANE SERVICES` micro-label, the void beside the
+   sign-in form). Its measurements of the office app still need an authenticated route.
 
 ---
 
@@ -376,11 +442,14 @@ against `npm run build && npm start`.
 
 **Traps that have already bitten, and will again.**
 
-- ~~Never run `npm run build` while `npm run dev` is up.~~ **Fixed.** They used to share `.next`, and
-  a build pruned the tree the dev server was serving from — `Invariant: no direct app page entry
-  found for /login`, then 500s on every dev route. `next dev` now writes `.next-dev`, so a build
-  (still `.next`, which Vercel reads) and a live dev server no longer touch each other. A build no
-  longer needs the server stopped.
+- ~~Never run `npm run build` while `npm run dev` is up.~~ **Fixed by the framework.** They used to
+  share `.next`, and a build pruned the tree the dev server was serving from — `Invariant: no direct
+  app page entry found for /login`, then 500s on every dev route. Next 16 separates them natively
+  (dev writes `.next/dev`), so the home-grown `distDir` switch in `next.config.ts` is gone. A build
+  no longer needs the server stopped.
+- **Only one `next dev` runs at a time.** Next 16 holds a lock. A second start refuses and prints the
+  running PID and its port; the first stays on 3000 and the refused one offers 3001. `npm run
+  dev:stop` the old one before starting again, or you end up hunting a server on 3001.
 - **`npm run dev:stop`** stops whatever is on port 3000 (or `npm run dev:stop -- 3001`). Use it when a
   previous session left a server behind. It exists because `taskkill` and `rm -rf .next` are denied by
   the permission classifier — this script is the sanctioned path, so do not reach for those.

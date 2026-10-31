@@ -47,18 +47,18 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/admin/users" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/admin/users" className="text-sm text-muted underline hover:text-ink">
           ← Users
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">{user.name}</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="mt-2 text-title font-semibold text-ink">{user.name}</h1>
+        <p className="mt-1 text-muted">
           {user.email} · {ROLE_LABELS[user.role]} · created{' '}
           {formatDateTime(user.createdAt, settings.timezone)}
         </p>
       </div>
 
       <section className={cardClass}>
-        <h2 className="mb-5 font-semibold text-slate-900">Account</h2>
+        <h2 className="mb-5 font-semibold text-ink">Account</h2>
         <UserEditForm
           userId={user.id}
           user={{
@@ -75,8 +75,8 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
       </section>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">Reset password</h2>
-        <p className="mt-1 mb-5 text-sm text-slate-600">
+        <h2 className="font-semibold text-ink">Reset password</h2>
+        <p className="mt-1 mb-5 text-sm text-muted">
           For when someone is locked out. There is no self-service reset: this is an internal system
           with no email delivery to staff.
         </p>
@@ -84,22 +84,22 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
+        <h2 className="text-sm font-semibold text-muted">
           History
         </h2>
         {history.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-600">No recorded changes.</p>
+          <p className="mt-3 text-sm text-muted">No recorded changes.</p>
         ) : (
           <ul className="mt-3 space-y-2">
             {history.map((entry) => (
-              <li key={entry.id} className="rounded-md border border-slate-200 bg-white p-3 text-sm">
-                <p className="text-slate-900">
+              <li key={entry.id} className="rounded-md border border-line bg-field p-3 text-sm">
+                <p className="text-ink">
                   <span className="font-medium">{entry.action}</span> by{' '}
                   {entry.user?.name ?? 'system'} on{' '}
                   {formatDateTime(entry.createdAt, settings.timezone)}
                 </p>
                 {entry.after ? (
-                  <pre className="mt-2 overflow-x-auto text-xs text-slate-600">
+                  <pre className="mt-2 overflow-x-auto text-xs text-muted">
                     {JSON.stringify(entry.after, null, 2)}
                   </pre>
                 ) : null}

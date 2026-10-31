@@ -26,12 +26,12 @@ export const dynamic = 'force-dynamic'
 
 /** The same palette the certificate queue uses for the same question: how urgent is this date? */
 const BUCKET_STYLES: Record<DueBucket, string> = {
-  overdue: 'border-red-300 bg-red-50 font-medium text-red-800',
-  '30': 'border-amber-300 bg-amber-50 text-amber-900',
-  '60': 'border-amber-200 bg-amber-50 text-amber-900',
-  '90': 'border-slate-200 bg-white text-slate-700',
-  later: 'border-slate-200 bg-white text-slate-600',
-  none: 'border-slate-200 bg-slate-100 text-slate-600',
+  overdue: 'border-neg/40 bg-neg/10 font-medium text-neg',
+  '30': 'border-warn/40 bg-warn/10 text-warn',
+  '60': 'border-warn/40 bg-warn/10 text-warn',
+  '90': 'border-line bg-field text-ink',
+  later: 'border-line bg-field text-muted',
+  none: 'border-line bg-raised text-muted',
 }
 
 /**
@@ -68,15 +68,15 @@ export default async function CalibrationsPage({
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/schedule/roster" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/schedule/roster" className="text-sm text-muted underline hover:text-ink">
           ← Roster
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Calibrations</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="mt-2 text-title font-semibold text-ink">Calibrations</h1>
+        <p className="mt-1 text-muted">
           {counts.overdue === 0 ? 'Nothing has lapsed.' : `${counts.overdue} lapsed.`}{' '}
           {counts.dueWithin90} lapsing in the next 90 days.
         </p>
-        <p className="mt-2 max-w-3xl text-sm text-slate-500">
+        <p className="mt-2 max-w-3xl text-sm text-muted">
           The test weights, load cells, vans and tools the schedule books onto jobs, and when each
           was last proved accurate. A lapsed calibration warns when the item is booked and on a load
           test&rsquo;s instruments table — it never blocks a report, because a blocked form on a phone
@@ -86,7 +86,7 @@ export default async function CalibrationsPage({
 
       <form method="get" className="flex flex-wrap items-end gap-3">
         <div className="min-w-56 flex-1">
-          <label htmlFor="q" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="q" className="block text-sm font-medium text-ink">
             Search
           </label>
           <input
@@ -94,19 +94,19 @@ export default async function CalibrationsPage({
             name="q"
             defaultValue={filters.q}
             placeholder="Name or serial number"
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
 
         <div>
-          <label htmlFor="due" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="due" className="block text-sm font-medium text-ink">
             Calibration
           </label>
           <select
             id="due"
             name="due"
             defaultValue={filters.due}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           >
             <option value="">Everything</option>
             <option value="overdue">{DUE_BUCKET_LABELS.overdue}</option>
@@ -118,14 +118,14 @@ export default async function CalibrationsPage({
         </div>
 
         <div>
-          <label htmlFor="type" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="type" className="block text-sm font-medium text-ink">
             Kind
           </label>
           <select
             id="type"
             name="type"
             defaultValue={filters.type}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           >
             <option value="">All</option>
             {EQUIPMENT_TYPES.map((type) => (
@@ -136,12 +136,12 @@ export default async function CalibrationsPage({
           </select>
         </div>
 
-        <button type="submit" className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800">
+        <button type="submit" className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft">
           Filter
         </button>
 
         {filtered ? (
-          <Link href="/calibrations" className="px-2 py-2 text-sm text-slate-600 underline">
+          <Link href="/calibrations" className="px-2 py-2 text-sm text-muted underline">
             Clear
           </Link>
         ) : null}
@@ -149,20 +149,20 @@ export default async function CalibrationsPage({
 
       {calibrations.length === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">
+          <p className="font-medium text-ink">
             {filtered ? 'Nothing matches those filters.' : 'No equipment on record yet.'}
           </p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             {filtered
               ? 'Try a shorter search, or clear the filters.'
               : 'Add the test weights, load cells and tools that need calibrating — each one is bookable onto a job.'}
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg bg-field">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Equipment and its calibration dates, soonest lapsing first</caption>
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="border-b border-line bg-sheet text-xs text-muted">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Equipment</th>
                 <th scope="col" className="px-4 py-3 font-medium">State</th>
@@ -174,12 +174,12 @@ export default async function CalibrationsPage({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-rule">
               {calibrations.map((row) => (
-                <tr key={row.id} className="align-top hover:bg-slate-50">
+                <tr key={row.id} className="align-top hover:bg-sheet">
                   <td className="px-4 py-3">
-                    <span className="font-medium text-slate-900">{row.name}</span>
-                    <span className="block text-xs text-slate-500">
+                    <span className="font-medium text-ink">{row.name}</span>
+                    <span className="block text-xs text-muted">
                       {EQUIPMENT_TYPE_LABELS[row.type as EquipmentTypeName]}
                       {row.serialNumber ? ` · ${row.serialNumber}` : ''}
                       {row.openBookings > 0
@@ -187,12 +187,12 @@ export default async function CalibrationsPage({
                         : ''}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 text-ink">
                     {EQUIPMENT_STATUS_LABELS[row.status as EquipmentStatusName]}
                   </td>
-                  <td className="px-4 py-3 text-slate-900">
+                  <td className="px-4 py-3 text-ink">
                     {formatDate(row.calibrationDueDate, settings.timezone)}
-                    <span className="block text-xs text-slate-500">{calibrationDueLabel(row)}</span>
+                    <span className="block text-xs text-muted">{calibrationDueLabel(row)}</span>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`rounded border px-2 py-0.5 text-xs ${BUCKET_STYLES[row.dueBucket]}`}>
@@ -201,17 +201,17 @@ export default async function CalibrationsPage({
                   </td>
                   <td className="px-4 py-3">
                     {row.file ? (
-                      <a href={row.file.downloadUrl} className="text-sm text-slate-700 underline">
+                      <a href={row.file.downloadUrl} className="text-sm text-ink underline">
                         {row.file.filename}
                       </a>
                     ) : (
-                      <span className="text-xs text-slate-500">None</span>
+                      <span className="text-xs text-muted">None</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     {mayWrite ? (
                       <details>
-                        <summary className="cursor-pointer text-sm text-slate-700 underline">
+                        <summary className="cursor-pointer text-sm text-ink underline">
                           Edit
                         </summary>
                         <div className="mt-3 min-w-72">
@@ -233,13 +233,13 @@ export default async function CalibrationsPage({
 
       {mayWrite ? (
         <details className={cardClass}>
-          <summary className="cursor-pointer font-semibold text-slate-900">Add equipment</summary>
+          <summary className="cursor-pointer font-semibold text-ink">Add equipment</summary>
           <div className="mt-4 max-w-2xl">
             <CalibrationForm action={createResourceAction} values={null} submitLabel="Add equipment" />
           </div>
         </details>
       ) : (
-        <p className="text-sm text-slate-500">The store maintains the calibration register.</p>
+        <p className="text-sm text-muted">The store maintains the calibration register.</p>
       )}
     </div>
   )

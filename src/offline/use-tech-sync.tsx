@@ -1,6 +1,14 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import type { ReactNode } from 'react'
 import type { SyncBundle } from '@/server/tech/my-jobs'
 import { lastSyncedAt, storeBundle } from './db'
@@ -32,10 +40,24 @@ export interface TechSyncState {
 
 const TechSyncContext = createContext<TechSyncState | null>(null)
 
+/**
+ * The connection is an external store, so it is subscribed to rather than copied into state.
+ * The server snapshot is optimistic: `navigator.onLine` does not exist there, and assuming offline
+ * would flash the banner on every page load.
+ */
+function subscribeOnline(onChange: () => void) {
+  window.addEventListener('online', onChange)
+  window.addEventListener('offline', onChange)
+  return () => {
+    window.removeEventListener('online', onChange)
+    window.removeEventListener('offline', onChange)
+  }
+}
+
+const readOnline = () => navigator.onLine
+
 export function SyncProvider({ children }: { children: ReactNode }) {
-  // `navigator.onLine` is false before hydration on the server, so start optimistic and correct
-  // during the first effect rather than flashing an offline banner on every page load.
-  const [online, setOnline] = useState(true)
+  const online = useSyncExternalStore(subscribeOnline, readOnline, () => true)
   const [syncing, setSyncing] = useState(false)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
   const [pending, setPending] = useState(0)
@@ -110,33 +132,33 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    setOnline(navigator.onLine)
-    void refreshPending()
-
-    // The stored timestamp is what the page shows before the first sync of this visit finishes.
+    // Read from the phone's own cache, so these land even when the mount sync finds no signal.
+    void pendingCount().then(setPending)
     void lastSyncedAt().then((value) => {
       if (value) setLastSynced((current) => current ?? value)
     })
 
-    const onOnline = () => {
-      setOnline(true)
-      void sync()
-    }
-    const onOffline = () => {
-      setOnline(false)
-      setError('No signal. Showing what was saved on this phone.')
-    }
-
-    window.addEventListener('online', onOnline)
+    // The connection itself is subscribed to above; this only reacts to losing the radio.
+    const onOffline = () => setError('No signal. Showing what was saved on this phone.')
     window.addEventListener('offline', onOffline)
 
-    void sync()
+    // Deferred a tick: the sync flips `syncing` before its first await, and doing that inside the
+    // effect body renders twice for one commit. The timer also gives the cleanup something to cancel.
+    const timer = setTimeout(() => void sync(), 0)
 
     return () => {
-      window.removeEventListener('online', onOnline)
+      clearTimeout(timer)
       window.removeEventListener('offline', onOffline)
     }
-  }, [refreshPending, sync])
+  }, [sync])
+
+  // Coming back online is new work, so it syncs. It subscribes after the initial sync above so a
+  // mount never triggers two bundles at once.
+  useEffect(() => {
+    const onOnline = () => void sync()
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [sync])
 
   return (
     <TechSyncContext.Provider

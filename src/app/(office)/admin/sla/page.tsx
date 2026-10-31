@@ -27,16 +27,16 @@ export default async function SlaPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Service levels</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">Service levels</h1>
+        <p className="mt-1 text-muted">
           The response and resolution minutes every job starts from, per priority. A contract can
           tighten or loosen these for one customer, and its numbers win over the ones here.
         </p>
       </div>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">Company-wide targets</h2>
-        <p className="mt-1 mb-5 text-sm text-slate-600">
+        <h2 className="font-semibold text-ink">Company-wide targets</h2>
+        <p className="mt-1 mb-5 text-sm text-muted">
           {missing > 0
             ? `${missing} of ${targets.length} ${missing === 1 ? 'priority has' : 'priorities have'} no row yet — the amber note says which number is currently in force instead. Saving writes all four.`
             : 'These rows are what a job with no contract override counts down from.'}
@@ -45,7 +45,7 @@ export default async function SlaPage() {
       </section>
 
       {/* Carried from the same rule the seed comment gives: the clock is calendar minutes. */}
-      <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+      <p className="rounded-lg border border-line bg-sheet p-4 text-sm text-ink">
         The clock runs in calendar minutes, day and night, with no working-hours calendar applied. A
         target is therefore harder to meet than one that paused overnight, which is the safe direction
         to be wrong in. Changing a number here does not change any job already raised: each job

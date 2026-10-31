@@ -67,35 +67,35 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
   return (
     <div className="space-y-8">
       <div>
-        <Link href={`/customers/${site.customerId}`} className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href={`/customers/${site.customerId}`} className="text-sm text-muted underline hover:text-ink">
           ← {site.customerName}
         </Link>
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">{site.name}</h1>
-            <p className="mt-1 text-slate-600">
+            <h1 className="text-title font-semibold text-ink">{site.name}</h1>
+            <p className="mt-1 text-muted">
               {address.length > 0 ? address.join(', ') : 'No address recorded'}
             </p>
           </div>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted">
             {cranes.length} {cranes.length === 1 ? 'crane' : 'cranes'}
           </p>
         </div>
       </div>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">Cranes at this site</h2>
+        <h2 className="font-semibold text-ink">Cranes at this site</h2>
 
         {cranes.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="mt-3 text-sm text-muted">
             No cranes here yet. A crane is added to a site, not to a customer directly.
           </p>
         ) : (
-          <div className="mt-4 overflow-x-auto rounded-md border border-slate-200">
+          <div className="mt-4 overflow-x-auto rounded-md border border-line">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">Cranes at {site.name}</caption>
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+              <thead className="border-b border-line bg-sheet text-xs text-muted">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-medium">Asset tag</th>
                   <th scope="col" className="px-4 py-3 font-medium">Type</th>
@@ -104,28 +104,28 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
                   <th scope="col" className="px-4 py-3 font-medium">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-rule">
                 {cranes.map((crane) => (
-                  <tr key={crane.id} className="hover:bg-slate-50">
+                  <tr key={crane.id} className="hover:bg-sheet">
                     <td className="px-4 py-3">
                       <Link
                         href={`/cranes/${crane.id}`}
-                        className="font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                        className="font-medium text-ink underline decoration-line hover:decoration-ink"
                       >
                         {crane.assetTag}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{CRANE_TYPE_LABELS[crane.type]}</td>
-                    <td className="px-4 py-3 text-slate-600">{crane.locationOnSite ?? '—'}</td>
-                    <td className="px-4 py-3 text-right text-slate-600">{crane.swlKg.toLocaleString()} kg</td>
+                    <td className="px-4 py-3 text-muted">{CRANE_TYPE_LABELS[crane.type]}</td>
+                    <td className="px-4 py-3 text-muted">{crane.locationOnSite ?? '—'}</td>
+                    <td className="px-4 py-3 text-right text-muted">{crane.swlKg.toLocaleString()} kg</td>
                     <td className="px-4 py-3">
                       <span
                         className={
                           crane.status === 'IN_SERVICE'
-                            ? 'text-emerald-800'
+                            ? 'text-pos'
                             : crane.status === 'RESTRICTED'
-                              ? 'font-medium text-red-800'
-                              : 'text-slate-600'
+                              ? 'font-medium text-neg'
+                              : 'text-muted'
                         }
                       >
                         {CRANE_STATUS_LABELS[crane.status]}
@@ -140,7 +140,7 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
 
         {mayWriteCrane ? (
           <details className="mt-6" open={cranes.length === 0}>
-            <summary className="cursor-pointer font-medium text-slate-900">Add a crane here</summary>
+            <summary className="cursor-pointer font-medium text-ink">Add a crane here</summary>
             <div className="mt-4">
               <CraneForm
                 action={createCraneAction}
@@ -155,33 +155,33 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
       </section>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">Site details</h2>
+        <h2 className="font-semibold text-ink">Site details</h2>
 
         <dl className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Access notes</dt>
-            <dd className="mt-1 whitespace-pre-wrap text-slate-900">
-              {site.accessNotes ?? <span className="text-slate-500">Not recorded</span>}
+            <dt className="text-xs font-medium text-muted">Access notes</dt>
+            <dd className="mt-1 whitespace-pre-wrap text-ink">
+              {site.accessNotes ?? <span className="text-muted">Not recorded</span>}
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Induction</dt>
-            <dd className="mt-1 whitespace-pre-wrap text-slate-900">
-              {site.inductionRequirements ?? <span className="text-slate-500">None recorded</span>}
+            <dt className="text-xs font-medium text-muted">Induction</dt>
+            <dd className="mt-1 whitespace-pre-wrap text-ink">
+              {site.inductionRequirements ?? <span className="text-muted">None recorded</span>}
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Operating hours</dt>
-            <dd className="mt-1 text-slate-900">
-              {site.operatingHours ?? <span className="text-slate-500">Not recorded</span>}
+            <dt className="text-xs font-medium text-muted">Operating hours</dt>
+            <dd className="mt-1 text-ink">
+              {site.operatingHours ?? <span className="text-muted">Not recorded</span>}
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Coordinates</dt>
-            <dd className="mt-1 text-slate-900">
+            <dt className="text-xs font-medium text-muted">Coordinates</dt>
+            <dd className="mt-1 text-ink">
               {site.latitude !== null && site.longitude !== null
                 ? `${site.latitude}, ${site.longitude}`
-                : <span className="text-slate-500">Not recorded</span>}
+                : <span className="text-muted">Not recorded</span>}
             </dd>
           </div>
         </dl>
@@ -189,8 +189,8 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
 
       {mayWrite ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Edit this site</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Edit this site</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
             The access notes are what a technician reads on the way in. Keep them current.
           </p>
           <SiteForm
@@ -203,8 +203,8 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
       ) : null}
 
       {mayWrite ? (
-        <section className="rounded-lg border border-red-200 bg-white p-6 shadow-sm">
-          <h2 className="font-semibold text-slate-900">Archive</h2>
+        <section className="rounded-lg border border-neg/40 bg-field p-6">
+          <h2 className="font-semibold text-ink">Archive</h2>
           <div className="mt-3">
             <ArchiveSiteButton
               action={archiveSiteAction.bind(null, site.customerId, site.id)}

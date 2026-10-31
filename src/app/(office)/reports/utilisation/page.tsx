@@ -33,15 +33,15 @@ export default async function UtilisationPage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Utilisation</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">Utilisation</h1>
+        <p className="mt-1 text-muted">
           {report.totals.jobs} completed {report.totals.jobs === 1 ? 'job' : 'jobs'} ·{' '}
           {hours(report.totals.onSiteHours)} on the tools · {hours(report.totals.roadHours)} on the
           road · {report.workingDays} working {report.workingDays === 1 ? 'day' : 'days'} from{' '}
           {formatDate(report.window.from, settings.timezone)} to{' '}
           {formatDate(new Date(report.window.to.getTime() - 1), settings.timezone)}.
         </p>
-        <p className="mt-2 max-w-3xl text-sm text-slate-500">
+        <p className="mt-2 max-w-3xl text-sm text-muted">
           Hours come from the job status history: <strong>on the tools</strong> is in-progress until
           the job next moves, summed over however many visits it took, and{' '}
           <strong>on the road</strong> runs from dispatch to completion so it includes the travel
@@ -54,7 +54,7 @@ export default async function UtilisationPage({
 
       <form method="get" className="flex flex-wrap items-end gap-3">
         <div>
-          <label htmlFor="from" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="from" className="block text-sm font-medium text-ink">
             From
           </label>
           <input
@@ -62,11 +62,11 @@ export default async function UtilisationPage({
             name="from"
             type="date"
             defaultValue={params.from ?? ''}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
         <div>
-          <label htmlFor="to" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="to" className="block text-sm font-medium text-ink">
             To
           </label>
           <input
@@ -74,32 +74,32 @@ export default async function UtilisationPage({
             name="to"
             type="date"
             defaultValue={params.to ?? ''}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
         <button
           type="submit"
-          className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800"
+          className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft"
         >
           Apply
         </button>
         {filtered ? (
-          <Link href="/reports/utilisation" className="px-2 py-2 text-sm text-slate-600 underline">
+          <Link href="/reports/utilisation" className="px-2 py-2 text-sm text-muted underline">
             Clear
           </Link>
         ) : null}
       </form>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">By technician</h2>
+        <h2 className="font-semibold text-ink">By technician</h2>
 
         {report.rows.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-600">No technician has a login in the register yet.</p>
+          <p className="mt-2 text-sm text-muted">No technician has a login in the register yet.</p>
         ) : (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">Hours and utilisation by technician</caption>
-              <thead className="border-b border-slate-200 text-xs tracking-wide text-slate-500 uppercase">
+              <thead className="border-b border-line text-xs text-muted">
                 <tr>
                   <th scope="col" className="py-2 font-medium">Technician</th>
                   <th scope="col" className="py-2 text-right font-medium">Jobs</th>
@@ -110,7 +110,7 @@ export default async function UtilisationPage({
                   <th scope="col" className="py-2 text-right font-medium">Utilisation</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-rule">
                 {report.rows.map((row) => (
                   <UtilisationTableRow key={row.technicianId} row={row} hours={hours} />
                 ))}
@@ -120,7 +120,7 @@ export default async function UtilisationPage({
         )}
 
         {report.unassignedJobs > 0 ? (
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="mt-3 text-sm text-muted">
             {report.unassignedJobs} completed {report.unassignedJobs === 1 ? 'job has' : 'jobs have'}{' '}
             no technician on it, so its hours are in no row above. The job list will show which.
           </p>
@@ -138,17 +138,17 @@ function UtilisationTableRow({
   hours: (value: number) => string
 }) {
   return (
-    <tr className="hover:bg-slate-50">
-      <td className="py-2 text-slate-900">
+    <tr className="hover:bg-sheet">
+      <td className="py-2 text-ink">
         {row.name}
-        {row.isActive ? null : <span className="ml-2 text-xs text-slate-500">inactive</span>}
+        {row.isActive ? null : <span className="ml-2 text-xs text-muted">inactive</span>}
       </td>
-      <td className="py-2 text-right text-slate-800">{row.jobs}</td>
-      <td className="py-2 text-right text-slate-800">{hours(row.onSiteHours)}</td>
-      <td className="py-2 text-right text-slate-800">{hours(row.roadHours)}</td>
-      <td className="py-2 text-right text-slate-600">{hours(row.leaveHours)}</td>
-      <td className="py-2 text-right text-slate-800">{hours(row.availableHours)}</td>
-      <td className="py-2 text-right font-medium text-slate-900">
+      <td className="py-2 text-right text-ink">{row.jobs}</td>
+      <td className="py-2 text-right text-ink">{hours(row.onSiteHours)}</td>
+      <td className="py-2 text-right text-ink">{hours(row.roadHours)}</td>
+      <td className="py-2 text-right text-muted">{hours(row.leaveHours)}</td>
+      <td className="py-2 text-right text-ink">{hours(row.availableHours)}</td>
+      <td className="py-2 text-right font-medium text-ink">
         {row.utilisationRatio === null ? '—' : `${Math.round(row.utilisationRatio * 100)}%`}
       </td>
     </tr>

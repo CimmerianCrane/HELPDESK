@@ -17,9 +17,9 @@ export const metadata: Metadata = { title: 'Customers — Cimmerian Crane Servic
 export const dynamic = 'force-dynamic'
 
 const STATUS_STYLES: Record<string, string> = {
-  ACTIVE: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  PROSPECT: 'bg-sky-50 text-sky-800 border-sky-200',
-  DORMANT: 'bg-slate-100 text-slate-600 border-slate-200',
+  ACTIVE: 'bg-pos/10 text-pos border-pos/40',
+  PROSPECT: 'bg-info/10 text-info border-info/40',
+  DORMANT: 'bg-raised text-muted border-line',
 }
 
 /** Reads a count out of the URL, or null if it is absent or not a number. */
@@ -54,8 +54,8 @@ export default async function CustomersPage({
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Customers</h1>
-          <p className="mt-1 text-slate-600">
+          <h1 className="text-title font-semibold text-ink">Customers</h1>
+          <p className="mt-1 text-muted">
             {customers.length === 0
               ? 'No customers match that search.'
               : `${customers.length} ${customers.length === 1 ? 'customer' : 'customers'}.`}
@@ -65,7 +65,7 @@ export default async function CustomersPage({
         {mayImport ? (
           <Link
             href="/customers/import"
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            className="rounded-md border border-line bg-field px-4 py-2 text-sm font-medium text-ink hover:bg-raised"
           >
             Import from CSV
           </Link>
@@ -75,7 +75,7 @@ export default async function CustomersPage({
       {importedCount !== null ? (
         <div
           role="status"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-pos/40 bg-pos/10 px-4 py-3 text-sm text-pos"
         >
           <p>
             Import finished: {importedCount}{' '}
@@ -94,16 +94,16 @@ export default async function CustomersPage({
       {renewals.length > 0 ? (
         <section className={cardClass} aria-labelledby="renewals-heading">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 id="renewals-heading" className="font-semibold text-slate-900">
+            <h2 id="renewals-heading" className="font-semibold text-ink">
               Contracts renewing
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted">
               {renewals.filter((row) => row.state === 'overdue').length} overdue,{' '}
               {renewals.filter((row) => row.state === 'due').length} within 90 days.
             </p>
           </div>
 
-          <ul className="mt-4 divide-y divide-slate-100">
+          <ul className="mt-4 divide-y divide-rule">
             {renewals.map((row) => (
               <li
                 key={row.id}
@@ -112,25 +112,25 @@ export default async function CustomersPage({
                 <span>
                   <Link
                     href={`/customers/${row.customer.id}#contracts`}
-                    className="font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                    className="font-medium text-ink underline decoration-line hover:decoration-ink"
                   >
                     {row.customer.legalName}
                   </Link>
-                  <span className="text-slate-600">
+                  <span className="text-muted">
                     {' · '}
                     {CONTRACT_TYPE_LABELS[row.type]}
                     {row.reference ? ` · ${row.reference}` : ''}
                   </span>
                 </span>
                 <span className="flex items-baseline gap-2">
-                  <span className="text-slate-600">
+                  <span className="text-muted">
                     {formatDate(row.renewalDate, settings.timezone)}
                   </span>
                   <span
                     className={
                       row.state === 'overdue'
-                        ? 'rounded border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-800'
-                        : 'rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900'
+                        ? 'rounded border border-neg/40 bg-neg/10 px-2 py-0.5 text-xs font-medium text-neg'
+                        : 'rounded border border-warn/40 bg-warn/10 px-2 py-0.5 text-xs font-medium text-warn'
                     }
                   >
                     {row.state === 'overdue'
@@ -148,7 +148,7 @@ export default async function CustomersPage({
           shared, and it still works with JavaScript not yet loaded. */}
       <form method="get" className="flex flex-wrap items-end gap-3">
         <div className="min-w-56 flex-1">
-          <label htmlFor="q" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="q" className="block text-sm font-medium text-ink">
             Search
           </label>
           <input
@@ -156,19 +156,19 @@ export default async function CustomersPage({
             name="q"
             defaultValue={q ?? ''}
             placeholder="Name, trading name or UEN"
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
 
         <div>
-          <label htmlFor="status" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="status" className="block text-sm font-medium text-ink">
             Status
           </label>
           <select
             id="status"
             name="status"
             defaultValue={status ?? ''}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           >
             <option value="">All</option>
             {CUSTOMER_STATUSES.map((value) => (
@@ -181,13 +181,13 @@ export default async function CustomersPage({
 
         <button
           type="submit"
-          className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800"
+          className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft"
         >
           Filter
         </button>
 
         {q || status ? (
-          <Link href="/customers" className="px-2 py-2 text-sm text-slate-600 underline">
+          <Link href="/customers" className="px-2 py-2 text-sm text-muted underline">
             Clear
           </Link>
         ) : null}
@@ -195,10 +195,10 @@ export default async function CustomersPage({
 
       {customers.length === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">
+          <p className="font-medium text-ink">
             {q || status ? 'Nothing matches those filters.' : 'No customers yet.'}
           </p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             {q || status
               ? 'Try a shorter search, or clear the status filter.'
               : mayWrite
@@ -207,10 +207,10 @@ export default async function CustomersPage({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg bg-field">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Customers</caption>
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="border-b border-line bg-sheet text-xs text-muted">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Customer</th>
                 <th scope="col" className="px-4 py-3 font-medium">UEN</th>
@@ -219,21 +219,21 @@ export default async function CustomersPage({
                 <th scope="col" className="px-4 py-3 font-medium text-right">Contacts</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-rule">
               {customers.map((customer) => (
-                <tr key={customer.id} className="hover:bg-slate-50">
+                <tr key={customer.id} className="hover:bg-sheet">
                   <td className="px-4 py-3">
                     <Link
                       href={`/customers/${customer.id}`}
-                      className="font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                      className="font-medium text-ink underline decoration-line hover:decoration-ink"
                     >
                       {customer.legalName}
                     </Link>
                     {customer.tradingName ? (
-                      <span className="block text-xs text-slate-500">{customer.tradingName}</span>
+                      <span className="block text-xs text-muted">{customer.tradingName}</span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{customer.uen ?? '—'}</td>
+                  <td className="px-4 py-3 text-muted">{customer.uen ?? '—'}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`rounded border px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[customer.status] ?? ''}`}
@@ -241,8 +241,8 @@ export default async function CustomersPage({
                       {CUSTOMER_STATUS_LABELS[customer.status]}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-600">{customer.siteCount}</td>
-                  <td className="px-4 py-3 text-right text-slate-600">{customer.contactCount}</td>
+                  <td className="px-4 py-3 text-right text-muted">{customer.siteCount}</td>
+                  <td className="px-4 py-3 text-right text-muted">{customer.contactCount}</td>
                 </tr>
               ))}
             </tbody>
@@ -252,14 +252,14 @@ export default async function CustomersPage({
 
       {mayWrite ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Add a customer</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Add a customer</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
             Sites, cranes and jobs are added to the customer afterwards.
           </p>
           <CreateCustomerForm action={createCustomerAction} />
         </section>
       ) : (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           Your role can view customers but not add or change them.
         </p>
       )}

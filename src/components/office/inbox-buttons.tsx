@@ -23,11 +23,11 @@ export function MarkReadButton({ action }: { action: ServerAction }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+        className="rounded-md border border-line px-2.5 py-1 text-xs font-medium text-muted hover:bg-raised disabled:opacity-60"
       >
         {pending ? 'Marking…' : 'Mark read'}
       </button>
-      {state.ok ? null : <p className="mt-1 text-xs text-red-700">{state.message}</p>}
+      {state.ok ? null : <p className="mt-1 text-xs text-neg">{state.message}</p>}
     </form>
   )
 }
@@ -41,7 +41,7 @@ export function MarkAllReadButton({ action }: { action: ServerAction }) {
         {pending ? 'Marking…' : 'Mark all read'}
       </button>
       {state.message && !state.ok ? (
-        <p className="text-xs text-red-700">{state.message}</p>
+        <p className="text-xs text-neg">{state.message}</p>
       ) : null}
     </form>
   )

@@ -8,9 +8,9 @@
   "scripts": {
     "setup": "npm install && npm run db:migrate && npm run seed",
     "postinstall": "prisma generate",
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "dev:stop": "tsx scripts/dev-stop.ts",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
@@ -37,7 +37,7 @@
     "@react-pdf/renderer": "^4.9.0",
     "@serwist/next": "^9.5.13",
     "dexie": "^4.4.7",
-    "next": "^15.1.6",
+    "next": "^16.4.3",
     "next-auth": "^5.0.0-beta.32",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
@@ -46,7 +46,6 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.2.0",
     "@playwright/test": "^1.49.1",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^22.10.7",
@@ -54,7 +53,7 @@
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
     "eslint": "^9.18.0",
-    "eslint-config-next": "^15.1.6",
+    "eslint-config-next": "^16.4.3",
     "postcss": "^8.5.1",
     "prisma": "^6.2.1",
     "tailwindcss": "^4.0.0",

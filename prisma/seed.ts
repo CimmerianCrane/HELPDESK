@@ -1135,6 +1135,21 @@ async function seedDemoBook(): Promise<void> {
     ).map((job) => job.internalNotes),
   )
 
+  // Rows seeded before the response stamp was added carry no `respondedAt` and so read as an SLA
+  // breach on every list. The marker makes them ours to repair.
+  const unresponded = await db.job.findMany({
+    where: {
+      internalNotes: { startsWith: DEMO_HISTORY_MARKER },
+      respondedAt: null,
+      scheduledStart: { not: null },
+    },
+    select: { id: true, scheduledStart: true },
+  })
+  for (const job of unresponded) {
+    await db.job.update({ where: { id: job.id }, data: { respondedAt: job.scheduledStart } })
+  }
+  if (unresponded.length > 0) console.log(`Repaired ${unresponded.length} demo job(s).`)
+
   const statuses = ['CLOSED', 'INVOICED', 'REVIEWED', 'CLOSED'] as const
   const priorities: Priority[] = ['P3', 'P2', 'P4', 'P1']
   let jobsAdded = 0
@@ -1166,6 +1181,7 @@ async function seedDemoBook(): Promise<void> {
           description: `${jobType.name} — ${crane.assetTag}.`,
           internalNotes: marker,
           reportedAt: new Date(start.getTime() - 2 * 3_600_000),
+          respondedAt: start,
           scheduledStart: start,
           scheduledEnd: end,
           slaResponseDue: start,

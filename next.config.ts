@@ -1,17 +1,9 @@
 import withSerwistInit from '@serwist/next'
 import type { NextConfig } from 'next'
 
-const nextConfig: NextConfig = {
-  /**
-   * Dev and build in one `.next` is what made a build a destructive act: it prunes the directory the
-   * running dev server is still serving from, so every route 500s and the build dies with
-   * `Invariant: no direct app page entry found`. Only dev moves — `next build`/`next start` keep
-   * `.next`, because that is the path Vercel's Next.js preset reads. NODE_ENV is the same signal the
-   * service-worker switch below uses, and Next sets it before loading this file.
-   * shortcut: two concurrent dev servers still share `.next-dev`, add a lock file if that ever matters.
-   */
-  distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
-}
+// Next 16 puts dev and build in separate output directories itself (`.next/dev` vs `.next`), which is
+// what the old `distDir` switch here existed to fake. Nothing to override any more.
+const nextConfig: NextConfig = {}
 
 const withSerwist = withSerwistInit({
   swSrc: 'src/app/sw.ts',

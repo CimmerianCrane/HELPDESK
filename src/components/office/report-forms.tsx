@@ -23,7 +23,7 @@ export function ApproveReportForm({
   return (
     <form action={formAction} className="space-y-3">
       <FormMessage state={state} />
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-muted">
         {isAmendment
           ? 'Approving issues this amendment with its own number and marks the report it corrects as superseded. Both remain readable.'
           : 'Approving assigns the next document number, renders the PDF with its signatures and photographs, locks the report and tells the customer.'}
@@ -56,7 +56,7 @@ export function ReturnReportForm({ action }: { action: FormAction }) {
       <FieldError state={state} name="reason" />
       <button
         type="submit"
-        className="rounded-md border border-red-300 bg-white px-4 py-2 font-medium text-red-800 hover:bg-red-50 disabled:opacity-60"
+        className="rounded-md border border-neg/40 bg-field px-4 py-2 font-medium text-neg hover:bg-neg/10 disabled:opacity-60"
         disabled={pending}
       >
         {pending ? 'Sending back…' : 'Send back for correction'}

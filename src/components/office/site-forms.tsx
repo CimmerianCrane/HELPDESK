@@ -54,7 +54,7 @@ function SiteFields({
           placeholder="Tuas Workshop"
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           What the office calls it. This is the name a spreadsheet import matches against.
         </p>
       </div>
@@ -73,7 +73,7 @@ function SiteFields({
 
       <div className="sm:col-span-2">
         <label htmlFor={id('line2')} className={labelClass}>
-          Address line 2 <span className="font-normal text-slate-500">(optional)</span>
+          Address line 2 <span className="font-normal text-muted">(optional)</span>
         </label>
         <input
           id={id('line2')}
@@ -121,7 +121,7 @@ function SiteFields({
 
       <div>
         <label htmlFor={id('operatingHours')} className={labelClass}>
-          Operating hours <span className="font-normal text-slate-500">(optional)</span>
+          Operating hours <span className="font-normal text-muted">(optional)</span>
         </label>
         <input
           id={id('operatingHours')}
@@ -144,7 +144,7 @@ function SiteFields({
           placeholder="Report to security at Gate B. Bring your own PPE; hard hats are not lent out."
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           Shown to the technician on the job sheet. This is the field that saves a wasted trip.
         </p>
       </div>
@@ -165,7 +165,7 @@ function SiteFields({
 
       <div>
         <label htmlFor={id('latitude')} className={labelClass}>
-          Latitude <span className="font-normal text-slate-500">(optional)</span>
+          Latitude <span className="font-normal text-muted">(optional)</span>
         </label>
         <input
           id={id('latitude')}
@@ -178,7 +178,7 @@ function SiteFields({
 
       <div>
         <label htmlFor={id('longitude')} className={labelClass}>
-          Longitude <span className="font-normal text-slate-500">(optional)</span>
+          Longitude <span className="font-normal text-muted">(optional)</span>
         </label>
         <input
           id={id('longitude')}
@@ -233,12 +233,12 @@ export function ArchiveSiteButton({
       <button
         type="submit"
         disabled={pending || blocked}
-        className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-50 disabled:opacity-60"
+        className="rounded-md border border-neg/40 px-3 py-1.5 text-sm font-medium text-neg hover:bg-neg/10 disabled:opacity-60"
       >
         {pending ? 'Archiving…' : `Archive ${name}`}
       </button>
       {blocked ? (
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-muted">
           This site still has {craneCount} {craneCount === 1 ? 'crane' : 'cranes'}. Move or archive
           them first — archiving the site would hide them with it.
         </p>

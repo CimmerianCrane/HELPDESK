@@ -105,8 +105,8 @@ export function FollowUpJobForm({
   const followUp = jobTypes.find((type) => type.code === 'FOLLOW_UP') ?? jobTypes[0]
 
   return (
-    <form action={formAction} className="mt-2 space-y-3 rounded border border-slate-200 bg-slate-50 p-3">
-      <p className="text-xs text-slate-600">
+    <form action={formAction} className="mt-2 space-y-3 rounded border border-line bg-sheet p-3">
+      <p className="text-xs text-muted">
         Raises a new job for this crane, linked to both this finding and the job the report belongs
         to. {FINDING_SEVERITY_LABELS[severity]} findings start at {suggestedPriority}.
       </p>
@@ -249,8 +249,8 @@ export function DeclineFindingForm({
   }
 
   return (
-    <form action={formAction} className="mt-2 space-y-3 rounded border border-amber-200 bg-amber-50 p-3">
-      <p className="text-xs text-amber-900">
+    <form action={formAction} className="mt-2 space-y-3 rounded border border-warn/40 bg-warn/10 p-3">
+      <p className="text-xs text-warn">
         Records that the customer was told this repair was recommended and declined it. Their
         signature is stored against the finding, and the finding is closed as declined.
       </p>
@@ -296,14 +296,14 @@ export function DeclineFindingForm({
       <input ref={hidden} type="hidden" name="signatureFileId" />
       <FieldError state={state} name="signatureFileId" />
       {uploadError ? (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-neg">
           {uploadError}
         </p>
       ) : null}
 
       <button
         type="submit"
-        className="rounded-md border border-amber-300 bg-white px-4 py-2 font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-60"
+        className="rounded-md border border-warn/40 bg-field px-4 py-2 font-medium text-warn hover:bg-warn/10 disabled:opacity-60"
         disabled={pending || !fileId}
       >
         {pending ? 'Recording…' : 'Record the declined repair'}

@@ -30,7 +30,7 @@ export default async function TechJobPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-5">
-      <Link href="/m/jobs" className="text-sm font-medium text-blue-700 underline underline-offset-2">
+      <Link href="/m/jobs" className="text-sm font-medium text-info underline underline-offset-2">
         ← My jobs
       </Link>
       <JobSheet job={job} timeZone={settings.timezone} />

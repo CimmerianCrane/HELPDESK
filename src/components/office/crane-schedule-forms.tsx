@@ -97,8 +97,8 @@ function ScheduleFields({
         <>
           {/* On a crane's own page the dropdown is replaced by the crane, so the id has to be sent. */}
           <input type="hidden" name="craneId" value={crane.id} />
-          <p className="text-sm text-slate-600 sm:col-span-2">
-            Obligation for <span className="font-medium text-slate-900">{crane.assetTag}</span>.
+          <p className="text-sm text-muted sm:col-span-2">
+            Obligation for <span className="font-medium text-ink">{crane.assetTag}</span>.
           </p>
         </>
       ) : null}
@@ -138,7 +138,7 @@ function ScheduleFields({
               </option>
             ) : null}
           </select>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted">
             Adopting a rule copies its kind and interval, and records the reference on this schedule.
             The rule itself is maintained under Compliance.
           </p>
@@ -204,7 +204,7 @@ function ScheduleFields({
           defaultValue={toDayInput(value?.nextDueDate ?? null)}
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           With an interval, this is worked out from the last done date and whatever is typed here is
           ignored. Without one, type the date.
         </p>
@@ -237,12 +237,12 @@ function ScheduleFields({
       </div>
 
       <div className="sm:col-span-2 space-y-3">
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 text-sm text-ink">
           <input
             type="checkbox"
             name="autoCreateDraftJob"
             defaultChecked={value?.autoCreateDraftJob ?? false}
-            className="h-4 w-4 rounded border-slate-300"
+            className="h-4 w-4 rounded border-line"
           />
           Raise a draft job when this becomes due
         </label>
@@ -267,7 +267,7 @@ function ScheduleFields({
             <FieldError state={state} name="draftJobTypeId" />
           </div>
         ) : null}
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted">
           The daily reminder run emails the office at the offsets above. A draft job is raised only on
           the day it is due, in the kind of work chosen here.
         </p>
@@ -332,11 +332,11 @@ export function ArchiveScheduleButton({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+        className="rounded-md border border-line px-3 py-1.5 text-sm font-medium text-ink hover:bg-raised disabled:opacity-60"
       >
         {pending ? 'Ending…' : `End — ${label}`}
       </button>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         Ends the obligation. The record and its audit trail stay, so a past reminder or job can still
         say what was due.
       </p>

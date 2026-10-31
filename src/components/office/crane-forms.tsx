@@ -70,7 +70,7 @@ function CraneFields({
           placeholder="OVH-01"
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           {value
             ? 'What the customer calls it. Changing this does not change the QR sticker.'
             : 'Leave blank to generate one.'}
@@ -121,7 +121,7 @@ function CraneFields({
           defaultValue={value?.swlKg ?? ''}
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">As marked on the plate, not a rounded estimate.</p>
+        <p className="mt-1 text-xs text-muted">As marked on the plate, not a rounded estimate.</p>
       </div>
 
       <div>
@@ -286,7 +286,7 @@ export function RestrictCraneButton({ action }: { action: ServerAction }) {
         className={inputClass}
         placeholder="Wire rope shows broken wires; do not operate pending inspection."
       />
-      <p className="text-xs text-slate-600">
+      <p className="text-xs text-muted">
         A restriction without a reason is no use to the technician standing at the machine, so this is
         required. It is shown on the crane record and kept in the audit log.
       </p>
@@ -294,7 +294,7 @@ export function RestrictCraneButton({ action }: { action: ServerAction }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-red-700 px-4 py-2 font-medium text-white hover:bg-red-800 disabled:opacity-60"
+        className="rounded-md bg-neg px-4 py-2 font-medium text-white hover:bg-neg/90 disabled:opacity-60"
       >
         {pending ? 'Restricting…' : 'Restrict — do not operate'}
       </button>
@@ -323,7 +323,7 @@ export function AcknowledgeReregistrationButton({ action }: { action: ServerActi
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-60"
+        className="rounded-md border border-warn/40 px-3 py-1.5 text-sm font-medium text-warn hover:bg-warn/10 disabled:opacity-60"
       >
         {pending ? 'Recording…' : 'Mark as checked'}
       </button>
@@ -348,11 +348,11 @@ export function ArchiveCraneButton({
       <button
         type="submit"
         disabled={pending || hasHistory}
-        className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-50 disabled:opacity-60"
+        className="rounded-md border border-neg/40 px-3 py-1.5 text-sm font-medium text-neg hover:bg-neg/10 disabled:opacity-60"
       >
         {pending ? 'Archiving…' : `Archive ${assetTag}`}
       </button>
-      <p className="text-xs text-slate-600">
+      <p className="text-xs text-muted">
         {hasHistory
           ? 'This crane has job or report history. Set its status to decommissioned instead — archiving is for one entered by mistake.'
           : 'Only for a crane entered by mistake. Archiving leaves the record and its audit trail intact.'}

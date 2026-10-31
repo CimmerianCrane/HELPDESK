@@ -20,19 +20,19 @@ export default async function PortalJobsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Jobs</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">Jobs</h1>
+        <p className="mt-1 text-muted">
           {jobs.length} {jobs.length === 1 ? 'job' : 'jobs'} on your account.
         </p>
       </div>
 
       {jobs.length === 0 ? (
-        <p className={`${cardClass} text-sm text-slate-600`}>No jobs on this account yet.</p>
+        <p className={`${cardClass} text-sm text-muted`}>No jobs on this account yet.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg bg-field">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Your jobs</caption>
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="border-b border-line bg-sheet text-xs text-muted">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Job</th>
                 <th scope="col" className="px-4 py-3 font-medium">Work</th>
@@ -41,23 +41,23 @@ export default async function PortalJobsPage() {
                 <th scope="col" className="px-4 py-3 font-medium">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-rule">
               {jobs.map((job) => (
                 <tr key={job.id}>
                   <td className="px-4 py-3">
                     <Link
                       href={`/portal/jobs/${job.id}`}
-                      className="font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                      className="font-medium text-ink underline decoration-line hover:decoration-ink"
                     >
                       {job.number}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{job.jobTypeName}</td>
-                  <td className="px-4 py-3 text-slate-600">{job.cranes.join(', ') || '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-ink">{job.jobTypeName}</td>
+                  <td className="px-4 py-3 text-muted">{job.cranes.join(', ') || '—'}</td>
+                  <td className="px-4 py-3 text-muted">
                     {formatDate(job.visitAt ?? job.raisedAt, settings.timezone)}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted">
                     {job.status.replace(/_/g, ' ').toLowerCase()}
                   </td>
                 </tr>

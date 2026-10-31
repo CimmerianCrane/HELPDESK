@@ -125,14 +125,14 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/cranes" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/cranes" className="text-sm text-muted underline hover:text-ink">
           ← Crane register
         </Link>
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">{crane.assetTag}</h1>
-            <p className="mt-1 text-slate-600">
+            <h1 className="text-title font-semibold text-ink">{crane.assetTag}</h1>
+            <p className="mt-1 text-muted">
               {CRANE_TYPE_LABELS[crane.type]}
               {crane.brand ? ` · ${crane.brand}` : ''}
               {crane.model ? ` ${crane.model}` : ''}
@@ -151,13 +151,13 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
             <span
               className={
                 restricted
-                  ? 'rounded border border-red-300 bg-red-50 px-2 py-1 text-sm font-medium text-red-800'
-                  : 'rounded border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700'
+                  ? 'rounded border border-neg/40 bg-neg/10 px-2 py-1 text-sm font-medium text-neg'
+                  : 'rounded border border-line bg-field px-2 py-1 text-sm text-ink'
               }
             >
               {CRANE_STATUS_LABELS[crane.status]}
             </span>
-            <p className="mt-1 max-w-xs text-xs text-slate-500">
+            <p className="mt-1 max-w-xs text-xs text-muted">
               {CRANE_STATUS_DESCRIPTIONS[crane.status]}
             </p>
           </div>
@@ -165,20 +165,20 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
       </div>
 
       {restricted ? (
-        <div role="alert" className="rounded-lg border border-red-300 bg-red-50 p-4">
-          <h2 className="font-semibold text-red-900">Do not operate</h2>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-red-900">{crane.restrictedReason}</p>
-          <p className="mt-2 text-xs text-red-800">
+        <div role="alert" className="rounded-lg border border-neg/40 bg-neg/10 p-4">
+          <h2 className="font-semibold text-neg">Do not operate</h2>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-neg">{crane.restrictedReason}</p>
+          <p className="mt-2 text-xs text-neg">
             Restricted {formatDate(crane.restrictedAt, settings.timezone)}.
           </p>
         </div>
       ) : null}
 
       {crane.reregistrationRequiredAt ? (
-        <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4">
-          <h2 className="font-semibold text-amber-900">Re-registration may be required</h2>
-          <p className="mt-1 text-sm text-amber-900">{crane.reregistrationReason}</p>
-          <p className="mt-2 text-xs text-amber-800">
+        <div role="alert" className="rounded-lg border border-warn/40 bg-warn/10 p-4">
+          <h2 className="font-semibold text-warn">Re-registration may be required</h2>
+          <p className="mt-1 text-sm text-warn">{crane.reregistrationReason}</p>
+          <p className="mt-2 text-xs text-warn">
             Flagged {formatDate(crane.reregistrationRequiredAt, settings.timezone)}. Whether the unit
             must be re-registered is the Authorised Examiner&rsquo;s call — this is a prompt, not a
             finding.
@@ -195,30 +195,30 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className={`${cardClass} lg:col-span-2`}>
-          <h2 className="font-semibold text-slate-900">The crane</h2>
+          <h2 className="font-semibold text-ink">The crane</h2>
 
           <dl className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Safe working load</dt>
-              <dd className="mt-1 text-slate-900">{crane.swlKg.toLocaleString()} kg</dd>
+              <dt className="text-xs font-medium text-muted">Safe working load</dt>
+              <dd className="mt-1 text-ink">{crane.swlKg.toLocaleString()} kg</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Serial number</dt>
-              <dd className="mt-1 text-slate-900">{crane.serialNumber ?? '—'}</dd>
+              <dt className="text-xs font-medium text-muted">Serial number</dt>
+              <dd className="mt-1 text-ink">{crane.serialNumber ?? '—'}</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Year of manufacture</dt>
-              <dd className="mt-1 text-slate-900">{crane.yearOfManufacture ?? '—'}</dd>
+              <dt className="text-xs font-medium text-muted">Year of manufacture</dt>
+              <dd className="mt-1 text-ink">{crane.yearOfManufacture ?? '—'}</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Hour meter</dt>
-              <dd className="mt-1 text-slate-900">
+              <dt className="text-xs font-medium text-muted">Hour meter</dt>
+              <dd className="mt-1 text-ink">
                 {crane.hourMeter === null ? '—' : crane.hourMeter.toLocaleString()}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Statutory registration</dt>
-              <dd className="mt-1 text-slate-900">
+              <dt className="text-xs font-medium text-muted">Statutory registration</dt>
+              <dd className="mt-1 text-ink">
                 {crane.statutoryRegistrationNo ?? '—'}
                 {crane.registrationDate
                   ? ` · ${formatDate(crane.registrationDate, settings.timezone)}`
@@ -226,35 +226,35 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Owner of record</dt>
-              <dd className="mt-1 text-slate-900">{crane.ownerEntity ?? '—'}</dd>
+              <dt className="text-xs font-medium text-muted">Owner of record</dt>
+              <dd className="mt-1 text-ink">{crane.ownerEntity ?? '—'}</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Location on site</dt>
-              <dd className="mt-1 text-slate-900">{crane.locationOnSite ?? '—'}</dd>
+              <dt className="text-xs font-medium text-muted">Location on site</dt>
+              <dd className="mt-1 text-ink">{crane.locationOnSite ?? '—'}</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Added to register</dt>
-              <dd className="mt-1 text-slate-900">{formatDate(crane.createdAt, settings.timezone)}</dd>
+              <dt className="text-xs font-medium text-muted">Added to register</dt>
+              <dd className="mt-1 text-ink">{formatDate(crane.createdAt, settings.timezone)}</dd>
             </div>
             {crane.notes ? (
               <div className="sm:col-span-2">
-                <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Notes</dt>
-                <dd className="mt-1 whitespace-pre-wrap text-slate-900">{crane.notes}</dd>
+                <dt className="text-xs font-medium text-muted">Notes</dt>
+                <dd className="mt-1 whitespace-pre-wrap text-ink">{crane.notes}</dd>
               </div>
             ) : null}
           </dl>
         </section>
 
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Label</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Label</h2>
+          <p className="mt-1 text-sm text-muted">
             Every crane has a QR sticker. It points at this record, so a technician can scan the
             machine instead of searching the register.
           </p>
-          <p className="mt-3 font-mono text-xs text-slate-500">{crane.qrValue}</p>
+          <p className="mt-3 font-mono text-xs text-muted">{crane.qrValue}</p>
           <p className="mt-4">
-            <Link href={`/cranes/${crane.id}/label`} className="text-sm font-medium text-slate-900 underline">
+            <Link href={`/cranes/${crane.id}/label`} className="text-sm font-medium text-ink underline">
               Print the label
             </Link>
           </p>
@@ -263,40 +263,40 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
 
       <section className={cardClass} aria-labelledby="schedules-heading">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="schedules-heading" className="font-semibold text-slate-900">
+          <h2 id="schedules-heading" className="font-semibold text-ink">
             Schedules
           </h2>
-          <Link href="/schedules" className="text-sm text-slate-600 underline">
+          <Link href="/schedules" className="text-sm text-muted underline">
             All schedules
           </Link>
         </div>
 
         {schedules.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-muted">
             Nothing recurs on this crane yet. A schedule records what is due and when — a monthly
             service, an annual examination, a load test.
           </p>
         ) : (
-          <ul className="mt-4 divide-y divide-slate-100 text-sm">
+          <ul className="mt-4 divide-y divide-rule text-sm">
             {schedules.map((schedule) => {
               const days = daysUntil(schedule.nextDueDate)
               return (
                 <li key={schedule.id} className="flex flex-wrap items-baseline justify-between gap-2 py-3">
                   <div>
-                    <p className="font-medium text-slate-900">
+                    <p className="font-medium text-ink">
                       {SCHEDULE_TYPE_LABELS[schedule.scheduleType]}
-                      <span className="ml-2 text-xs font-normal text-slate-500">
+                      <span className="ml-2 text-xs font-normal text-muted">
                         {schedule.intervalMonths ? `every ${schedule.intervalMonths} mo` : 'one-off'}
                         {schedule.ruleReference ? ` · from “${schedule.ruleReference}”` : ''}
                       </span>
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted">
                       Last done {formatDate(schedule.lastDoneDate, settings.timezone)}
                       {' · '}
                       due {formatDate(schedule.nextDueDate, settings.timezone)}
                     </p>
                     {schedule.notes ? (
-                      <p className="mt-1 text-xs text-slate-600">{schedule.notes}</p>
+                      <p className="mt-1 text-xs text-muted">{schedule.notes}</p>
                     ) : null}
                   </div>
                   <div className="text-right">
@@ -316,7 +316,7 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
                   </div>
                   {mayManageSchedules ? (
                     <details className="w-full">
-                      <summary className="cursor-pointer text-sm text-slate-700 underline">
+                      <summary className="cursor-pointer text-sm text-ink underline">
                         Edit this schedule
                       </summary>
                       <div className="mt-3">
@@ -338,11 +338,11 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
         )}
 
         {mayManageSchedules ? (
-          <details className="mt-5 border-t border-slate-100 pt-4">
-            <summary className="cursor-pointer text-sm font-medium text-slate-900">
+          <details className="mt-5 border-t border-rule pt-4">
+            <summary className="cursor-pointer text-sm font-medium text-ink">
               Add a schedule
             </summary>
-            <p className="mt-2 mb-4 text-sm text-slate-600">
+            <p className="mt-2 mb-4 text-sm text-muted">
               Intervals are configured here, not assumed by the app. A statutory examination is the
               Authorised Examiner&rsquo;s; a company inspection of ours is tracked the same way but is never
               called a certificate.
@@ -361,51 +361,51 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
 
       <section className={cardClass} aria-labelledby="certificates-heading">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="certificates-heading" className="font-semibold text-slate-900">
+          <h2 id="certificates-heading" className="font-semibold text-ink">
             Certificates
           </h2>
-          <Link href="/certificates" className="text-sm text-slate-600 underline">
+          <Link href="/certificates" className="text-sm text-muted underline">
             All certificates
           </Link>
         </div>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-muted">
           Documents issued to this crane by someone else — an Authorised Examiner, a calibration lab.
           Our technicians&rsquo; reports are company inspections and appear in the timeline below; they
           are never certificates.
         </p>
 
         {certificates.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="mt-3 text-sm text-muted">
             Nothing is on file for this crane yet.
           </p>
         ) : (
-          <ul className="mt-4 divide-y divide-slate-100 text-sm">
+          <ul className="mt-4 divide-y divide-rule text-sm">
             {certificates.map((certificate) => {
               const days = daysUntil(certificate.dueDate)
               return (
                 <li key={certificate.id} className="py-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <div>
-                      <p className="font-medium text-slate-900">
+                      <p className="font-medium text-ink">
                         {CERTIFICATE_TYPE_LABELS[certificate.type]}
                         <span
                           className={
                             certificate.statutory
-                              ? 'ml-2 rounded border border-indigo-300 bg-indigo-50 px-1.5 py-0.5 text-xs font-normal text-indigo-800'
-                              : 'ml-2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-normal text-slate-600'
+                              ? 'ml-2 rounded border border-info/40 bg-info/10 px-1.5 py-0.5 text-xs font-normal text-info'
+                              : 'ml-2 rounded border border-line bg-sheet px-1.5 py-0.5 text-xs font-normal text-muted'
                           }
                         >
                           {certificate.statutory ? 'AE statutory certificate' : 'Supporting document'}
                         </span>
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-muted">
                         {certificate.certificateNumber ?? 'No number'}
                         {certificate.issuer ? ` · ${certificate.issuer}` : ''}
                         {certificate.statedSwlKg !== null
                           ? ` · ${certificate.statedSwlKg.toLocaleString()} kg`
                           : ''}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-muted">
                         Issued {formatDate(certificate.issueDate, settings.timezone)}
                         {' · '}expires {formatDate(certificate.expiryDate, settings.timezone)}
                         {certificate.nextDueDate
@@ -429,12 +429,12 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
                         ) : null}
                       </p>
                       {certificate.notes ? (
-                        <p className="mt-1 text-xs text-slate-600">{certificate.notes}</p>
+                        <p className="mt-1 text-xs text-muted">{certificate.notes}</p>
                       ) : null}
                     </div>
                     <div className="text-right">
                       <DueBadge bucket={certificate.dueBucket} days={days} />
-                      <p className="mt-1 text-xs text-slate-500">{certificateDueLabel(certificate)}</p>
+                      <p className="mt-1 text-xs text-muted">{certificateDueLabel(certificate)}</p>
                       {mayWriteCertificates ? (
                         <div className="mt-2">
                           <ArchiveCertificateButton
@@ -451,7 +451,7 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
                   </div>
                   {mayWriteCertificates ? (
                     <details className="mt-2">
-                      <summary className="cursor-pointer text-sm text-slate-700 underline">
+                      <summary className="cursor-pointer text-sm text-ink underline">
                         Edit this certificate
                       </summary>
                       <div className="mt-3">
@@ -472,11 +472,11 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
         )}
 
         {mayWriteCertificates ? (
-          <details className="mt-5 border-t border-slate-100 pt-4">
-            <summary className="cursor-pointer text-sm font-medium text-slate-900">
+          <details className="mt-5 border-t border-rule pt-4">
+            <summary className="cursor-pointer text-sm font-medium text-ink">
               Add a certificate
             </summary>
-            <p className="mt-2 mb-4 text-sm text-slate-600">
+            <p className="mt-2 mb-4 text-sm text-muted">
               Record what was issued and when it lapses. Nothing here is signed by us: the issuer is
               the Authorised Examiner, lab or firm named on the document.
             </p>
@@ -492,31 +492,31 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
 
       <section className={cardClass} aria-labelledby="findings-heading">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="findings-heading" className="font-semibold text-slate-900">
+          <h2 id="findings-heading" className="font-semibold text-ink">
             Open findings
           </h2>
         </div>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-muted">
           Defects our technicians recorded that nobody has answered yet — until the work is done or
           the customer declines it in writing. Closing one happens on the report that raised it.
         </p>
         {openFindings.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-600">Nothing outstanding on this crane.</p>
+          <p className="mt-3 text-sm text-muted">Nothing outstanding on this crane.</p>
         ) : (
           <ul className="mt-4 space-y-3 text-sm">
             {openFindings.map((finding) => (
-              <li key={finding.id} className="border-l-2 border-slate-200 pl-3">
-                <p className="font-medium text-slate-900">
+              <li key={finding.id} className="border-l-2 border-line pl-3">
+                <p className="font-medium text-ink">
                   {finding.component} · {FINDING_SEVERITY_LABELS[finding.severity]}
-                  <span className="ml-2 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-normal text-slate-700">
+                  <span className="ml-2 rounded border border-line bg-field px-1.5 py-0.5 text-xs font-normal text-ink">
                     {FINDING_STATUS_LABELS[finding.status]}
                   </span>
                 </p>
-                <p className="text-slate-700">{finding.description}</p>
+                <p className="text-ink">{finding.description}</p>
                 {finding.recommendation ? (
-                  <p className="text-slate-500">Recommendation: {finding.recommendation}</p>
+                  <p className="text-muted">Recommendation: {finding.recommendation}</p>
                 ) : null}
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-muted">
                   <Link href={`/reports/${finding.report.id}`} className="underline">
                     {finding.report.docNumber ?? finding.report.jobNumber}
                   </Link>
@@ -533,23 +533,23 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
       </section>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">Timeline</h2>
+        <h2 className="font-semibold text-ink">Timeline</h2>
         {timeline.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-muted">
             Nothing has been reported on this crane yet.
           </p>
         ) : (
           <ol className="mt-4 space-y-3 text-sm">
             {timeline.map((entry) => (
-              <li key={entry.id} className="border-l-2 border-slate-200 pl-3">
-                <p className="font-medium text-slate-900">
+              <li key={entry.id} className="border-l-2 border-line pl-3">
+                <p className="font-medium text-ink">
                   {entry.documentNumber ?? 'Report awaiting approval'}
                   {' · '}
                   <Link href={`/reports/${entry.id}`} className="underline">
                     {entry.job.jobType.name}
                   </Link>
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted">
                   {formatDate(entry.approvedAt ?? entry.submittedAt, settings.timezone)}
                   {' · '}
                   <Link href={`/jobs/${entry.job.id}`} className="underline">
@@ -574,11 +574,11 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
       ) : null}
 
       {mayRestrict ? (
-        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="font-semibold text-slate-900">Restriction</h2>
+        <section className="rounded-lg bg-panel p-6">
+          <h2 className="font-semibold text-ink">Restriction</h2>
           {restricted ? (
             <div className="mt-3">
-              <p className="mb-3 text-sm text-slate-600">
+              <p className="mb-3 text-sm text-muted">
                 Clearing the restriction puts the crane back in service. The reason stays in the audit
                 log.
               </p>
@@ -594,8 +594,8 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
 
       {mayWrite ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Edit this crane</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Edit this crane</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
             The QR value never changes — the sticker is already on the machine. The asset tag can be
             corrected.
           </p>
@@ -611,8 +611,8 @@ export default async function CranePage({ params }: { params: Promise<{ id: stri
       ) : null}
 
       {mayWrite ? (
-        <section className="rounded-lg border border-red-200 bg-white p-6 shadow-sm">
-          <h2 className="font-semibold text-slate-900">Archive</h2>
+        <section className="rounded-lg border border-neg/40 bg-field p-6">
+          <h2 className="font-semibold text-ink">Archive</h2>
           <div className="mt-3">
             <ArchiveCraneButton
               action={archiveCraneAction.bind(null, crane.id)}

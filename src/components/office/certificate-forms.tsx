@@ -122,14 +122,14 @@ function CertificateFileField({
           const file = event.target.files?.[0]
           if (file) void upload(file)
         }}
-        className="mt-1 block w-full text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
+        className="mt-1 block w-full text-sm text-ink file:mr-3 file:rounded-md file:border-0 file:bg-accent file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
       />
       <input ref={hidden} type="hidden" name="fileId" />
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-muted">
         {label
           ? `On file: ${label}`
           : 'Optional. A PDF or a photograph of the paper, up to 5 MB.'}
-        {message ? <span className="ml-1 text-red-700">{message}</span> : null}
+        {message ? <span className="ml-1 text-neg">{message}</span> : null}
       </p>
     </div>
   )
@@ -233,7 +233,7 @@ function CertificateFields({
           defaultValue={toDayInput(value?.nextDueDate ?? null)}
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           Used when renewal falls before expiry. The screen counts whichever comes first.
         </p>
       </div>
@@ -263,7 +263,7 @@ function CertificateFields({
           placeholder="JOB-2026-0142"
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">Optional. The job that produced this document.</p>
+        <p className="mt-1 text-xs text-muted">Optional. The job that produced this document.</p>
       </div>
 
       <CertificateFileField
@@ -337,11 +337,11 @@ export function ArchiveCertificateButton({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+        className="rounded-md border border-line px-3 py-1.5 text-sm font-medium text-ink hover:bg-raised disabled:opacity-60"
       >
         {pending ? 'Archiving…' : `Archive — ${label}`}
       </button>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         Keeps the record, the file and the audit trail. The certificate simply stops counting.
       </p>
       <FormMessage state={state} />

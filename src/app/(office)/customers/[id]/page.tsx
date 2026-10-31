@@ -120,30 +120,30 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/customers" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/customers" className="text-sm text-muted underline hover:text-ink">
           ← Customers
         </Link>
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">{customer.legalName}</h1>
-            <p className="mt-1 text-slate-600">
+            <h1 className="text-title font-semibold text-ink">{customer.legalName}</h1>
+            <p className="mt-1 text-muted">
               {customer.tradingName ? `${customer.tradingName} · ` : ''}
               {CUSTOMER_STATUS_LABELS[customer.status]}
               {customer.uen ? ` · UEN ${customer.uen}` : ''}
             </p>
           </div>
-          <p className="text-sm text-slate-500">Customer since {formatDate(customer.createdAt, settings.timezone)}</p>
+          <p className="text-sm text-muted">Customer since {formatDate(customer.createdAt, settings.timezone)}</p>
         </div>
       </div>
 
-      <nav aria-label="Customer sections" className="-mb-2 flex flex-wrap gap-1 border-b border-slate-200">
+      <nav aria-label="Customer sections" className="-mb-2 flex flex-wrap gap-1 border-b border-line">
         {TABS.map((tab) =>
           tab.anchor ? (
             <a
               key={tab.label}
               href={`#${tab.anchor}`}
-              className="px-3 py-2 text-sm text-slate-600 hover:text-slate-900"
+              className="px-3 py-2 text-sm text-muted hover:text-ink"
             >
               {tab.label}
             </a>
@@ -153,8 +153,8 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
               aria-current={tab.label === 'Overview' ? 'page' : undefined}
               className={
                 tab.label === 'Overview'
-                  ? 'border-b-2 border-slate-900 px-3 py-2 text-sm font-medium text-slate-900'
-                  : 'cursor-not-allowed px-3 py-2 text-sm text-slate-400'
+                  ? 'border-b-2 border-ink px-3 py-2 text-sm font-medium text-ink'
+                  : 'cursor-not-allowed px-3 py-2 text-sm text-faint'
               }
               title={tab.label === 'Overview' ? undefined : `${tab.label} arrives in a later slice`}
             >
@@ -166,48 +166,48 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className={`${cardClass} lg:col-span-2`}>
-          <h2 className="font-semibold text-slate-900">Overview</h2>
+          <h2 className="font-semibold text-ink">Overview</h2>
 
           <dl className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Primary contact</dt>
-              <dd className="mt-1 text-slate-900">
+              <dt className="text-xs font-medium text-muted">Primary contact</dt>
+              <dd className="mt-1 text-ink">
                 {primary ? (
                   <>
                     {primary.name}
-                    <span className="block text-xs text-slate-500">
+                    <span className="block text-xs text-muted">
                       {CONTACT_ROLE_LABELS[primary.role]}
                       {primary.phone ? ` · ${primary.phone}` : ''}
                       {primary.email ? ` · ${primary.email}` : ''}
                     </span>
                   </>
                 ) : (
-                  <span className="text-slate-500">None set</span>
+                  <span className="text-muted">None set</span>
                 )}
               </dd>
             </div>
 
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Payment terms</dt>
-              <dd className="mt-1 text-slate-900">
+              <dt className="text-xs font-medium text-muted">Payment terms</dt>
+              <dd className="mt-1 text-ink">
                 {customer.paymentTerms === null ? 'Not set' : `${customer.paymentTerms} days`}
               </dd>
             </div>
 
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Billing address</dt>
-              <dd className="mt-1 text-slate-900">
+              <dt className="text-xs font-medium text-muted">Billing address</dt>
+              <dd className="mt-1 text-ink">
                 {address.length > 0 ? (
                   address.map((line) => <span key={line} className="block">{line}</span>)
                 ) : (
-                  <span className="text-slate-500">Not set</span>
+                  <span className="text-muted">Not set</span>
                 )}
               </dd>
             </div>
 
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Records</dt>
-              <dd className="mt-1 text-slate-900">
+              <dt className="text-xs font-medium text-muted">Records</dt>
+              <dd className="mt-1 text-ink">
                 {customer.siteCount} {customer.siteCount === 1 ? 'site' : 'sites'},{' '}
                 {customer.contactCount} {customer.contactCount === 1 ? 'contact' : 'contacts'}
               </dd>
@@ -215,36 +215,36 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
             {customer.notes ? (
               <div className="sm:col-span-2">
-                <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Notes</dt>
-                <dd className="mt-1 whitespace-pre-wrap text-slate-900">{customer.notes}</dd>
+                <dt className="text-xs font-medium text-muted">Notes</dt>
+                <dd className="mt-1 whitespace-pre-wrap text-ink">{customer.notes}</dd>
               </div>
             ) : null}
           </dl>
 
-          <p className="mt-6 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          <p className="mt-6 rounded-md border border-line bg-sheet px-3 py-2 text-xs text-muted">
             Cranes, jobs and site history appear here as those screens are built. The customer record
             is the anchor everything else hangs off.
           </p>
         </section>
 
         <section id="sites" className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Sites</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Sites</h2>
+          <p className="mt-1 text-sm text-muted">
             {sites.length === 0
               ? 'No sites yet. A crane has to be at a site, so this comes first.'
               : `${sites.length} ${sites.length === 1 ? 'site' : 'sites'}.`}
           </p>
           {sites.length > 0 ? (
-            <ul className="mt-3 divide-y divide-slate-100 text-sm">
+            <ul className="mt-3 divide-y divide-rule text-sm">
               {sites.map((site) => (
                 <li key={site.id} className="flex items-baseline justify-between gap-3 py-2">
                   <Link
                     href={`/sites/${site.id}`}
-                    className="font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                    className="font-medium text-ink underline decoration-line hover:decoration-ink"
                   >
                     {site.name}
                   </Link>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-muted">
                     {site.craneCount} {site.craneCount === 1 ? 'crane' : 'cranes'}
                   </span>
                 </li>
@@ -256,13 +256,13 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
       {maySiteWrite ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Add a site</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Add a site</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
             A site is where the cranes are and where a technician has to go. Add the cranes to it
             afterwards.
           </p>
           <details open={sites.length === 0}>
-            <summary className="cursor-pointer text-sm font-medium text-slate-900">
+            <summary className="cursor-pointer text-sm font-medium text-ink">
               Site details
             </summary>
             <div className="mt-4">
@@ -278,37 +278,37 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
       <section className={cardClass}>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-semibold text-slate-900">Contacts</h2>
-          <p className="text-sm text-slate-500">
+          <h2 className="font-semibold text-ink">Contacts</h2>
+          <p className="text-sm text-muted">
             One primary contact; accounts and decision makers usually belong to the whole company.
           </p>
         </div>
 
         {customer.contacts.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-600">
+          <p className="mt-4 text-sm text-muted">
             No contacts yet. Add the person the office actually calls.
           </p>
         ) : (
-          <ul className="mt-4 divide-y divide-slate-100">
+          <ul className="mt-4 divide-y divide-rule">
             {customer.contacts.map((contact) => (
               <li key={contact.id} className="py-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="font-medium text-slate-900">
+                    <p className="font-medium text-ink">
                       {contact.name}
                       {contact.isPrimary ? (
-                        <span className="ml-2 rounded bg-slate-900 px-1.5 py-0.5 text-xs font-medium text-white">
+                        <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-xs font-medium text-white">
                           Primary
                         </span>
                       ) : null}
                     </p>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-muted">
                       {CONTACT_ROLE_LABELS[contact.role]}
                       {contact.siteName ? ` · ${contact.siteName}` : ' · Whole company'}
                       {' · Prefers '}
                       {PREFERRED_CHANNEL_LABELS[contact.preferredChannel]}
                     </p>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-muted">
                       {[contact.phone, contact.email].filter(Boolean).join(' · ') || 'No contact details'}
                     </p>
                   </div>
@@ -323,10 +323,10 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
                 {mayWrite ? (
                   <details className="mt-2">
-                    <summary className="cursor-pointer text-xs text-slate-600 underline hover:text-slate-900">
+                    <summary className="cursor-pointer text-xs text-muted underline hover:text-ink">
                       Edit {contact.name.split(' ')[0]}
                     </summary>
-                    <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-4">
+                    <div className="mt-3 rounded-md border border-line bg-sheet p-4">
                       <ContactForm
                         action={updateContactAction.bind(null, customer.id, contact.id)}
                         value={contact}
@@ -344,7 +344,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
         {mayWrite ? (
           <details className="mt-6" open={customer.contacts.length === 0}>
-            <summary className="cursor-pointer font-medium text-slate-900">Add a contact</summary>
+            <summary className="cursor-pointer font-medium text-ink">Add a contact</summary>
             <div className="mt-4">
               <ContactForm
                 action={createContactAction.bind(null, customer.id)}
@@ -359,37 +359,37 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
       <section id="contracts" className={cardClass}>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-semibold text-slate-900">Contracts</h2>
-          <p className="text-sm text-slate-500">
+          <h2 className="font-semibold text-ink">Contracts</h2>
+          <p className="text-sm text-muted">
             A contract&apos;s response and resolution targets override the company-wide ones on every
             job raised under it.
           </p>
         </div>
 
         {contracts.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-600">
+          <p className="mt-4 text-sm text-muted">
             No contract recorded. Jobs on this customer use the company-wide SLA targets.
           </p>
         ) : (
-          <ul className="mt-4 divide-y divide-slate-100">
+          <ul className="mt-4 divide-y divide-rule">
             {contracts.map((contract) => (
               <li key={contract.id} className="py-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="font-medium text-slate-900">
+                    <p className="font-medium text-ink">
                       {CONTRACT_TYPE_LABELS[contract.type]}
                       {contract.reference ? ` · ${contract.reference}` : ''}
                       {contract.renewal === 'overdue' ? (
-                        <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-800">
+                        <span className="ml-2 rounded bg-neg/10 px-1.5 py-0.5 text-xs font-medium text-neg">
                           Renewal overdue
                         </span>
                       ) : contract.renewal === 'due' ? (
-                        <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900">
+                        <span className="ml-2 rounded bg-warn/10 px-1.5 py-0.5 text-xs font-medium text-warn">
                           Renewal within 90 days
                         </span>
                       ) : null}
                     </p>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-muted">
                       {contract.startDate || contract.endDate
                         ? `${formatDate(contract.startDate, settings.timezone)} – ${
                             contract.endDate
@@ -404,16 +404,16 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
                         ? ` · ${contract.includedVisits} visits included`
                         : ''}
                     </p>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-muted">
                       {contract.coveredCranes.length === 0
                         ? 'Covers the whole account'
                         : `Covers ${contract.coveredCranes.map((crane) => crane.assetTag).join(', ')}`}
                     </p>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-muted">
                       {contractTargetsLabel(contract)}
                     </p>
                     {contract.scopeNotes ? (
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-muted">
                         {contract.scopeNotes}
                       </p>
                     ) : null}
@@ -429,10 +429,10 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
                 {mayContractWrite ? (
                   <details className="mt-2">
-                    <summary className="cursor-pointer text-xs text-slate-600 underline hover:text-slate-900">
+                    <summary className="cursor-pointer text-xs text-muted underline hover:text-ink">
                       Edit contract
                     </summary>
-                    <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-4">
+                    <div className="mt-3 rounded-md border border-line bg-sheet p-4">
                       <ContractForm
                         action={updateContractAction.bind(null, customer.id, contract.id)}
                         values={contract}
@@ -450,7 +450,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
         {mayContractWrite ? (
           <details className="mt-6" open={contracts.length === 0}>
-            <summary className="cursor-pointer font-medium text-slate-900">Add a contract</summary>
+            <summary className="cursor-pointer font-medium text-ink">Add a contract</summary>
             <div className="mt-4">
               <ContractForm
                 action={createContractAction.bind(null, customer.id)}
@@ -466,8 +466,8 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
       {mayWrite ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Edit details</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Edit details</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
             Every change is written to the audit log with what it was before.
           </p>
           <EditCustomerForm
@@ -478,8 +478,8 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
       ) : null}
 
       {mayWrite ? (
-        <section className="rounded-lg border border-red-200 bg-white p-6 shadow-sm">
-          <h2 className="font-semibold text-slate-900">Archive</h2>
+        <section className="rounded-lg border border-neg/40 bg-field p-6">
+          <h2 className="font-semibold text-ink">Archive</h2>
           <div className="mt-3">
             <ArchiveCustomerButton
               action={archiveCustomerAction.bind(null, customer.id)}

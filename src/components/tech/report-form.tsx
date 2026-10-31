@@ -376,7 +376,7 @@ export function ReportForm({
 
   if (!template) {
     return (
-      <p className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
+      <p className="rounded-xl border border-warn/40 bg-warn/10 p-4 text-warn">
         This job type has no report template. Ask the office to attach one before filling a report.
       </p>
     )
@@ -384,7 +384,7 @@ export function ReportForm({
 
   if (submitted) {
     return (
-      <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900">
+      <div className="rounded-xl border border-pos/40 bg-pos/10 p-4 text-pos">
         <p className="font-medium">Report submitted</p>
         <p className="mt-1 text-sm">
           {submitted.submittedAt
@@ -397,7 +397,7 @@ export function ReportForm({
 
   if (done) {
     return (
-      <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900">
+      <div className="rounded-xl border border-pos/40 bg-pos/10 p-4 text-pos">
         <p className="font-medium">Report sent</p>
         <p className="mt-1 text-sm">The office has it. You can head off.</p>
       </div>
@@ -405,7 +405,7 @@ export function ReportForm({
   }
 
   if (!loaded) {
-    return <p className="text-slate-600">Reading the draft on this phone…</p>
+    return <p className="text-muted">Reading the draft on this phone…</p>
   }
 
   const { draft } = loaded
@@ -414,19 +414,19 @@ export function ReportForm({
   return (
     <div className="space-y-5 pb-24">
       <header className="space-y-1">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           {job.number} · {template.name}
         </p>
-        <h1 className="text-xl font-semibold text-slate-900">{crane.assetTag}</h1>
-        <p className="text-sm text-slate-600">
+        <h1 className="text-xl font-semibold text-ink">{crane.assetTag}</h1>
+        <p className="text-sm text-muted">
           {crane.type.replace(/_/g, ' ').toLowerCase()} · SWL {crane.swlKg} kg
         </p>
         {crane.status === 'RESTRICTED' && (
-          <p className="rounded-md bg-red-100 px-2 py-1 text-sm font-medium text-red-900">
+          <p className="rounded-md bg-neg/10 px-2 py-1 text-sm font-medium text-neg">
             Do Not Operate{crane.restrictedReason ? `: ${crane.restrictedReason}` : ''}
           </p>
         )}
-        <p className="text-xs text-slate-500" aria-live="polite">
+        <p className="text-xs text-muted" aria-live="polite">
           {loaded.queued
             ? 'Waiting to upload. Everything stays on this phone until the office has it.'
             : savedAt
@@ -436,14 +436,14 @@ export function ReportForm({
       </header>
 
       {templateChanged && (
-        <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <p className="rounded-lg border border-warn/40 bg-warn/10 p-3 text-sm text-warn">
           The office changed this report template, so the form has started again. Anything already
           sent is unaffected.
         </p>
       )}
 
       {message && (
-        <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+        <p role="alert" className="rounded-lg border border-neg/40 bg-neg/10 p-3 text-sm text-neg">
           {message}
         </p>
       )}
@@ -466,7 +466,7 @@ export function ReportForm({
               {warnings.length > 0 && (
                 <div
                   role="alert"
-                  className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
+                  className="rounded-xl border border-warn/40 bg-warn/10 p-4 text-sm text-warn"
                 >
                   <p className="font-medium">Check the instruments before you submit</p>
                   <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -481,8 +481,8 @@ export function ReportForm({
               )}
             </div>
           ) : (
-            <div key={section.key} className="rounded-xl border border-slate-200 bg-white p-4">
-              <h2 className="text-base font-semibold text-slate-900">{section.label}</h2>
+            <div key={section.key} className="rounded-lg bg-panel p-4">
+              <h2 className="text-base font-semibold text-ink">{section.label}</h2>
               <div className="mt-3 space-y-4">
                 {section.fields.map((field) => (
                   <FieldInput
@@ -505,12 +505,12 @@ export function ReportForm({
       />
 
       {job.checklist.length > 0 && (
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
-          <h2 className="text-base font-semibold text-slate-900">Checklist</h2>
+        <section className="rounded-lg bg-panel p-4">
+          <h2 className="text-base font-semibold text-ink">Checklist</h2>
           <div className="mt-3 space-y-5">
             {groupChecklist(job.checklist).map((group) => (
               <div key={group.name}>
-                <h3 className="text-sm font-medium text-slate-700">{group.name}</h3>
+                <h3 className="text-sm font-medium text-ink">{group.name}</h3>
                 <ul className="mt-2 space-y-3">
                   {group.items.map((item) => {
                     const answer = draft.checklist[item.code] ?? {}
@@ -521,10 +521,10 @@ export function ReportForm({
                           ? ['Yes', 'No']
                           : null
                     return (
-                      <li key={item.code} className="border-t border-slate-100 pt-3 first:border-0 first:pt-0">
-                        <p className="text-slate-900">
+                      <li key={item.code} className="border-t border-rule pt-3 first:border-0 first:pt-0">
+                        <p className="text-ink">
                           {item.label}
-                          {item.unit && <span className="text-slate-500"> ({item.unit})</span>}
+                          {item.unit && <span className="text-muted"> ({item.unit})</span>}
                         </p>
                         {choices ? (
                           <ChoiceButtons
@@ -546,7 +546,7 @@ export function ReportForm({
                                   event.target.value === '' ? null : Number(event.target.value),
                               })
                             }
-                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-lg"
+                            className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-lg"
                           />
                         ) : (
                           <textarea
@@ -554,7 +554,7 @@ export function ReportForm({
                             value={answer.note ?? ''}
                             onChange={(event) => setChecklist(item.code, { note: event.target.value })}
                             rows={2}
-                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                            className="mt-1 w-full rounded-lg border border-line px-3 py-2"
                           />
                         )}
                       </li>
@@ -567,9 +567,9 @@ export function ReportForm({
         </section>
       )}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="text-base font-semibold text-slate-900">Photos</h2>
-        <p className="mt-1 text-sm text-slate-500">
+      <section className="rounded-lg bg-panel p-4">
+        <h2 className="text-base font-semibold text-ink">Photos</h2>
+        <p className="mt-1 text-sm text-muted">
           {findingsTable ? 'Photograph anything you raised as a finding.' : 'Anything worth showing the office.'}
         </p>
         {loaded.photos.length > 0 && (
@@ -593,7 +593,7 @@ export function ReportForm({
             ))}
           </ul>
         )}
-        <label className="mt-3 inline-block rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-900 active:bg-slate-100">
+        <label className="mt-3 inline-block rounded-lg border border-line px-4 py-2 font-medium text-ink active:bg-raised">
           Take photo
           <input
             type="file"
@@ -609,10 +609,10 @@ export function ReportForm({
         </label>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="text-base font-semibold text-slate-900">Signatures</h2>
+      <section className="rounded-lg bg-panel p-4">
+        <h2 className="text-base font-semibold text-ink">Signatures</h2>
         <div className="mt-3 space-y-2">
-          <label className="block text-sm font-medium text-slate-700" htmlFor="technician-name">
+          <label className="block text-sm font-medium text-ink" htmlFor="technician-name">
             Technician name
           </label>
           <input
@@ -621,7 +621,7 @@ export function ReportForm({
             onChange={(event) =>
               update((current) => ({ ...current, technicianSignerName: event.target.value }))
             }
-            className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            className="w-full rounded-lg border border-line px-3 py-2"
           />
         </div>
         <div className="mt-4">
@@ -633,8 +633,8 @@ export function ReportForm({
           />
         </div>
 
-        <div className="mt-5 border-t border-slate-100 pt-4">
-          <h3 className="text-sm font-medium text-slate-700">Customer</h3>
+        <div className="mt-5 border-t border-rule pt-4">
+          <h3 className="text-sm font-medium text-ink">Customer</h3>
           <div className="mt-2 grid grid-cols-1 gap-2">
             <input
               aria-label="Customer name"
@@ -643,7 +643,7 @@ export function ReportForm({
               onChange={(event) =>
                 update((current) => ({ ...current, customerSignerName: event.target.value }))
               }
-              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              className="w-full rounded-lg border border-line px-3 py-2"
             />
             <input
               aria-label="Customer designation"
@@ -652,7 +652,7 @@ export function ReportForm({
               onChange={(event) =>
                 update((current) => ({ ...current, customerSignerDesignation: event.target.value }))
               }
-              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              className="w-full rounded-lg border border-line px-3 py-2"
             />
           </div>
           <div className="mt-3">
@@ -663,7 +663,7 @@ export function ReportForm({
               disabled={Boolean(draft.customerDeclinedReason)}
             />
           </div>
-          <label className="mt-3 block text-sm font-medium text-slate-700" htmlFor="declined-reason">
+          <label className="mt-3 block text-sm font-medium text-ink" htmlFor="declined-reason">
             Or: why the customer did not sign
           </label>
           <textarea
@@ -674,19 +674,19 @@ export function ReportForm({
             }
             rows={2}
             placeholder="Customer unavailable, refused to sign, site closed…"
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+            className="mt-1 w-full rounded-lg border border-line px-3 py-2"
           />
         </div>
       </section>
 
       {/* Sits above the layout's bottom nav rather than under it, so the button is never covered. */}
-      <div className="fixed inset-x-0 bottom-16 z-20 border-t border-slate-200 bg-white p-3">
+      <div className="fixed inset-x-0 bottom-16 z-20 border-t border-line bg-field p-3">
         <div className="mx-auto max-w-lg">
           <button
             type="button"
             onClick={() => void submit()}
             disabled={sending}
-            className="w-full rounded-xl bg-slate-900 px-4 py-3 text-lg font-semibold text-white disabled:opacity-60"
+            className="w-full rounded-xl bg-accent px-4 py-3 text-lg font-semibold text-white disabled:opacity-60"
           >
             {sending ? 'Sending…' : loaded.queued ? 'Try sending again' : 'Submit report'}
           </button>
@@ -745,10 +745,10 @@ function FieldInput({
 
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-slate-700">
+      <label htmlFor={id} className="block text-sm font-medium text-ink">
         {field.label}
-        {field.unit && <span className="font-normal text-slate-500"> ({field.unit})</span>}
-        {field.required && <span className="text-red-700"> *</span>}
+        {field.unit && <span className="font-normal text-muted"> ({field.unit})</span>}
+        {field.required && <span className="text-neg"> *</span>}
       </label>
       {field.type === 'RADIO' && field.options ? (
         <ChoiceButtons
@@ -772,7 +772,7 @@ function FieldInput({
           step="any"
           value={text}
           onChange={(event) => onChange(event.target.value)}
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-lg"
+          className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-lg"
         />
       ) : field.type === 'DATE' ? (
         <input
@@ -780,7 +780,7 @@ function FieldInput({
           type="date"
           value={text}
           onChange={(event) => onChange(event.target.value)}
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-lg"
+          className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-lg"
         />
       ) : field.help ? (
         <textarea
@@ -788,17 +788,17 @@ function FieldInput({
           value={text}
           onChange={(event) => onChange(event.target.value)}
           rows={3}
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+          className="mt-1 w-full rounded-lg border border-line px-3 py-2"
         />
       ) : (
         <input
           id={id}
           value={text}
           onChange={(event) => onChange(event.target.value)}
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+          className="mt-1 w-full rounded-lg border border-line px-3 py-2"
         />
       )}
-      {field.help && <p className="mt-1 text-xs text-slate-500">{field.help}</p>}
+      {field.help && <p className="mt-1 text-xs text-muted">{field.help}</p>}
     </div>
   )
 }
@@ -824,8 +824,8 @@ function ChoiceButtons({
           onClick={() => onChange(option)}
           className={`rounded-lg border px-4 py-2 font-medium ${
             value === option
-              ? 'border-slate-900 bg-slate-900 text-white'
-              : 'border-slate-300 bg-white text-slate-900'
+              ? 'border-ink bg-accent text-white'
+              : 'border-line bg-field text-ink'
           }`}
         >
           {option}
@@ -849,20 +849,20 @@ function TableSection({
   }
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="text-base font-semibold text-slate-900">{section.label}</h2>
-      <p className="mt-1 text-sm text-slate-500">
+    <section className="rounded-lg bg-panel p-4">
+      <h2 className="text-base font-semibold text-ink">{section.label}</h2>
+      <p className="mt-1 text-sm text-muted">
         {section.minRows ? `At least ${section.minRows} row(s) required.` : 'Leave empty if none.'}
       </p>
       <div className="mt-3 space-y-4">
         {rows.map((row, index) => (
-          <div key={index} className="rounded-lg border border-slate-200 p-3">
+          <div key={index} className="rounded-lg border border-line p-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-600">Row {index + 1}</p>
+              <p className="text-sm font-medium text-muted">Row {index + 1}</p>
               <button
                 type="button"
                 onClick={() => onChange(rows.filter((_, position) => position !== index))}
-                className="text-sm text-red-700 underline"
+                className="text-sm text-neg underline"
               >
                 Remove
               </button>
@@ -883,7 +883,7 @@ function TableSection({
       <button
         type="button"
         onClick={() => onChange([...rows, {}])}
-        className="mt-3 rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-900 active:bg-slate-100"
+        className="mt-3 rounded-lg border border-line px-4 py-2 font-medium text-ink active:bg-raised"
       >
         Add row
       </button>
@@ -916,9 +916,9 @@ function PartsSection({
   }
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="text-base font-semibold text-slate-900">Parts used</h2>
-      <p className="mt-1 text-sm text-slate-500">
+    <section className="rounded-lg bg-panel p-4">
+      <h2 className="text-base font-semibold text-ink">Parts used</h2>
+      <p className="mt-1 text-sm text-muted">
         Fitting a part here records stock leaving the van.{' '}
         {shownOnTemplate && 'These rows also fill the parts table on the report.'}
       </p>
@@ -926,22 +926,22 @@ function PartsSection({
       {parts.length > 0 && (
         <ul className="mt-3 space-y-3">
           {parts.map((part, index) => (
-            <li key={part.partNumber} className="rounded-lg border border-slate-200 p-3">
+            <li key={part.partNumber} className="rounded-lg border border-line p-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="font-medium text-slate-900">{part.partNumber}</p>
-                  <p className="text-sm text-slate-600">{part.description}</p>
+                  <p className="font-medium text-ink">{part.partNumber}</p>
+                  <p className="text-sm text-muted">{part.description}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => onChange(parts.filter((_, position) => position !== index))}
-                  className="text-sm text-red-700 underline"
+                  className="text-sm text-neg underline"
                 >
                   Remove
                 </button>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <label className="text-sm text-slate-700">
+                <label className="text-sm text-ink">
                   Quantity
                   <input
                     type="number"
@@ -958,10 +958,10 @@ function PartsSection({
                         ),
                       )
                     }
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-lg"
+                    className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-lg"
                   />
                 </label>
-                <label className="text-sm text-slate-700">
+                <label className="text-sm text-ink">
                   Serial / batch
                   <input
                     value={part.serialOrBatch ?? ''}
@@ -974,12 +974,12 @@ function PartsSection({
                         ),
                       )
                     }
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                    className="mt-1 w-full rounded-lg border border-line px-3 py-2"
                   />
                   {/* Traced parts cannot be submitted without it — the office traces by this. */}
                   {catalogue.find((entry) => entry.partNumber === part.partNumber)
                     ?.trackSerialOrBatch ? (
-                    <span className="mt-1 block text-xs text-amber-800">
+                    <span className="mt-1 block text-xs text-warn">
                       Required: this part is traced to the crane by serial or batch.
                     </span>
                   ) : null}
@@ -991,7 +991,7 @@ function PartsSection({
       )}
 
       {catalogue.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">
+        <p className="mt-3 text-sm text-muted">
           No parts catalogue on this phone. Sync when you have signal.
         </p>
       ) : (
@@ -1000,7 +1000,7 @@ function PartsSection({
             aria-label="Part used"
             value={choice}
             onChange={(event) => setChoice(event.target.value)}
-            className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2"
+            className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2"
           >
             <option value="">Choose a part…</option>
             {catalogue.map((part) => (
@@ -1013,7 +1013,7 @@ function PartsSection({
             type="button"
             onClick={add}
             disabled={!choice}
-            className="rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-900 disabled:opacity-50"
+            className="rounded-lg border border-line px-4 py-2 font-medium text-ink disabled:opacity-50"
           >
             Add
           </button>

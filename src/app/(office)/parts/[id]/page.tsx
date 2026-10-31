@@ -52,12 +52,12 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/parts" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/parts" className="text-sm text-muted underline hover:text-ink">
           ← Parts
         </Link>
-        <h1 className="mt-2 font-mono text-2xl font-semibold text-slate-900">{part.partNumber}</h1>
-        <p className="mt-1 text-slate-600">{part.description}</p>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="mt-2 font-mono text-title font-semibold text-ink">{part.partNumber}</h1>
+        <p className="mt-1 text-muted">{part.description}</p>
+        <p className="mt-1 text-sm text-muted">
           {part.brand ?? 'No brand'}
           {part.compatibleModels.length > 0
             ? ` · fits ${part.compatibleModels.join(', ')}`
@@ -68,21 +68,21 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
 
       <section className={`${cardClass} grid gap-6 sm:grid-cols-4`} aria-label="Stock summary">
         <div>
-          <p className="text-xs tracking-wide text-slate-500 uppercase">On hand</p>
+          <p className="text-xs text-muted">On hand</p>
           <p
             className={
               part.onHand < 0
-                ? 'mt-1 text-2xl font-semibold text-red-700'
+                ? 'mt-1 text-2xl font-semibold text-neg'
                 : part.belowReorder
-                  ? 'mt-1 text-2xl font-semibold text-amber-800'
-                  : 'mt-1 text-2xl font-semibold text-slate-900'
+                  ? 'mt-1 text-2xl font-semibold text-warn'
+                  : 'mt-1 text-2xl font-semibold text-ink'
             }
           >
             {part.onHand}{' '}
-            <span className="text-base font-normal text-slate-500">{part.uom}</span>
+            <span className="text-base font-normal text-muted">{part.uom}</span>
           </p>
           {part.belowReorder ? (
-            <p className="mt-1 text-xs text-amber-800">
+            <p className="mt-1 text-xs text-warn">
               {part.reorderLevel === null
                 ? 'Below reorder level'
                 : `Below the reorder level of ${part.reorderLevel} ${part.uom}`}
@@ -90,38 +90,38 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
           ) : null}
         </div>
         <div>
-          <p className="text-xs tracking-wide text-slate-500 uppercase">Reorder at</p>
-          <p className="mt-1 text-lg text-slate-900">
+          <p className="text-xs text-muted">Reorder at</p>
+          <p className="mt-1 text-lg text-ink">
             {part.reorderLevel === null ? '—' : `${part.reorderLevel} ${part.uom}`}
           </p>
           {part.reorderQty !== null ? (
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-muted">
               Order {part.reorderQty} {part.uom} at a time
             </p>
           ) : null}
         </div>
         <div>
-          <p className="text-xs tracking-wide text-slate-500 uppercase">Cost</p>
-          <p className="mt-1 text-lg text-slate-900">{formatMoney(part.cost, settings.currency)}</p>
+          <p className="text-xs text-muted">Cost</p>
+          <p className="mt-1 text-lg text-ink">{formatMoney(part.cost, settings.currency)}</p>
         </div>
         <div>
-          <p className="text-xs tracking-wide text-slate-500 uppercase">Sell</p>
-          <p className="mt-1 text-lg text-slate-900">{formatMoney(part.sellPrice, settings.currency)}</p>
+          <p className="text-xs text-muted">Sell</p>
+          <p className="mt-1 text-lg text-ink">{formatMoney(part.sellPrice, settings.currency)}</p>
         </div>
       </section>
 
       {heldJobs.length > 0 ? (
         <section
-          className="rounded-lg border border-amber-300 bg-amber-50 p-4"
+          className="rounded-lg border border-warn/40 bg-warn/10 p-4"
           aria-labelledby="held-jobs-heading"
         >
-          <h2 id="held-jobs-heading" className="font-semibold text-amber-900">
+          <h2 id="held-jobs-heading" className="font-semibold text-warn">
             Jobs waiting for this part
           </h2>
-          <ul className="mt-2 space-y-1 text-sm text-amber-900">
+          <ul className="mt-2 space-y-1 text-sm text-warn">
             {heldJobs.map((job) => (
               <li key={job.id}>
-                <Link href={`/jobs/${job.id}`} className="font-medium underline hover:text-amber-950">
+                <Link href={`/jobs/${job.id}`} className="font-medium underline hover:text-ink">
                   {job.number}
                 </Link>{' '}
                 — {job.customerName}
@@ -132,20 +132,20 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
       ) : null}
 
       <section aria-labelledby="levels-heading">
-        <h2 id="levels-heading" className="font-semibold text-slate-900">
+        <h2 id="levels-heading" className="font-semibold text-ink">
           Where it is
         </h2>
         {part.levels.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-muted">
             No stock has been received at any location yet.
           </p>
         ) : (
-          <ul className="mt-3 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white text-sm">
+          <ul className="mt-3 divide-y divide-rule rounded-lg border border-line bg-field text-sm">
             {part.levels.map((level) => (
               <li key={level.locationId} className="flex items-baseline justify-between px-4 py-3">
-                <span className="text-slate-900">
+                <span className="text-ink">
                   {level.locationName}
-                  <span className="ml-2 text-xs text-slate-500">
+                  <span className="ml-2 text-xs text-muted">
                     {level.locationType === 'WAREHOUSE'
                       ? 'Warehouse'
                       : level.locationType === 'VAN'
@@ -155,7 +155,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                           : 'Bin'}
                   </span>
                 </span>
-                <span className={level.quantity < 0 ? 'font-medium text-red-700' : 'text-slate-900'}>
+                <span className={level.quantity < 0 ? 'font-medium text-neg' : 'text-ink'}>
                   {level.quantity} {part.uom}
                 </span>
               </li>
@@ -166,10 +166,10 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
 
       {mayMove ? (
         <section className={`${cardClass}`} aria-labelledby="stock-form-heading">
-          <h2 id="stock-form-heading" className="font-semibold text-slate-900">
+          <h2 id="stock-form-heading" className="font-semibold text-ink">
             Post a stock movement
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             Receiving and returning add stock. An adjustment is a count: type what is on the shelf and
             the difference is written as a movement with your name on it.
           </p>
@@ -181,10 +181,10 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
 
       {mayMove ? (
         <section className={cardClass} aria-labelledby="transfer-heading">
-          <h2 id="transfer-heading" className="font-semibold text-slate-900">
+          <h2 id="transfer-heading" className="font-semibold text-ink">
             Transfer to another location
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             Takes stock out of one location and puts it in another — the store to a van, a van back to
             a bin. The source must hold what you transfer; post a count first if it does not.
             Locations are maintained under{' '}
@@ -201,27 +201,27 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
 
       {traces.length > 0 ? (
         <section aria-labelledby="trace-heading">
-          <h2 id="trace-heading" className="font-semibold text-slate-900">
+          <h2 id="trace-heading" className="font-semibold text-ink">
             Serial and batch trace
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             Which serial went on which crane, and where the rest of the batch is now.
           </p>
           <ul className="mt-3 space-y-3">
             {traces.map((trace) => (
               <li
                 key={trace.serial}
-                className="rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-sm"
+                className="rounded-lg bg-panel p-4 text-sm"
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="font-mono font-medium text-slate-900">{trace.serial}</p>
+                  <p className="font-mono font-medium text-ink">{trace.serial}</p>
                   <p
                     className={
                       trace.held === 0
-                        ? 'text-slate-500'
+                        ? 'text-muted'
                         : trace.held < 0
-                          ? 'font-medium text-red-700'
-                          : 'text-slate-900'
+                          ? 'font-medium text-neg'
+                          : 'text-ink'
                     }
                   >
                     {trace.held === 0
@@ -233,7 +233,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                 </div>
 
                 {trace.held < 0 ? (
-                  <p className="mt-1 text-sm text-red-700">
+                  <p className="mt-1 text-sm text-neg">
                     This serial went out on more than the record shows coming in — the stock was
                     probably received without it. Count the shelf and post an adjustment naming this
                     serial.
@@ -241,7 +241,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                 ) : null}
 
                 {trace.whereabouts.length > 0 ? (
-                  <p className="mt-1 text-slate-600">
+                  <p className="mt-1 text-muted">
                     At{' '}
                     {trace.whereabouts
                       .map((where) => `${where.locationName} (${where.quantity})`)
@@ -250,9 +250,9 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                 ) : null}
 
                 {trace.issuedTo.length === 0 ? (
-                  <p className="mt-1 text-slate-500">Not fitted to a job yet.</p>
+                  <p className="mt-1 text-muted">Not fitted to a job yet.</p>
                 ) : (
-                  <ul className="mt-2 space-y-1 text-slate-700">
+                  <ul className="mt-2 space-y-1 text-ink">
                     {trace.issuedTo.map((issue, position) => (
                       <li key={`${issue.jobId}-${position}`}>
                         {issue.quantity} {part.uom} on{' '}
@@ -275,16 +275,16 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
       ) : null}
 
       <section aria-labelledby="movements-heading">
-        <h2 id="movements-heading" className="font-semibold text-slate-900">
+        <h2 id="movements-heading" className="font-semibold text-ink">
           Last 20 movements
         </h2>
         {part.movements.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">Nothing has moved yet.</p>
+          <p className="mt-2 text-sm text-muted">Nothing has moved yet.</p>
         ) : (
-          <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="mt-3 overflow-x-auto rounded-lg bg-field">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">Stock movements for this part, newest first</caption>
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+              <thead className="border-b border-line bg-sheet text-xs text-muted">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-medium">When</th>
                   <th scope="col" className="px-4 py-3 font-medium">Movement</th>
@@ -293,27 +293,27 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                   <th scope="col" className="px-4 py-3 font-medium">Against</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-rule">
                 {part.movements.map((movement) => (
                   <tr key={movement.id}>
-                    <td className="px-4 py-3 whitespace-nowrap text-slate-600">
+                    <td className="px-4 py-3 whitespace-nowrap text-muted">
                       {formatDateTime(movement.movedAt, settings.timezone)}
                     </td>
-                    <td className="px-4 py-3 text-slate-900">
+                    <td className="px-4 py-3 text-ink">
                       {MOVEMENT_TYPE_LABELS[movement.type as MovementType]}
                       {movement.serialOrBatch ? (
-                        <span className="block font-mono text-xs text-slate-500">
+                        <span className="block font-mono text-xs text-muted">
                           {movement.serialOrBatch}
                         </span>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3 text-right text-slate-900">
+                    <td className="px-4 py-3 text-right text-ink">
                       {movement.quantity} {part.uom}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-muted">
                       {movement.fromLocation ?? '—'} → {movement.toLocation ?? '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-muted">
                       {movement.job ? (
                         <Link href={`/jobs/${movement.job.id}`} className="underline">
                           {movement.job.number}
@@ -332,7 +332,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
 
       {mayWrite ? (
         <details className={cardClass}>
-          <summary className="cursor-pointer font-semibold text-slate-900">Edit this part</summary>
+          <summary className="cursor-pointer font-semibold text-ink">Edit this part</summary>
           <div className="mt-4">
             <PartForm
               action={updatePartAction.bind(null, part.id)}

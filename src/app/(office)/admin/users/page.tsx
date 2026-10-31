@@ -39,8 +39,8 @@ export default async function UsersPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Users</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">Users</h1>
+        <p className="mt-1 text-muted">
           {users.length} {users.length === 1 ? 'account' : 'accounts'}, {activeCount} active.
           Deactivating keeps the account and its history but stops the user signing in.
         </p>
@@ -49,10 +49,10 @@ export default async function UsersPage() {
       {users.length === 0 ? (
         <p className={cardClass}>No users yet. Create the first one below.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg bg-field">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">User accounts</caption>
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="border-b border-line bg-sheet text-xs text-muted">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Name</th>
                 <th scope="col" className="px-4 py-3 font-medium">Role</th>
@@ -64,46 +64,46 @@ export default async function UsersPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-rule">
               {users.map((user) => (
-                <tr key={user.id} className={user.isActive ? '' : 'text-slate-400'}>
+                <tr key={user.id} className={user.isActive ? '' : 'text-faint'}>
                   <td className="px-4 py-3">
-                    <span className="font-medium text-slate-900">{user.name}</span>
+                    <span className="font-medium text-ink">{user.name}</span>
                     {user.id === context.userId ? (
-                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
+                      <span className="ml-2 rounded bg-raised px-1.5 py-0.5 text-xs text-muted">
                         you
                       </span>
                     ) : null}
                     {user.employeeNo ? (
-                      <span className="block text-xs text-slate-500">#{user.employeeNo}</span>
+                      <span className="block text-xs text-muted">#{user.employeeNo}</span>
                     ) : null}
                   </td>
                   <td className="px-4 py-3">
                     {ROLE_LABELS[user.role]}
                     {user.customerName ? (
-                      <span className="block text-xs text-slate-500">{user.customerName}</span>
+                      <span className="block text-xs text-muted">{user.customerName}</span>
                     ) : null}
                   </td>
                   <td className="px-4 py-3">
                     <span className="block">{user.email}</span>
                     {user.phone ? (
-                      <span className="block text-xs text-slate-500">{user.phone}</span>
+                      <span className="block text-xs text-muted">{user.phone}</span>
                     ) : null}
                   </td>
                   <td className="px-4 py-3">
                     {user.isActive ? (
-                      <span className="text-emerald-700">Active</span>
+                      <span className="text-pos">Active</span>
                     ) : (
-                      <span className="text-slate-500">Deactivated</span>
+                      <span className="text-muted">Deactivated</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted">
                     {formatDateTime(user.lastLoginAt, settings.timezone)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link
                       href={`/admin/users/${user.id}`}
-                      className="font-medium text-slate-700 underline hover:text-slate-900"
+                      className="font-medium text-ink underline hover:text-ink"
                     >
                       Edit
                     </Link>
@@ -116,8 +116,8 @@ export default async function UsersPage() {
       )}
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">Add a user</h2>
-        <p className="mt-1 mb-5 text-sm text-slate-600">
+        <h2 className="font-semibold text-ink">Add a user</h2>
+        <p className="mt-1 mb-5 text-sm text-muted">
           Creating a technician also creates their technician record, which is what scopes jobs and
           reports to them. A Customer login is scoped to the one customer chosen here, and sees only
           that account in the portal.

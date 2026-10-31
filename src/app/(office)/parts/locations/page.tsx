@@ -30,15 +30,15 @@ export default async function LocationsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/parts" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/parts" className="text-sm text-muted underline hover:text-ink">
           ← Parts
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Stock locations</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="mt-2 text-title font-semibold text-ink">Stock locations</h1>
+        <p className="mt-1 text-muted">
           {locations.length} {locations.length === 1 ? 'location' : 'locations'} — the store, bins in
           it, technicians&rsquo; vans and parts held at a customer&rsquo;s site.
         </p>
-        <p className="mt-2 max-w-3xl text-sm text-slate-500">
+        <p className="mt-2 max-w-3xl text-sm text-muted">
           A location is retired, never deleted: every movement that ever touched it keeps naming it.
           Transfer the stock out first — a location still holding something cannot be retired.
         </p>
@@ -46,16 +46,16 @@ export default async function LocationsPage() {
 
       {locations.length === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">No locations yet.</p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="font-medium text-ink">No locations yet.</p>
+          <p className="mt-1 text-sm text-muted">
             The first one is the store. Adding it is the first thing below.
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg bg-field">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Stock locations and what each holds</caption>
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="border-b border-line bg-sheet text-xs text-muted">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Location</th>
                 <th scope="col" className="px-4 py-3 font-medium">Kind</th>
@@ -67,26 +67,26 @@ export default async function LocationsPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-rule">
               {locations.map((location) => (
-                <tr key={location.id} className="align-top hover:bg-slate-50">
+                <tr key={location.id} className="align-top hover:bg-sheet">
                   <td className="px-4 py-3">
-                    <span className="font-medium text-slate-900">{location.name}</span>
+                    <span className="font-medium text-ink">{location.name}</span>
                     {location.parentName ? (
-                      <span className="block text-xs text-slate-500">Inside {location.parentName}</span>
+                      <span className="block text-xs text-muted">Inside {location.parentName}</span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted">
                     {LOCATION_TYPE_LABELS[location.type as LocationTypeName]}
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-700">{location.partCount}</td>
-                  <td className="px-4 py-3 text-right text-slate-900">{location.quantity}</td>
+                  <td className="px-4 py-3 text-right text-ink">{location.partCount}</td>
+                  <td className="px-4 py-3 text-right text-ink">{location.quantity}</td>
                   <td className="px-4 py-3">
                     <span
                       className={
                         location.isActive
-                          ? 'rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800'
-                          : 'rounded border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs text-slate-600'
+                          ? 'rounded border border-pos/40 bg-pos/10 px-2 py-0.5 text-xs text-pos'
+                          : 'rounded border border-line bg-raised px-2 py-0.5 text-xs text-muted'
                       }
                     >
                       {location.isActive ? 'Active' : 'Retired'}
@@ -95,7 +95,7 @@ export default async function LocationsPage() {
                   <td className="px-4 py-3">
                     {mayWrite ? (
                       <details>
-                        <summary className="cursor-pointer text-sm text-slate-700 underline">
+                        <summary className="cursor-pointer text-sm text-ink underline">
                           Edit
                         </summary>
                         <div className="mt-3 min-w-72">
@@ -118,7 +118,7 @@ export default async function LocationsPage() {
 
       {mayWrite ? (
         <details className={cardClass}>
-          <summary className="cursor-pointer font-semibold text-slate-900">Add a location</summary>
+          <summary className="cursor-pointer font-semibold text-ink">Add a location</summary>
           <div className="mt-4">
             <LocationForm
               action={createLocationAction}
@@ -129,7 +129,7 @@ export default async function LocationsPage() {
           </div>
         </details>
       ) : (
-        <p className="text-sm text-slate-500">The store maintains stock locations.</p>
+        <p className="text-sm text-muted">The store maintains stock locations.</p>
       )}
     </div>
   )

@@ -41,16 +41,16 @@ export default async function ReorderPage() {
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/parts" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/parts" className="text-sm text-muted underline hover:text-ink">
           ← Parts
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Reorder</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="mt-2 text-title font-semibold text-ink">Reorder</h1>
+        <p className="mt-1 text-muted">
           {shortParts === 0
             ? 'Nothing is below its reorder level.'
             : `${shortParts} part${shortParts === 1 ? '' : 's'} below reorder, grouped by preferred supplier.`}
         </p>
-        <p className="mt-2 max-w-3xl text-sm text-slate-500">
+        <p className="mt-2 max-w-3xl text-sm text-muted">
           The suggested quantity is the part&rsquo;s reorder quantity where the catalogue sets one, and
           otherwise enough to bring the shelf back to its reorder level. Raising an order copies the
           catalog&rsquo;s cost onto it; receiving posts a stock movement for every line, so the shelf and
@@ -60,8 +60,8 @@ export default async function ReorderPage() {
 
       {shortParts === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">Everything is above its reorder level.</p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="font-medium text-ink">Everything is above its reorder level.</p>
+          <p className="mt-1 text-sm text-muted">
             The parts book sets each part&rsquo;s reorder level and quantity.
           </p>
         </div>
@@ -72,10 +72,10 @@ export default async function ReorderPage() {
 
         return (
           <section key={group.supplier?.id ?? 'none'} aria-labelledby={`group-${group.supplier?.id ?? 'none'}`}>
-            <h2 id={`group-${group.supplier?.id ?? 'none'}`} className="font-semibold text-slate-900">
+            <h2 id={`group-${group.supplier?.id ?? 'none'}`} className="font-semibold text-ink">
               {heading}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted">
               {group.lines.length} part{group.lines.length === 1 ? '' : 's'}
               {group.supplier?.leadTimeDays
                 ? ` · usually ${group.supplier.leadTimeDays} days to deliver`
@@ -85,21 +85,21 @@ export default async function ReorderPage() {
             </p>
 
             {!mayOrder ? (
-              <ul className="mt-3 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white text-sm">
+              <ul className="mt-3 divide-y divide-rule rounded-lg border border-line bg-field text-sm">
                 {group.lines.map((line) => (
                   <li key={line.partId} className="flex items-baseline justify-between gap-4 px-4 py-3">
                     <span>
                       <Link
                         href={`/parts/${line.partId}`}
-                        className="font-mono font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                        className="font-mono font-medium text-ink underline decoration-line hover:decoration-ink"
                       >
                         {line.partNumber}
                       </Link>
-                      <span className="block text-slate-700">{line.description}</span>
+                      <span className="block text-ink">{line.description}</span>
                     </span>
-                    <span className="text-right text-amber-800">
+                    <span className="text-right text-warn">
                       {line.onHand} {line.uom} on hand
-                      <span className="block text-xs text-slate-500">
+                      <span className="block text-xs text-muted">
                         Order {line.suggestedQuantity} {line.uom}
                       </span>
                     </span>
@@ -107,7 +107,7 @@ export default async function ReorderPage() {
                 ))}
               </ul>
             ) : group.supplier === null ? (
-              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <div className="mt-3 rounded-lg border border-warn/40 bg-warn/10 px-4 py-3 text-sm text-warn">
                 These parts have no preferred supplier, so no purchase order can be raised for them.
                 Choose a supplier on each part in the catalogue.
                 <ul className="mt-2 space-y-1">
@@ -134,25 +134,25 @@ export default async function ReorderPage() {
       })}
 
       <section aria-labelledby="on-order-heading">
-        <h2 id="on-order-heading" className="font-semibold text-slate-900">
+        <h2 id="on-order-heading" className="font-semibold text-ink">
           On order
         </h2>
         {!mayOrder ? (
-          <p className="mt-2 text-sm text-slate-500">The store raises and receives purchase orders.</p>
+          <p className="mt-2 text-sm text-muted">The store raises and receives purchase orders.</p>
         ) : orders.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">No purchase orders are open.</p>
+          <p className="mt-2 text-sm text-muted">No purchase orders are open.</p>
         ) : (
           <div className="mt-3 space-y-6">
             {orders.map((order) => (
               <div key={order.id} className={cardClass}>
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <div>
-                    <p className="font-mono font-semibold text-slate-900">{order.number}</p>
-                    <p className="text-sm text-slate-600">
+                    <p className="font-mono font-semibold text-ink">{order.number}</p>
+                    <p className="text-sm text-muted">
                       {order.supplierName} · {PURCHASE_ORDER_STATUS_LABELS[order.status]}
                     </p>
                   </div>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-muted">
                     Expected {formatDate(order.expectedAt, settings.timezone)} ·{' '}
                     {formatMoney(order.total, settings.currency)}
                   </p>

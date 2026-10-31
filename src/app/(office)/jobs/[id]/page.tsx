@@ -211,30 +211,30 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/jobs" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/jobs" className="text-sm text-muted underline hover:text-ink">
           ← Jobs
         </Link>
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-semibold text-slate-900">{job.number}</h1>
+              <h1 className="text-title font-semibold text-ink">{job.number}</h1>
               <PriorityBadge priority={job.priority} />
               <JobStatusBadge status={job.status} />
               {job.onHoldReason ? (
                 <OnHoldBadge reason={job.onHoldReason} note={job.onHoldNote} />
               ) : null}
             </div>
-            <p className="mt-1 text-slate-600">
+            <p className="mt-1 text-muted">
               {job.jobType.name}
               {' · '}
-              <Link href={`/customers/${job.customer.id}`} className="underline hover:text-slate-900">
+              <Link href={`/customers/${job.customer.id}`} className="underline hover:text-ink">
                 {job.customer.legalName}
               </Link>
               {job.site ? (
                 <>
                   {' · '}
-                  <Link href={`/sites/${job.site.id}`} className="underline hover:text-slate-900">
+                  <Link href={`/sites/${job.site.id}`} className="underline hover:text-ink">
                     {job.site.name}
                   </Link>
                 </>
@@ -245,7 +245,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                   {job.cranes.map((crane, index) => (
                     <span key={crane.id}>
                       {index > 0 ? ', ' : ''}
-                      <Link href={`/cranes/${crane.id}`} className="underline hover:text-slate-900">
+                      <Link href={`/cranes/${crane.id}`} className="underline hover:text-ink">
                         {crane.assetTag}
                       </Link>
                     </span>
@@ -254,52 +254,52 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               ) : null}
             </p>
             {job.ticket ? (
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-muted">
                 Raised from{' '}
-                <Link href={`/tickets/${job.ticket.id}`} className="underline hover:text-slate-900">
+                <Link href={`/tickets/${job.ticket.id}`} className="underline hover:text-ink">
                   {job.ticket.number}
                 </Link>
               </p>
             ) : null}
           </div>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted">
             {job.reportedAt ? `Raised ${formatDateTime(job.reportedAt, settings.timezone)}` : 'No reported date'}
           </p>
         </div>
       </div>
 
       {job.onHoldReason ? (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
-          <p className="font-medium text-amber-900">
+        <div className="rounded-lg border border-warn/40 bg-warn/10 p-4">
+          <p className="font-medium text-warn">
             On hold — {ON_HOLD_REASON_LABELS[job.onHoldReason]}
           </p>
-          <p className="mt-1 text-sm text-amber-900">
+          <p className="mt-1 text-sm text-warn">
             {job.onHoldNote ?? 'No further detail was recorded.'}
           </p>
 
           {holdPart ? (
-            <div className="mt-3 border-t border-amber-300 pt-3">
-              <p className="text-sm text-amber-900">
+            <div className="mt-3 border-t border-warn/40 pt-3">
+              <p className="text-sm text-warn">
                 Waiting for{' '}
                 <Link
                   href={`/parts/${holdPart.id}`}
-                  className="font-medium underline hover:text-amber-950"
+                  className="font-medium underline hover:text-ink"
                 >
                   {holdPart.partNumber}
                 </Link>{' '}
                 — {holdPart.description}
               </p>
               {waitingOn.length === 0 ? (
-                <p className="mt-1 text-sm text-amber-900">
+                <p className="mt-1 text-sm text-warn">
                   Nothing on order for it. Raise one from the{' '}
-                  <Link href="/parts/reorder" className="underline hover:text-amber-950">
+                  <Link href="/parts/reorder" className="underline hover:text-ink">
                     reorder list
                   </Link>
                   .
                 </p>
               ) : (
-                <ul className="mt-1 space-y-1 text-sm text-amber-900">
+                <ul className="mt-1 space-y-1 text-sm text-warn">
                   {waitingOn.map((order) => {
                     const when = expectedDateLabel(
                       order.status,
@@ -310,7 +310,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                     return (
                       <li key={order.purchaseOrderId}>
                         {order.remaining} {holdPart.uom} on {order.number} from {order.supplierName} —{' '}
-                        <span className={when.late ? 'font-medium text-red-800' : ''}>
+                        <span className={when.late ? 'font-medium text-neg' : ''}>
                           {when.text}
                         </span>
                         {order.expectedAt
@@ -327,8 +327,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       ) : null}
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">Service level</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="font-semibold text-ink">Service level</h2>
+        <p className="mt-1 text-sm text-muted">
           Targets were fixed when the job was raised from the policy in force at that moment. Minutes
           are calendar minutes.
         </p>
@@ -353,16 +353,16 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
       {maySchedule || mayAssign || mayDispatch ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Who is going</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Who is going</h2>
+          <p className="mt-1 text-sm text-muted">
             The visit, the crew and the kit. The board is the fast way to move things; this is the
             precise way.
           </p>
 
           <div className="mt-4 grid gap-6 lg:grid-cols-2">
             <div>
-              <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">Visit</h3>
-              <p className="mt-1 text-sm text-slate-900">
+              <h3 className="text-xs font-medium text-muted">Visit</h3>
+              <p className="mt-1 text-sm text-ink">
                 {staffing.scheduledStart
                   ? `${formatDateTime(staffing.scheduledStart, settings.timezone)}${
                       staffing.scheduledEnd
@@ -385,28 +385,28 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             </div>
 
             <div>
-              <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">Crew</h3>
+              <h3 className="text-xs font-medium text-muted">Crew</h3>
               {staffing.technicians.length === 0 ? (
-                <p className="mt-1 text-sm text-slate-500">Nobody assigned.</p>
+                <p className="mt-1 text-sm text-muted">Nobody assigned.</p>
               ) : (
                 <ul className="mt-2 space-y-2">
                   {staffing.technicians.map((entry) => (
-                    <li key={entry.technicianId} className="rounded-md border border-slate-200 p-2">
+                    <li key={entry.technicianId} className="rounded-md border border-line p-2">
                       <div className="flex items-center gap-2">
                         <span
                           aria-hidden="true"
                           className="h-2.5 w-2.5 rounded-full"
                           style={{ backgroundColor: entry.colour ?? '#94a3b8' }}
                         />
-                        <span className="text-sm font-medium text-slate-900">{entry.name}</span>
+                        <span className="text-sm font-medium text-ink">{entry.name}</span>
                         {entry.isLead ? (
-                          <span className="rounded border border-slate-300 px-1.5 py-0.5 text-xs text-slate-600">
+                          <span className="rounded border border-line px-1.5 py-0.5 text-xs text-muted">
                             lead
                           </span>
                         ) : null}
                       </div>
                       {entry.competency.missing.length > 0 || entry.competency.expired.length > 0 ? (
-                        <p className="mt-1 text-xs text-amber-800">
+                        <p className="mt-1 text-xs text-warn">
                           {entry.competency.missing.length > 0
                             ? `Missing: ${entry.competency.missing.join(', ')}. `
                             : ''}
@@ -440,12 +440,12 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           </div>
 
           {maySchedule && resources.length > 0 && !finished ? (
-            <div className="mt-6 border-t border-slate-200 pt-4">
-              <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+            <div className="mt-6 border-t border-line pt-4">
+              <h3 className="text-xs font-medium text-muted">
                 Booked out
               </h3>
               {staffing.resources.length === 0 ? (
-                <p className="mt-1 text-sm text-slate-500">Nothing booked yet.</p>
+                <p className="mt-1 text-sm text-muted">Nothing booked yet.</p>
               ) : (
                 <ul className="mt-2 space-y-1">
                   {staffing.resources.map((resource) => (
@@ -453,9 +453,9 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                       key={resource.resourceId}
                       className="flex items-center justify-between gap-3 text-sm"
                     >
-                      <span className="text-slate-900">{resource.name}</span>
+                      <span className="text-ink">{resource.name}</span>
                       <form action={async () => releaseResourceAction(job.id, resource.resourceId)}>
-                        <button type="submit" className="text-slate-600 underline hover:text-red-700">
+                        <button type="submit" className="text-muted underline hover:text-neg">
                           Release
                         </button>
                       </form>
@@ -476,14 +476,14 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
       {mayDispatch && dispatch ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Dispatch</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Dispatch</h2>
+          <p className="mt-1 text-sm text-muted">
             Sends the technicians what they need on the road — where to go, who to ask for, what the
             machine has had done to it — and moves the job to Dispatched.
           </p>
 
           {dispatch.warnings.length > 0 ? (
-            <ul className="mt-3 space-y-1 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <ul className="mt-3 space-y-1 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">
               {dispatch.warnings.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
@@ -492,31 +492,31 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Site</dt>
-              <dd className="text-slate-900">
+              <dt className="text-xs font-medium text-muted">Site</dt>
+              <dd className="text-ink">
                 {dispatch.siteName}
                 {dispatch.address ? `, ${dispatch.address}` : ''}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+              <dt className="text-xs font-medium text-muted">
                 Ask for
               </dt>
-              <dd className="text-slate-900">
+              <dd className="text-ink">
                 {dispatch.contact
                   ? `${dispatch.contact.name}${dispatch.contact.phone ? ` — ${dispatch.contact.phone}` : ''}`
                   : 'Nobody recorded.'}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Access</dt>
-              <dd className="text-slate-900">{dispatch.accessNotes ?? 'Not recorded.'}</dd>
+              <dt className="text-xs font-medium text-muted">Access</dt>
+              <dd className="text-ink">{dispatch.accessNotes ?? 'Not recorded.'}</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+              <dt className="text-xs font-medium text-muted">
                 Checklist
               </dt>
-              <dd className="text-slate-900">
+              <dd className="text-ink">
                 {dispatch.checklist.length > 0
                   ? `${dispatch.checklist.length} items`
                   : 'None for this kind of work.'}
@@ -529,7 +529,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               <button
                 type="submit"
                 disabled={staffing.technicians.length === 0}
-                className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+                className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft disabled:opacity-60"
               >
                 {staffing.technicians.length === 0
                   ? 'Nobody to dispatch to'
@@ -544,15 +544,15 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
       {job.parentJob || job.followUps.length > 0 ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Follow-ups</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Follow-ups</h2>
+          <p className="mt-1 text-sm text-muted">
             A job raised from a finding is linked to the job that reported it, so the crane&rsquo;s
             history reads as one chain rather than two unrelated visits.
           </p>
           {job.parentJob ? (
-            <p className="mt-3 text-sm text-slate-700">
+            <p className="mt-3 text-sm text-ink">
               Raised from a finding on{' '}
-              <Link href={`/jobs/${job.parentJob.id}`} className="underline hover:text-slate-900">
+              <Link href={`/jobs/${job.parentJob.id}`} className="underline hover:text-ink">
                 {job.parentJob.number}
               </Link>
               .
@@ -561,8 +561,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           {job.followUps.length > 0 ? (
             <ul className="mt-3 space-y-1 text-sm">
               {job.followUps.map((entry) => (
-                <li key={entry.id} className="text-slate-700">
-                  <Link href={`/jobs/${entry.id}`} className="underline hover:text-slate-900">
+                <li key={entry.id} className="text-ink">
+                  <Link href={`/jobs/${entry.id}`} className="underline hover:text-ink">
                     {entry.number}
                   </Link>{' '}
                   <JobStatusBadge status={entry.status} />
@@ -574,9 +574,9 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       ) : null}
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">Reports</h2>
+        <h2 className="font-semibold text-ink">Reports</h2>
         {reports.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-muted">
             No report yet. The technician fills one in per crane on the phone.
           </p>
         ) : (
@@ -584,18 +584,18 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             {reports.map((report) => (
               <li
                 key={report.id}
-                className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 pb-2 last:border-0"
+                className="flex flex-wrap items-baseline justify-between gap-2 border-b border-rule pb-2 last:border-0"
               >
                 <span>
                   <Link
                     href={`/reports/${report.id}`}
-                    className="font-medium text-slate-900 underline"
+                    className="font-medium text-ink underline"
                   >
                     {report.documentNumber ?? `Report for ${report.craneTag}`}
                   </Link>{' '}
-                  <span className="text-slate-500">{REPORT_STATUS_LABELS[report.status]}</span>
+                  <span className="text-muted">{REPORT_STATUS_LABELS[report.status]}</span>
                 </span>
-                <span className="text-slate-600">
+                <span className="text-muted">
                   {report.craneTag} · {formatDateTime(report.submittedAt, settings.timezone)}
                 </span>
               </li>
@@ -606,8 +606,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
       {can(context.role, 'part.read') ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Delivery orders</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Delivery orders</h2>
+          <p className="mt-1 text-sm text-muted">
             Paperwork for the parts issued on this job. Lines come from the stock movements the
             technician recorded, so the delivery and the store ledger are the same rows. Loan kit is
             booked back here.
@@ -616,10 +616,10 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           {deliveries.length > 0 ? (
             <ul className="mt-4 space-y-4">
               {deliveries.map((order) => (
-                <li key={order.id} className="rounded-md border border-slate-200 p-3">
+                <li key={order.id} className="rounded-md border border-line p-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="font-medium text-slate-900">{order.number}</span>
-                    <span className="text-xs text-slate-600">
+                    <span className="font-medium text-ink">{order.number}</span>
+                    <span className="text-xs text-muted">
                       {DELIVERY_STATUS_LABELS[order.status]}
                       {order.issuedAt
                         ? ` · issued ${formatDateTime(order.issuedAt, settings.timezone)}`
@@ -629,14 +629,14 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                   </div>
 
                   {order.deliveryAddress.length > 0 ? (
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-muted">
                       Deliver to {order.deliveryAddress.join(', ')}
                     </p>
                   ) : null}
 
                   <table className="mt-2 w-full text-left text-sm">
                     <thead>
-                      <tr className="text-xs text-slate-500">
+                      <tr className="text-xs text-muted">
                         <th className="py-1 font-medium">Part</th>
                         <th className="py-1 font-medium">Ordered</th>
                         <th className="py-1 font-medium">Received</th>
@@ -645,24 +645,24 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                     </thead>
                     <tbody>
                       {order.lines.map((line) => (
-                        <tr key={line.id} className="border-t border-slate-100">
-                          <td className="py-1 text-slate-800">
+                        <tr key={line.id} className="border-t border-rule">
+                          <td className="py-1 text-ink">
                             {line.description}
                             {line.serialOrBatch ? (
-                              <span className="text-slate-500"> · {line.serialOrBatch}</span>
+                              <span className="text-muted"> · {line.serialOrBatch}</span>
                             ) : null}
                           </td>
-                          <td className="py-1 text-slate-800">{line.quantity}</td>
+                          <td className="py-1 text-ink">{line.quantity}</td>
                           <td
                             className={
                               line.receivedQuantity >= line.quantity
-                                ? 'py-1 text-slate-800'
-                                : 'py-1 text-amber-800'
+                                ? 'py-1 text-ink'
+                                : 'py-1 text-warn'
                             }
                           >
                             {line.receivedQuantity}
                           </td>
-                          <td className="py-1 text-slate-800">
+                          <td className="py-1 text-ink">
                             {line.chargeType === 'LOAN'
                               ? line.outstanding
                                 ? `Loan · ${line.returnedQuantity} of ${line.quantity} back`
@@ -678,7 +678,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
                   <a
                     href={`/api/delivery-orders/${order.id}/pdf`}
-                    className="mt-2 inline-block text-sm text-slate-600 underline hover:text-slate-900"
+                    className="mt-2 inline-block text-sm text-muted underline hover:text-ink"
                   >
                     Download the delivery order PDF
                   </a>
@@ -686,7 +686,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                   {mayDeliver && order.status !== 'RETURNED' ? (
                     <div className="mt-3 space-y-3">
                       <details>
-                        <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                        <summary className="cursor-pointer text-sm font-medium text-ink">
                           Record who took the parts
                         </summary>
                         <ReceiveDeliveryOrderForm
@@ -697,7 +697,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                       </details>
                       {order.lines.some((line) => line.chargeType === 'LOAN') ? (
                         <details>
-                          <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                          <summary className="cursor-pointer text-sm font-medium text-ink">
                             Book loan kit back
                           </summary>
                           <ReturnDeliveryOrderForm
@@ -713,14 +713,14 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               ))}
             </ul>
           ) : (
-            <p className="mt-3 text-sm text-slate-600">
+            <p className="mt-3 text-sm text-muted">
               None yet. A delivery order is raised from the parts a technician issues.
             </p>
           )}
 
           {mayDeliver ? (
-            <div className="mt-4 border-t border-slate-200 pt-4">
-              <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+            <div className="mt-4 border-t border-line pt-4">
+              <h3 className="text-xs font-medium text-muted">
                 Raise one from the parts issued
               </h3>
               <div className="mt-2">
@@ -740,8 +740,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
       {mayQuote ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Quotes</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Quotes</h2>
+          <p className="mt-1 text-sm text-muted">
             What the customer has been offered for this job, including variations. Accepting a quote
             moves the job to Approved.
           </p>
@@ -751,18 +751,18 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               {quotes.map((quote) => (
                 <li
                   key={quote.id}
-                  className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 pb-2 last:border-0"
+                  className="flex flex-wrap items-baseline justify-between gap-2 border-b border-rule pb-2 last:border-0"
                 >
                   <span>
                     <Link
                       href={`/quotes/${quote.id}`}
-                      className="font-medium text-slate-900 underline"
+                      className="font-medium text-ink underline"
                     >
                       {quote.number}
                     </Link>{' '}
                     <QuoteStatusBadge status={quote.status} />
                   </span>
-                  <span className="text-slate-600">
+                  <span className="text-muted">
                     {formatMoney(quote.total, settings.currency)}
                     {quote.validUntil
                       ? ` · valid until ${formatDate(quote.validUntil, settings.timezone)}`
@@ -772,15 +772,15 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               ))}
             </ul>
           ) : (
-            <p className="mt-3 text-sm text-slate-600">
+            <p className="mt-3 text-sm text-muted">
               None yet. Raise one below, or record a finding on the report first.
             </p>
           )}
 
           {mayWriteQuote ? (
-            <div className="mt-4 border-t border-slate-200 pt-4">
+            <div className="mt-4 border-t border-line pt-4">
               <details>
-                <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                <summary className="cursor-pointer text-sm font-medium text-ink">
                   Raise a quote
                 </summary>
                 <div className="mt-3">
@@ -802,8 +802,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
       {mayInvoice ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Invoices</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Invoices</h2>
+          <p className="mt-1 text-sm text-muted">
             What this job has been billed. An invoice is raised once the job has been reviewed;
             issuing it moves the job to Invoiced and gives it a due date from the customer&rsquo;s
             payment terms.
@@ -814,19 +814,19 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               {invoices.map((invoice) => (
                 <li
                   key={invoice.id}
-                  className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 pb-2 last:border-0"
+                  className="flex flex-wrap items-baseline justify-between gap-2 border-b border-rule pb-2 last:border-0"
                 >
                   <span className="flex flex-wrap items-center gap-2">
                     <Link
                       href={`/invoices/${invoice.id}`}
-                      className="font-medium text-slate-900 underline"
+                      className="font-medium text-ink underline"
                     >
                       {invoice.number}
                     </Link>
                     <InvoiceStatusBadge status={invoice.status} />
                     {invoice.overdue ? <OverdueBadge /> : null}
                   </span>
-                  <span className="text-slate-600">
+                  <span className="text-muted">
                     {formatMoney(invoice.total, settings.currency)}
                     {invoice.balance > 0
                       ? ` · ${formatMoney(invoice.balance, settings.currency)} owing`
@@ -836,15 +836,15 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               ))}
             </ul>
           ) : (
-            <p className="mt-3 text-sm text-slate-600">
+            <p className="mt-3 text-sm text-muted">
               None yet. {job.status === 'REVIEWED' ? 'The job is reviewed — raise one below.' : 'The job must be reviewed before it can be invoiced.'}
             </p>
           )}
 
           {mayWriteInvoice && job.status === 'REVIEWED' ? (
-            <div className="mt-4 border-t border-slate-200 pt-4">
+            <div className="mt-4 border-t border-line pt-4">
               <details>
-                <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                <summary className="cursor-pointer text-sm font-medium text-ink">
                   Raise an invoice
                 </summary>
                 <div className="mt-3">
@@ -861,28 +861,28 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className={`${cardClass} lg:col-span-2`}>
-          <h2 className="font-semibold text-slate-900">What needs doing</h2>
-          <p className="mt-3 whitespace-pre-wrap text-slate-900">
+          <h2 className="font-semibold text-ink">What needs doing</h2>
+          <p className="mt-3 whitespace-pre-wrap text-ink">
             {job.description ?? 'Nothing written down yet.'}
           </p>
 
-          <h3 className="mt-6 text-xs font-medium tracking-wide text-slate-500 uppercase">
+          <h3 className="mt-6 text-xs font-medium text-muted">
             Internal notes
           </h3>
-          <p className="mt-1 whitespace-pre-wrap text-slate-700">
+          <p className="mt-1 whitespace-pre-wrap text-ink">
             {job.internalNotes ?? 'None.'}
           </p>
 
           <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-2">
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+              <dt className="text-xs font-medium text-muted">
                 Customer PO / reference
               </dt>
-              <dd className="text-slate-900">{job.customerPoRef ?? '—'}</dd>
+              <dd className="text-ink">{job.customerPoRef ?? '—'}</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Schedule</dt>
-              <dd className="text-slate-900">
+              <dt className="text-xs font-medium text-muted">Schedule</dt>
+              <dd className="text-ink">
                 {job.scheduledStart
                   ? `${formatDateTime(job.scheduledStart, settings.timezone)}${job.scheduledEnd ? ` – ${formatDateTime(job.scheduledEnd, settings.timezone)}` : ''}`
                   : 'Not scheduled yet'}
@@ -890,29 +890,29 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             </div>
           </dl>
 
-          <p className="mt-4 text-sm text-slate-500">{JOB_STATUS_DESCRIPTIONS[job.status]}</p>
+          <p className="mt-4 text-sm text-muted">{JOB_STATUS_DESCRIPTIONS[job.status]}</p>
         </section>
 
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">History</h2>
+          <h2 className="font-semibold text-ink">History</h2>
           <ol className="mt-4 space-y-3 text-sm">
             {job.history.map((entry) => (
-              <li key={entry.id} className="border-l-2 border-slate-200 pl-3">
-                <p className="font-medium text-slate-900">
+              <li key={entry.id} className="border-l-2 border-line pl-3">
+                <p className="font-medium text-ink">
                   {entry.fromStatus
                     ? `${JOB_STATUS_LABELS[entry.fromStatus]} → ${JOB_STATUS_LABELS[entry.toStatus]}`
                     : JOB_STATUS_LABELS[entry.toStatus]}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted">
                   {formatDateTime(entry.changedAt, settings.timezone)}
                   {entry.changedByName ? ` · ${entry.changedByName}` : null}
                 </p>
                 {entry.onHoldReason ? (
-                  <p className="mt-1 text-xs text-amber-800">
+                  <p className="mt-1 text-xs text-warn">
                     {ON_HOLD_REASON_LABELS[entry.onHoldReason]}
                   </p>
                 ) : null}
-                {entry.reason ? <p className="mt-1 text-slate-700">{entry.reason}</p> : null}
+                {entry.reason ? <p className="mt-1 text-ink">{entry.reason}</p> : null}
               </li>
             ))}
           </ol>
@@ -928,8 +928,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
       {mayMove && !finished && moves.length > 0 ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Move this job on</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Move this job on</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
             Every move is timestamped, attributed and kept on the history above. On hold always
             records why.
           </p>
@@ -953,8 +953,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       !finished &&
       unplaced.length > 0 ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Something more urgent needs this slot</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Something more urgent needs this slot</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
             Displacing this visit sends it back to Approved with its dates cleared, and records who
             decided, what took the slot and why. The job taking the slot is not placed automatically.
           </p>
@@ -974,8 +974,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
       {mayEdit ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Correct the paperwork</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Correct the paperwork</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
             Status is changed above, not here. Every edit is in the audit log.
           </p>
           <EditJobForm
@@ -1007,15 +1007,15 @@ function SlaPanel({
     sla.state === 'breached' && sla.elapsedMs !== null && sla.elapsedMs < 0 ? -sla.elapsedMs : 0
 
   return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-      <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">{label}</p>
+    <div className="rounded-md border border-line bg-sheet p-4">
+      <p className="text-xs font-medium text-muted">{label}</p>
       <p
         className={
           sla.state === 'breached'
-            ? 'mt-1 text-lg font-semibold text-red-700'
+            ? 'mt-1 text-lg font-semibold text-neg'
             : sla.state === 'at-risk'
-              ? 'mt-1 text-lg font-semibold text-amber-800'
-              : 'mt-1 text-lg font-semibold text-slate-900'
+              ? 'mt-1 text-lg font-semibold text-warn'
+              : 'mt-1 text-lg font-semibold text-ink'
         }
       >
         {sla.state === 'met'
@@ -1026,10 +1026,10 @@ function SlaPanel({
               ? 'At risk'
               : 'On time'}
       </p>
-      <p className="mt-1 text-sm text-slate-600">
+      <p className="mt-1 text-sm text-muted">
         {sla.dueAt ? <>Due {formatDateTime(sla.dueAt, timeZone)}</> : 'No clock running.'}
       </p>
-      <p className="mt-1 text-sm text-slate-600">
+      <p className="mt-1 text-sm text-muted">
         {sla.state === 'met' && metAt ? (
           <>Recorded {formatDateTime(metAt, timeZone)}</>
         ) : sla.state === 'breached' ? (
@@ -1042,7 +1042,7 @@ function SlaPanel({
           <>{formatDuration(sla.remainingMs)} left</>
         ) : null}
       </p>
-      <p className="mt-2 text-xs text-slate-500">{explanation}</p>
+      <p className="mt-2 text-xs text-muted">{explanation}</p>
     </div>
   )
 }

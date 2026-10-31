@@ -17,12 +17,12 @@ export const dynamic = 'force-dynamic'
 
 /** The same palette the schedules list uses for the same question: how urgent is this date? */
 const BUCKET_STYLES: Record<DueBucket, string> = {
-  overdue: 'border-red-300 bg-red-50 font-medium text-red-800',
-  '30': 'border-amber-300 bg-amber-50 text-amber-900',
-  '60': 'border-amber-200 bg-amber-50 text-amber-900',
-  '90': 'border-slate-200 bg-white text-slate-700',
-  later: 'border-slate-200 bg-white text-slate-600',
-  none: 'border-slate-200 bg-slate-100 text-slate-600',
+  overdue: 'border-neg/40 bg-neg/10 font-medium text-neg',
+  '30': 'border-warn/40 bg-warn/10 text-warn',
+  '60': 'border-warn/40 bg-warn/10 text-warn',
+  '90': 'border-line bg-field text-ink',
+  later: 'border-line bg-field text-muted',
+  none: 'border-line bg-raised text-muted',
 }
 
 /**
@@ -57,12 +57,12 @@ export default async function CertificatesPage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Certificates</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">Certificates</h1>
+        <p className="mt-1 text-muted">
           {counts.overdue === 0 ? 'Nothing has lapsed.' : `${counts.overdue} lapsed.`}{' '}
           {counts.dueWithin90} expiring in the next 90 days.
         </p>
-        <p className="mt-2 max-w-3xl text-sm text-slate-500">
+        <p className="mt-2 max-w-3xl text-sm text-muted">
           This register holds documents issued by others. Our technicians&rsquo; reports are company
           inspections and appear on the crane&rsquo;s timeline — they are not statutory certificates,
           and only an Authorised Examiner issues a certificate of test and examination.
@@ -71,7 +71,7 @@ export default async function CertificatesPage({
 
       <form method="get" className="flex flex-wrap items-end gap-3">
         <div className="min-w-56 flex-1">
-          <label htmlFor="q" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="q" className="block text-sm font-medium text-ink">
             Search
           </label>
           <input
@@ -79,19 +79,19 @@ export default async function CertificatesPage({
             name="q"
             defaultValue={filters.q}
             placeholder="Asset tag, customer, site, number or issuer"
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
 
         <div>
-          <label htmlFor="due" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="due" className="block text-sm font-medium text-ink">
             Expiring
           </label>
           <select
             id="due"
             name="due"
             defaultValue={filters.due}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           >
             <option value="">Everything</option>
             <option value="overdue">{DUE_BUCKET_LABELS.overdue}</option>
@@ -103,14 +103,14 @@ export default async function CertificatesPage({
         </div>
 
         <div>
-          <label htmlFor="type" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="type" className="block text-sm font-medium text-ink">
             Kind
           </label>
           <select
             id="type"
             name="type"
             defaultValue={filters.type}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           >
             <option value="">All</option>
             {CERTIFICATE_TYPES.map((type) => (
@@ -121,12 +121,12 @@ export default async function CertificatesPage({
           </select>
         </div>
 
-        <button type="submit" className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800">
+        <button type="submit" className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft">
           Filter
         </button>
 
         {filtered ? (
-          <Link href="/certificates" className="px-2 py-2 text-sm text-slate-600 underline">
+          <Link href="/certificates" className="px-2 py-2 text-sm text-muted underline">
             Clear
           </Link>
         ) : null}
@@ -134,20 +134,20 @@ export default async function CertificatesPage({
 
       {certificates.length === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">
+          <p className="font-medium text-ink">
             {filtered ? 'Nothing matches those filters.' : 'No certificates on file yet.'}
           </p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             {filtered
               ? 'Try a shorter search, or clear the filters.'
               : 'A certificate is recorded against a crane: open the crane and add it under Certificates.'}
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg bg-field">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Crane certificates, soonest expiring first</caption>
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="border-b border-line bg-sheet text-xs text-muted">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Crane</th>
                 <th scope="col" className="px-4 py-3 font-medium">Certificate</th>
@@ -157,35 +157,35 @@ export default async function CertificatesPage({
                 <th scope="col" className="px-4 py-3 font-medium">File</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-rule">
               {certificates.map((certificate) => {
                 return (
-                  <tr key={certificate.id} className="align-top hover:bg-slate-50">
+                  <tr key={certificate.id} className="align-top hover:bg-sheet">
                     <td className="px-4 py-3">
                       <Link
                         href={`/cranes/${certificate.crane.id}`}
-                        className="font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                        className="font-medium text-ink underline decoration-line hover:decoration-ink"
                       >
                         {certificate.crane.assetTag}
                       </Link>
-                      <span className="block text-xs text-slate-500">
+                      <span className="block text-xs text-muted">
                         {certificate.crane.customerName} · {certificate.crane.siteName}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-slate-900">
+                      <span className="text-ink">
                         {CERTIFICATE_TYPE_LABELS[certificate.type]}
                       </span>
                       <span
                         className={
                           certificate.statutory
-                            ? 'mt-1 block w-fit rounded border border-indigo-300 bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-800'
-                            : 'mt-1 block w-fit rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600'
+                            ? 'mt-1 block w-fit rounded border border-info/40 bg-info/10 px-1.5 py-0.5 text-xs text-info'
+                            : 'mt-1 block w-fit rounded border border-line bg-sheet px-1.5 py-0.5 text-xs text-muted'
                         }
                       >
                         {certificate.statutory ? 'AE statutory certificate' : 'Supporting document'}
                       </span>
-                      <span className="mt-1 block text-xs text-slate-500">
+                      <span className="mt-1 block text-xs text-muted">
                         {certificate.certificateNumber ?? 'No number'}
                         {certificate.job ? (
                           <>
@@ -197,10 +197,10 @@ export default async function CertificatesPage({
                         ) : null}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{certificate.issuer ?? '—'}</td>
-                    <td className="px-4 py-3 text-slate-900">
+                    <td className="px-4 py-3 text-ink">{certificate.issuer ?? '—'}</td>
+                    <td className="px-4 py-3 text-ink">
                       {formatDate(certificate.dueDate, settings.timezone)}
-                      <span className="block text-xs text-slate-500">
+                      <span className="block text-xs text-muted">
                         {certificateDueLabel(certificate)}
                       </span>
                     </td>
@@ -215,12 +215,12 @@ export default async function CertificatesPage({
                       {certificate.file ? (
                         <a
                           href={certificate.file.downloadUrl}
-                          className="text-sm text-slate-700 underline"
+                          className="text-sm text-ink underline"
                         >
                           {certificate.file.filename}
                         </a>
                       ) : (
-                        <span className="text-xs text-slate-500">None</span>
+                        <span className="text-xs text-muted">None</span>
                       )}
                     </td>
                   </tr>

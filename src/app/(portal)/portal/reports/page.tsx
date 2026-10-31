@@ -32,29 +32,29 @@ export default async function PortalReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Reports</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">Reports</h1>
+        <p className="mt-1 text-muted">
           {reports.length} issued {reports.length === 1 ? 'report' : 'reports'}. These are company
           inspections by our technicians, not statutory certificates.
         </p>
       </div>
 
       {withUrls.length === 0 ? (
-        <p className={`${cardClass} text-sm text-slate-600`}>No issued reports yet.</p>
+        <p className={`${cardClass} text-sm text-muted`}>No issued reports yet.</p>
       ) : (
         <ul className="space-y-3">
           {withUrls.map((report) => (
             <li key={report.id} className={`${cardClass} flex flex-wrap items-baseline justify-between gap-3 p-4`}>
               <div className="min-w-0">
-                <p className="font-medium text-slate-900">{report.documentNumber}</p>
-                <p className="text-sm text-slate-600">
+                <p className="font-medium text-ink">{report.documentNumber}</p>
+                <p className="text-sm text-muted">
                   {report.jobNumber} · {report.craneTag}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted">
                   Issued {formatDate(report.approvedAt, settings.timezone)}
                 </p>
                 {report.safeToOperate ? (
-                  <p className="mt-1 text-sm text-slate-700">
+                  <p className="mt-1 text-sm text-ink">
                     {CONDITION_LABELS[report.safeToOperate] ?? report.safeToOperate}
                   </p>
                 ) : null}
@@ -62,12 +62,12 @@ export default async function PortalReportsPage() {
               {report.url ? (
                 <a
                   href={report.url}
-                  className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  className="rounded-md border border-line bg-field px-4 py-2 text-sm font-medium text-ink hover:bg-raised"
                 >
                   Download PDF
                 </a>
               ) : (
-                <span className="text-sm text-slate-500">PDF not available</span>
+                <span className="text-sm text-muted">PDF not available</span>
               )}
             </li>
           ))}

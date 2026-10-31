@@ -22,45 +22,45 @@ export default async function PortalCranesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Cranes</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">Cranes</h1>
+        <p className="mt-1 text-muted">
           {cranes.length} {cranes.length === 1 ? 'crane' : 'cranes'} on your account.
         </p>
       </div>
 
       {cranes.length === 0 ? (
-        <p className={`${cardClass} text-sm text-slate-600`}>No cranes on this account yet.</p>
+        <p className={`${cardClass} text-sm text-muted`}>No cranes on this account yet.</p>
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2">
           {cranes.map((crane) => (
             <li key={crane.id} className={cardClass}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="font-semibold text-slate-900">{crane.assetTag}</p>
+                <p className="font-semibold text-ink">{crane.assetTag}</p>
                 <span
                   className={
                     crane.status === 'RESTRICTED'
-                      ? 'rounded border border-red-300 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-800'
-                      : 'text-xs text-slate-500'
+                      ? 'rounded border border-neg/40 bg-neg/10 px-2 py-0.5 text-xs font-medium text-neg'
+                      : 'text-xs text-muted'
                   }
                 >
                   {CRANE_STATUS_LABELS[crane.status]}
                 </span>
               </div>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-muted">
                 {CRANE_TYPE_LABELS[crane.type]}
                 {crane.brand ? ` · ${crane.brand}` : ''}
                 {crane.model ? ` ${crane.model}` : ''}
               </p>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-muted">
                 SWL {crane.swlKg.toLocaleString('en-GB')} kg
                 {crane.serialNumber ? ` · serial ${crane.serialNumber}` : ''}
               </p>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-muted">
                 {crane.site.name}
                 {crane.locationOnSite ? ` · ${crane.locationOnSite}` : ''}
               </p>
               {crane.status === 'RESTRICTED' && crane.restrictedReason ? (
-                <p className="mt-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                <p className="mt-2 rounded border border-neg/40 bg-neg/10 px-3 py-2 text-sm text-neg">
                   {crane.restrictedReason}
                 </p>
               ) : null}

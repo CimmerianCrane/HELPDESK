@@ -40,8 +40,8 @@ export default async function InboxPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Inbox</h1>
-          <p className="mt-1 text-slate-600">
+          <h1 className="text-title font-semibold text-ink">Inbox</h1>
+          <p className="mt-1 text-muted">
             {inbox.counts.unread === 0
               ? 'Nothing unread.'
               : `${inbox.counts.unread} unread of the last 100.`}
@@ -56,8 +56,8 @@ export default async function InboxPage({
           href="/inbox"
           className={
             unreadOnly
-              ? 'rounded-md px-3 py-1.5 text-slate-600 hover:bg-slate-100'
-              : 'rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white'
+              ? 'rounded-md px-3 py-1.5 text-muted hover:bg-raised'
+              : 'rounded-md bg-accent px-3 py-1.5 font-medium text-white'
           }
         >
           All
@@ -66,8 +66,8 @@ export default async function InboxPage({
           href="/inbox?unread=1"
           className={
             unreadOnly
-              ? 'rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white'
-              : 'rounded-md px-3 py-1.5 text-slate-600 hover:bg-slate-100'
+              ? 'rounded-md bg-accent px-3 py-1.5 font-medium text-white'
+              : 'rounded-md px-3 py-1.5 text-muted hover:bg-raised'
           }
         >
           Unread
@@ -75,7 +75,7 @@ export default async function InboxPage({
       </div>
 
       {unreadOnly ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           Showing unread only. <Link href="/inbox" className="underline">See all</Link>.
         </p>
       ) : null}

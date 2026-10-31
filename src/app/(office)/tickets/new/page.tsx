@@ -20,11 +20,11 @@ export default async function NewTicketPage() {
   if (!can(context.role, 'ticket.create')) {
     return (
       <div className={`${cardClass} max-w-xl`}>
-        <h1 className="font-semibold text-slate-900">Not available for your role</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <h1 className="font-semibold text-ink">Not available for your role</h1>
+        <p className="mt-1 text-sm text-muted">
           A {context.role.toLowerCase()} cannot record tickets. Ask a dispatcher to take the call.
         </p>
-        <Link href="/tickets" className="mt-4 inline-block text-sm text-slate-700 underline">
+        <Link href="/tickets" className="mt-4 inline-block text-sm text-ink underline">
           Back to tickets
         </Link>
       </div>
@@ -38,11 +38,11 @@ export default async function NewTicketPage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <Link href="/tickets" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/tickets" className="text-sm text-muted underline hover:text-ink">
           ← Tickets
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Record a ticket</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="mt-2 text-title font-semibold text-ink">Record a ticket</h1>
+        <p className="mt-1 text-muted">
           Write down what the customer says while they are still on the line. The ticket number is
           allocated when it is saved, and the response clock starts from that moment.
         </p>
@@ -50,14 +50,14 @@ export default async function NewTicketPage() {
 
       {options.length === 0 ? (
         <div className={cardClass}>
-          <p className="font-medium text-slate-900">No customers are available to choose from.</p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="font-medium text-ink">No customers are available to choose from.</p>
+          <p className="mt-1 text-sm text-muted">
             {context.role === 'TECHNICIAN'
               ? 'Ask the office to take the details — your role can raise a ticket but not browse the customer list yet. Raising one from a crane you are working on arrives with the technician app.'
               : 'Add a customer first, then a site and crane if the call is about a specific machine.'}
           </p>
           {can(context.role, 'customer.write') ? (
-            <Link href="/customers" className="mt-4 inline-block text-sm text-slate-700 underline">
+            <Link href="/customers" className="mt-4 inline-block text-sm text-ink underline">
               Go to customers
             </Link>
           ) : null}

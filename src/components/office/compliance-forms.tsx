@@ -105,7 +105,7 @@ function RuleFields({ value, idPrefix }: { value?: ComplianceRuleFormValues; idP
           placeholder="Circular number, publication date, or who confirmed it"
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           Required. This is what a question about a crane is answered with.
         </p>
       </div>
@@ -121,7 +121,7 @@ function RuleFields({ value, idPrefix }: { value?: ComplianceRuleFormValues; idP
           defaultValue={toDayInput(value?.effectiveFrom ?? null)}
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">Leave both dates blank if it has always applied.</p>
+        <p className="mt-1 text-xs text-muted">Leave both dates blank if it has always applied.</p>
       </div>
 
       <div>
@@ -135,7 +135,7 @@ function RuleFields({ value, idPrefix }: { value?: ComplianceRuleFormValues; idP
           defaultValue={toDayInput(value?.effectiveTo ?? null)}
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           Inclusive. Give the replaced rule an end date before adding its replacement.
         </p>
       </div>
@@ -152,27 +152,27 @@ function RuleFields({ value, idPrefix }: { value?: ComplianceRuleFormValues; idP
           defaultValue={toDayInput(value?.reviewedAt ?? null)}
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           Required. Saving records you as the reviewer.
         </p>
       </div>
 
       <div className="space-y-2">
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 text-sm text-ink">
           <input
             type="checkbox"
             name="isActive"
             defaultChecked={value?.isActive ?? true}
-            className="h-4 w-4 rounded border-slate-300"
+            className="h-4 w-4 rounded border-line"
           />
           In force
         </label>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 text-sm text-ink">
           <input
             type="checkbox"
             name="requiresAE"
             defaultChecked={value?.requiresAE ?? false}
-            className="h-4 w-4 rounded border-slate-300"
+            className="h-4 w-4 rounded border-line"
           />
           An Authorised Examiner is required
         </label>

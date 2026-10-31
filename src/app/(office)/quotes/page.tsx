@@ -34,12 +34,12 @@ export default async function QuotesPage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Quotes</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">Quotes</h1>
+        <p className="mt-1 text-muted">
           {counts.SENT} waiting for an answer · {counts.ACCEPTED} accepted · {counts.DRAFT} in draft
           {counts.EXPIRED > 0 ? ` · ${counts.EXPIRED} expired` : ''}.
         </p>
-        <p className="mt-2 max-w-3xl text-sm text-slate-500">
+        <p className="mt-2 max-w-3xl text-sm text-muted">
           A quote prices a job or the findings a report raised. Accepting one moves its job to
           Approved; the PDF is the document you send the customer.
         </p>
@@ -47,7 +47,7 @@ export default async function QuotesPage({
 
       <form method="get" className="flex flex-wrap items-end gap-3">
         <div className="min-w-56 flex-1">
-          <label htmlFor="q" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="q" className="block text-sm font-medium text-ink">
             Search
           </label>
           <input
@@ -55,19 +55,19 @@ export default async function QuotesPage({
             name="q"
             defaultValue={filters.q}
             placeholder="Quote number or customer"
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
 
         <div>
-          <label htmlFor="status" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="status" className="block text-sm font-medium text-ink">
             Status
           </label>
           <select
             id="status"
             name="status"
             defaultValue={filters.status}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           >
             <option value="">Everything</option>
             {QUOTE_STATUSES.map((status) => (
@@ -80,13 +80,13 @@ export default async function QuotesPage({
 
         <button
           type="submit"
-          className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800"
+          className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft"
         >
           Filter
         </button>
 
         {filtered ? (
-          <Link href="/quotes" className="px-2 py-2 text-sm text-slate-600 underline">
+          <Link href="/quotes" className="px-2 py-2 text-sm text-muted underline">
             Clear
           </Link>
         ) : null}
@@ -94,20 +94,20 @@ export default async function QuotesPage({
 
       {quotes.length === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">
+          <p className="font-medium text-ink">
             {filtered ? 'Nothing matches those filters.' : 'No quotes yet.'}
           </p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             {filtered
               ? 'Try a shorter search, or clear the filters.'
               : 'A quote is raised from a job — open the job and use its Quotes section.'}
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg bg-field">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Quotes, newest first</caption>
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="border-b border-line bg-sheet text-xs text-muted">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Quote</th>
                 <th scope="col" className="px-4 py-3 font-medium">Customer</th>
@@ -117,37 +117,37 @@ export default async function QuotesPage({
                 <th scope="col" className="px-4 py-3 text-right font-medium">Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-rule">
               {quotes.map((quote) => (
-                <tr key={quote.id} className="align-top hover:bg-slate-50">
+                <tr key={quote.id} className="align-top hover:bg-sheet">
                   <td className="px-4 py-3">
                     <Link
                       href={`/quotes/${quote.id}`}
-                      className="font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                      className="font-medium text-ink underline decoration-line hover:decoration-ink"
                     >
                       {quote.number}
                     </Link>
-                    <span className="block text-xs text-slate-500">
+                    <span className="block text-xs text-muted">
                       {formatDate(quote.createdAt, settings.timezone)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-800">{quote.customer.name}</td>
+                  <td className="px-4 py-3 text-ink">{quote.customer.name}</td>
                   <td className="px-4 py-3">
                     {quote.job ? (
-                      <Link href={`/jobs/${quote.job.id}`} className="text-slate-700 underline">
+                      <Link href={`/jobs/${quote.job.id}`} className="text-ink underline">
                         {quote.job.number}
                       </Link>
                     ) : (
-                      <span className="text-slate-500">—</span>
+                      <span className="text-muted">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     <QuoteStatusBadge status={quote.status} />
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 text-ink">
                     {quote.validUntil ? formatDate(quote.validUntil, settings.timezone) : 'No expiry'}
                   </td>
-                  <td className="px-4 py-3 text-right font-medium text-slate-900">
+                  <td className="px-4 py-3 text-right font-medium text-ink">
                     {formatMoney(quote.total, settings.currency)}
                   </td>
                 </tr>

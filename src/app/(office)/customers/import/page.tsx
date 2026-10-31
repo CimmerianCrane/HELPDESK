@@ -21,19 +21,19 @@ export default async function ImportCustomersPage() {
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/customers" className="text-sm text-slate-600 underline">
+        <Link href="/customers" className="text-sm text-muted underline">
           ← Customers
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Import customers</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="mt-2 text-title font-semibold text-ink">Import customers</h1>
+        <p className="mt-1 text-muted">
           Add a list of customers from a spreadsheet. You will see exactly what will happen before
           anything is saved.
         </p>
       </div>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">The file</h2>
-        <ul className="mt-2 space-y-1 text-sm text-slate-600">
+        <h2 className="font-semibold text-ink">The file</h2>
+        <ul className="mt-2 space-y-1 text-sm text-muted">
           <li>
             One header row, then one customer per row — up to {MAX_IMPORT_ROWS} rows per file.
           </li>
@@ -57,7 +57,7 @@ export default async function ImportCustomersPage() {
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/customers/import/template"
-            className="text-sm font-medium text-slate-900 underline"
+            className="text-sm font-medium text-ink underline"
           >
             Download the template
           </a>
@@ -65,7 +65,7 @@ export default async function ImportCustomersPage() {
       </section>
 
       <section className={cardClass}>
-        <h2 className="mb-5 font-semibold text-slate-900">Choose a file</h2>
+        <h2 className="mb-5 font-semibold text-ink">Choose a file</h2>
         <ImportForm
           previewAction={previewImportAction}
           applyAction={applyImportAction}

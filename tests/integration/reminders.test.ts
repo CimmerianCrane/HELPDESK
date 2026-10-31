@@ -84,10 +84,11 @@ describe('schedule reminders', () => {
 
       const offsets = await tx.reminderDispatch.findMany({
         where: { scheduleId: schedule.id },
-        orderBy: { createdAt: 'asc' },
         select: { offset: true },
       })
-      expect(offsets.map((row) => row.offset)).toEqual(['60', '30', 'overdue'])
+      // A set, not a sequence: all three rows are inserted in one transaction, so Postgres stamps
+      // them with the same `createdAt` and no ordering by it is meaningful.
+      expect(offsets.map((row) => row.offset).sort()).toEqual(['30', '60', 'overdue'])
     })
   })
 

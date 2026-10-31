@@ -13,9 +13,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   if (!can(context.role, 'user.manage')) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
-        <h1 className="font-semibold text-amber-900">Not available for your role</h1>
-        <p className="mt-1 text-sm text-amber-900">
+      <div className="rounded-lg border border-warn/40 bg-warn/10 p-6">
+        <h1 className="font-semibold text-warn">Not available for your role</h1>
+        <p className="mt-1 text-sm text-warn">
           Administration is limited to administrators. You are signed in as a{' '}
           {context.role.toLowerCase()}.
         </p>

@@ -18,7 +18,7 @@ export function SyncStatus() {
 
   if (syncing) {
     return (
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-on-anchor-muted">
         {pending > 0 ? `Sending ${pending} report${pending === 1 ? '' : 's'}…` : 'Syncing…'}
       </p>
     )
@@ -27,8 +27,8 @@ export function SyncStatus() {
   // Finished field work that has not reached the office is the one thing a technician must not miss.
   if (pending > 0) {
     return (
-      <p className="flex items-center gap-2 text-xs text-amber-800">
-        <span className="inline-block h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+      <p className="flex items-center gap-2 text-xs text-hivis">
+        <span className="inline-block h-2 w-2 rounded-full bg-hivis" aria-hidden />
         <span>
           {pending} report{pending === 1 ? '' : 's'} waiting to upload
         </span>
@@ -41,8 +41,8 @@ export function SyncStatus() {
 
   if (!online || error) {
     return (
-      <p className="flex items-center gap-2 text-xs text-amber-800">
-        <span className="inline-block h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+      <p className="flex items-center gap-2 text-xs text-hivis">
+        <span className="inline-block h-2 w-2 rounded-full bg-hivis" aria-hidden />
         <span>{stamp ? `Offline · saved ${stamp}` : 'Offline · nothing saved yet'}</span>
         <button
           type="button"
@@ -56,8 +56,8 @@ export function SyncStatus() {
   }
 
   return (
-    <p className="flex items-center gap-2 text-xs text-slate-500">
-      <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+    <p className="flex items-center gap-2 text-xs text-on-anchor-muted">
+      <span className="inline-block h-2 w-2 rounded-full bg-pos" aria-hidden />
       <span>{stamp ? `Up to date · ${stamp}` : 'Up to date'}</span>
     </p>
   )

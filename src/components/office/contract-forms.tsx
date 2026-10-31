@@ -80,7 +80,7 @@ export function ContractForm({
 
         <div>
           <label htmlFor={id('reference')} className={labelClass}>
-            Reference <span className="font-normal text-slate-500">(optional)</span>
+            Reference <span className="font-normal text-muted">(optional)</span>
           </label>
           <input
             id={id('reference')}
@@ -111,7 +111,7 @@ export function ContractForm({
 
         <div>
           <label htmlFor={id('endDate')} className={labelClass}>
-            Ends <span className="font-normal text-slate-500">(optional)</span>
+            Ends <span className="font-normal text-muted">(optional)</span>
           </label>
           <input
             id={id('endDate')}
@@ -125,7 +125,7 @@ export function ContractForm({
 
         <div>
           <label htmlFor={id('renewalDate')} className={labelClass}>
-            Renewal date <span className="font-normal text-slate-500">(optional)</span>
+            Renewal date <span className="font-normal text-muted">(optional)</span>
           </label>
           <input
             id={id('renewalDate')}
@@ -140,7 +140,7 @@ export function ContractForm({
 
       <div>
         <label htmlFor={id('includedVisits')} className={labelClass}>
-          Included visits <span className="font-normal text-slate-500">(optional)</span>
+          Included visits <span className="font-normal text-muted">(optional)</span>
         </label>
         <input
           id={id('includedVisits')}
@@ -157,23 +157,23 @@ export function ContractForm({
 
       <fieldset>
         <legend className={labelClass}>Cranes it covers</legend>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           Tick nothing and the contract covers the whole customer, which is what an AMC usually does.
         </p>
         {cranes.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-muted">
             This customer has no cranes yet, so the contract covers the account.
           </p>
         ) : (
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {cranes.map((crane) => (
-              <label key={crane.id} className="flex items-center gap-2 text-sm text-slate-700">
+              <label key={crane.id} className="flex items-center gap-2 text-sm text-ink">
                 <input
                   type="checkbox"
                   name="coveredCraneIds"
                   value={crane.id}
                   defaultChecked={covered.has(crane.id)}
-                  className="size-4 rounded border-slate-300"
+                  className="size-4 rounded border-line"
                 />
                 {crane.assetTag}
               </label>
@@ -185,14 +185,14 @@ export function ContractForm({
 
       <fieldset>
         <legend className={labelClass}>Response and resolution targets</legend>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           Leave a priority blank to use the company-wide target. A new job snapshots whatever is here
           at the moment it is raised, so a later change never rewrites history.
         </p>
         <div className="mt-2 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-slate-500">
+              <tr className="text-left text-xs text-muted">
                 <th className="py-1 pr-3 font-medium">Priority</th>
                 <th className="py-1 pr-3 font-medium">Response (minutes)</th>
                 <th className="py-1 font-medium">Resolution (minutes)</th>
@@ -203,7 +203,7 @@ export function ContractForm({
                 const target = values?.targets[priority]
                 return (
                   <tr key={priority}>
-                    <td className="py-1 pr-3 font-medium text-slate-800">{priority}</td>
+                    <td className="py-1 pr-3 font-medium text-ink">{priority}</td>
                     <td className="py-1 pr-3">
                       <input
                         aria-label={`${priority} response minutes`}
@@ -242,7 +242,7 @@ export function ContractForm({
 
       <div>
         <label htmlFor={id('scopeNotes')} className={labelClass}>
-          Scope notes <span className="font-normal text-slate-500">(optional)</span>
+          Scope notes <span className="font-normal text-muted">(optional)</span>
         </label>
         <textarea
           id={id('scopeNotes')}
@@ -286,7 +286,7 @@ export function RetireContractButton({
       <button
         type="submit"
         disabled={pending}
-        className="text-xs font-medium text-red-700 underline hover:text-red-900 disabled:opacity-60"
+        className="text-xs font-medium text-neg underline hover:text-neg disabled:opacity-60"
       >
         {pending ? 'Retiring…' : 'Retire'}
       </button>

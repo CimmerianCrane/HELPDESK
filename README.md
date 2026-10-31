@@ -787,9 +787,16 @@ development and keeping Supabase for deployment; the app does not care which one
   personal view is not business data.
 - **Export CSV** downloads exactly what the screen is showing, because both run the same query.
 - **The office dashboard** answers the morning's questions — open P1s, SLA breaches, late visits and
-  work awaiting invoicing, each a count that links to the list that answers it — plus on-hold work by
-  reason, the next 30 days of booked visits, services and exams due, and certificates expiring. A
-  technician signing in sees their own entry point instead of a company-wide board.
+  work awaiting invoicing, each a count that links to the list that answers it and says how it has
+  moved since yesterday — then today's visits and who is on call now, then only the panels that have
+  something in them: on-hold work by reason, the next 30 days of booked visits, services and exams
+  due, and certificates expiring. A technician signing in sees their own entry point instead of a
+  company-wide board. Environment state (database, timezone, clock, your capabilities) lives at
+  `/admin/system`, not on the board.
+- **The sidebar** is five destinations — Today, Work, Register, Money, Admin — and only the area you
+  are in lists its pages; the others are one link each, with a dot when something inside them is
+  unread. Fewer links on screen was the owner's note after the 31 Oct 2026 design review
+  (`docs/UI-REVIEW.md`).
 - **The audit log** at `/admin/audit` (Admin only, `audit.read`) searches every create, change and
   deletion by record type, record id and date, and shows what actually changed field by field. Jobs
   and cranes carry the same panel on their own pages, so "who changed what" is one click from the

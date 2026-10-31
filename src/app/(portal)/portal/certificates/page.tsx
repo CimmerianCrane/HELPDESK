@@ -13,12 +13,12 @@ export const dynamic = 'force-dynamic'
 
 /** The same palette the office queue uses for the same question: how urgent is this date? */
 const BUCKET_STYLES: Record<DueBucket, string> = {
-  overdue: 'border-red-300 bg-red-50 font-medium text-red-800',
-  '30': 'border-amber-300 bg-amber-50 text-amber-900',
-  '60': 'border-amber-200 bg-amber-50 text-amber-900',
-  '90': 'border-slate-200 bg-white text-slate-700',
-  later: 'border-slate-200 bg-white text-slate-600',
-  none: 'border-slate-200 bg-slate-100 text-slate-600',
+  overdue: 'border-neg/40 bg-neg/10 font-medium text-neg',
+  '30': 'border-warn/40 bg-warn/10 text-warn',
+  '60': 'border-warn/40 bg-warn/10 text-warn',
+  '90': 'border-line bg-field text-ink',
+  later: 'border-line bg-field text-muted',
+  none: 'border-line bg-raised text-muted',
 }
 
 /**
@@ -36,8 +36,8 @@ export default async function PortalCertificatesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Certificates</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">Certificates</h1>
+        <p className="mt-1 text-muted">
           {certificates.length} {certificates.length === 1 ? 'document' : 'documents'} on your
           account, soonest due first. Our own reports are company inspections, not statutory
           certificates — they are under{' '}
@@ -49,7 +49,7 @@ export default async function PortalCertificatesPage() {
       </div>
 
       {certificates.length === 0 ? (
-        <p className={`${cardClass} text-sm text-slate-600`}>
+        <p className={`${cardClass} text-sm text-muted`}>
           No certificates on this account yet.
         </p>
       ) : (
@@ -58,16 +58,16 @@ export default async function PortalCertificatesPage() {
             <li key={certificate.id} className={`${cardClass} p-4`}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="font-medium text-slate-900">{certificate.crane.assetTag}</p>
-                  <p className="text-sm text-slate-600">
+                  <p className="font-medium text-ink">{certificate.crane.assetTag}</p>
+                  <p className="text-sm text-muted">
                     {CERTIFICATE_TYPE_LABELS[certificate.type]}
                     {certificate.statutory ? ' · Authorised Examiner' : ''}
                   </p>
                   {certificate.certificateNumber ? (
-                    <p className="text-xs text-slate-500">No. {certificate.certificateNumber}</p>
+                    <p className="text-xs text-muted">No. {certificate.certificateNumber}</p>
                   ) : null}
                   {certificate.issuer ? (
-                    <p className="text-xs text-slate-500">Issued by {certificate.issuer}</p>
+                    <p className="text-xs text-muted">Issued by {certificate.issuer}</p>
                   ) : null}
                 </div>
                 <div className="text-right">
@@ -81,7 +81,7 @@ export default async function PortalCertificatesPage() {
                   {certificate.file ? (
                     <a
                       href={certificate.file.downloadUrl}
-                      className="mt-2 block text-sm text-slate-700 underline hover:text-slate-900"
+                      className="mt-2 block text-sm text-ink underline hover:text-ink"
                     >
                       Download
                     </a>

@@ -67,7 +67,7 @@ export function StockTakeForm({
             placeholder="Optional — e.g. WR-"
             className={inputClass}
           />
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted">
             Leave empty to count everything at that location.
           </p>
           <FieldError state={state} name="scopeCategory" />
@@ -80,11 +80,11 @@ export function StockTakeForm({
           name="blindCount"
           type="checkbox"
           defaultChecked
-          className="mt-1 size-4 rounded border-slate-300"
+          className="mt-1 size-4 rounded border-line"
         />
-        <label htmlFor="take-blind" className="text-sm text-slate-700">
+        <label htmlFor="take-blind" className="text-sm text-ink">
           Blind count
-          <span className="block text-xs text-slate-500">
+          <span className="block text-xs text-muted">
             The counter is not shown what the books say. An honest count is worth more than a matching
             one.
           </span>
@@ -117,10 +117,10 @@ export function CountForm({
     <form action={formAction} className="space-y-4">
       <FormMessage state={state} />
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-lg bg-field">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Lines to count</caption>
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+          <thead className="border-b border-line bg-sheet text-xs text-muted">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">Part</th>
               {blind ? null : (
@@ -133,25 +133,25 @@ export function CountForm({
               <th scope="col" className="px-4 py-3 font-medium">Reason if it differs</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-rule">
             {lines.map((line) => (
               <tr key={line.id} className="align-top">
                 <td className="px-4 py-3">
-                  <span className="font-mono text-sm font-medium text-slate-900">{line.partNumber}</span>
-                  <span className="block text-slate-700">{line.description}</span>
+                  <span className="font-mono text-sm font-medium text-ink">{line.partNumber}</span>
+                  <span className="block text-ink">{line.description}</span>
                   <input type="hidden" name="lineId" value={line.id} />
                 </td>
                 {blind ? null : (
                   <>
-                    <td className="px-4 py-3 text-right text-slate-600">
+                    <td className="px-4 py-3 text-right text-muted">
                       {line.systemQty} {line.uom}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span
                         className={
                           line.variance === null || line.variance === 0
-                            ? 'text-slate-500'
-                            : 'font-medium text-amber-800'
+                            ? 'text-muted'
+                            : 'font-medium text-warn'
                         }
                       >
                         {line.variance === null
@@ -194,7 +194,7 @@ export function CountForm({
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         A blank leaves the line uncounted, which is not the same as a zero. Every line must be counted
         before the session can be approved.
       </p>
@@ -225,7 +225,7 @@ export function ApproveStockTakeForm({
     <div className="space-y-4">
       <form action={formAction} className="space-y-4">
         <FormMessage state={state} />
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-muted">
           Approving posts {varianceLines === 0 ? 'nothing — every line matches' : `${varianceLines} correction${varianceLines === 1 ? '' : 's'}`}{' '}
           through the stock ledger, each carrying this count&rsquo;s reference.
         </p>
@@ -240,7 +240,7 @@ export function ApproveStockTakeForm({
             placeholder="Stock count — annual"
             className={inputClass}
           />
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted">
             Required when any line has less than the books said. A line with its own reason keeps it.
           </p>
           <FieldError state={state} name="reasonCode" />

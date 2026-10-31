@@ -33,7 +33,7 @@ export function PasswordResetForm({ userId }: { userId: string }) {
           autoComplete="new-password"
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           At least 12 characters. The change is recorded in the audit log; the password itself never
           is.
         </p>

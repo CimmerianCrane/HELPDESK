@@ -11,10 +11,10 @@ import { PRIORITY_SHORT_LABELS, SLA_STATE_LABELS, TICKET_STATUS_LABELS } from '@
  */
 
 const PRIORITY_STYLES: Record<Priority, string> = {
-  P1: 'border-red-300 bg-red-50 font-semibold text-red-800',
-  P2: 'border-amber-300 bg-amber-50 text-amber-900',
-  P3: 'border-slate-200 bg-slate-50 text-slate-700',
-  P4: 'border-slate-200 bg-white text-slate-500',
+  P1: 'border-neg/40 bg-neg/10 font-semibold text-neg',
+  P2: 'border-warn/40 bg-warn/10 text-warn',
+  P3: 'border-line bg-sheet text-ink',
+  P4: 'border-line bg-field text-muted',
 }
 
 export function PriorityBadge({ priority }: { priority: Priority }) {
@@ -26,11 +26,11 @@ export function PriorityBadge({ priority }: { priority: Priority }) {
 }
 
 const STATUS_STYLES: Record<TicketStatus, string> = {
-  NEW: 'border-sky-200 bg-sky-50 text-sky-800',
-  TRIAGED: 'border-indigo-200 bg-indigo-50 text-indigo-800',
-  CONVERTED: 'border-violet-200 bg-violet-50 text-violet-800',
-  CLOSED: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  CANCELLED: 'border-slate-200 bg-slate-100 text-slate-600',
+  NEW: 'border-info/40 bg-info/10 text-info',
+  TRIAGED: 'border-line bg-raised text-ink',
+  CONVERTED: 'border-pos/40 bg-pos/10 text-pos',
+  CLOSED: 'border-line bg-panel text-muted',
+  CANCELLED: 'border-line bg-sheet text-faint line-through',
 }
 
 export function TicketStatusBadge({ status }: { status: TicketStatus }) {
@@ -42,10 +42,10 @@ export function TicketStatusBadge({ status }: { status: TicketStatus }) {
 }
 
 const SLA_STYLES = {
-  met: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  'on-time': 'border-slate-200 bg-white text-slate-600',
-  'at-risk': 'border-amber-300 bg-amber-50 text-amber-900',
-  breached: 'border-red-300 bg-red-50 font-medium text-red-800',
+  met: 'border-line bg-field text-muted',
+  'on-time': 'border-line bg-field text-muted',
+  'at-risk': 'border-warn/40 bg-warn/10 text-warn',
+  breached: 'border-neg/40 bg-neg/10 font-medium text-neg',
 } as const
 
 /**
@@ -71,7 +71,7 @@ export function SlaBadge({ label, sla }: { label: string; sla: SlaResult }) {
       className={`inline-block rounded border px-2 py-0.5 text-xs ${SLA_STYLES[sla.state]}`}
       title={sla.dueAt ? `Due ${sla.dueAt.toISOString()}` : undefined}
     >
-      <span className="text-[10px] tracking-wide uppercase opacity-70">{label}</span>{' '}
+      <span className="text-[10px] opacity-70">{label}</span>{' '}
       {detail}
     </span>
   )

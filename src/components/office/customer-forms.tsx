@@ -76,14 +76,14 @@ function CustomerFields({ value }: { value?: CustomerFormValues }) {
           defaultValue={value?.legalName}
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           Exactly as it appears on invoices. The trading name, below, is the short one.
         </p>
       </div>
 
       <div>
         <label htmlFor="tradingName" className={labelClass}>
-          Trading name <span className="font-normal text-slate-500">(optional)</span>
+          Trading name <span className="font-normal text-muted">(optional)</span>
         </label>
         <input
           id="tradingName"
@@ -95,10 +95,10 @@ function CustomerFields({ value }: { value?: CustomerFormValues }) {
 
       <div>
         <label htmlFor="uen" className={labelClass}>
-          UEN <span className="font-normal text-slate-500">(optional)</span>
+          UEN <span className="font-normal text-muted">(optional)</span>
         </label>
         <input id="uen" name="uen" defaultValue={value?.uen ?? ''} className={inputClass} />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           Changing this raises a re-registration prompt on every crane filed under the customer.
         </p>
       </div>
@@ -123,7 +123,7 @@ function CustomerFields({ value }: { value?: CustomerFormValues }) {
 
       <div>
         <label htmlFor="paymentTerms" className={labelClass}>
-          Payment terms <span className="font-normal text-slate-500">(days)</span>
+          Payment terms <span className="font-normal text-muted">(days)</span>
         </label>
         <input
           id="paymentTerms"
@@ -138,7 +138,7 @@ function CustomerFields({ value }: { value?: CustomerFormValues }) {
 
       <div className="sm:col-span-2">
         <label htmlFor="notes" className={labelClass}>
-          Notes <span className="font-normal text-slate-500">(optional, internal)</span>
+          Notes <span className="font-normal text-muted">(optional, internal)</span>
         </label>
         <textarea
           id="notes"
@@ -150,10 +150,10 @@ function CustomerFields({ value }: { value?: CustomerFormValues }) {
       </div>
 
       <fieldset className="sm:col-span-2">
-        <legend className="text-sm font-medium text-slate-700">
-          Billing address <span className="font-normal text-slate-500">(optional)</span>
+        <legend className="text-sm font-medium text-ink">
+          Billing address <span className="font-normal text-muted">(optional)</span>
         </legend>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           Kept as fields rather than one blob, because it is printed on invoices.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -262,11 +262,11 @@ export function ArchiveCustomerButton({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md border border-red-300 bg-white px-4 py-2 font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+        className="rounded-md border border-neg/40 bg-field px-4 py-2 font-medium text-neg hover:bg-neg/10 disabled:opacity-60"
       >
         {pending ? 'Archiving…' : 'Archive customer'}
       </button>
-      <p className="max-w-md text-xs text-slate-500">
+      <p className="max-w-md text-xs text-muted">
         Archived customers leave the list but not the history. Nothing is ever hard-deleted.
       </p>
     </form>
@@ -351,7 +351,7 @@ function ContactFields({
 
         <div>
           <label htmlFor={id('phone')} className={labelClass}>
-            Phone <span className="font-normal text-slate-500">(optional)</span>
+            Phone <span className="font-normal text-muted">(optional)</span>
           </label>
           <input
             id={id('phone')}
@@ -363,7 +363,7 @@ function ContactFields({
 
         <div>
           <label htmlFor={id('email')} className={labelClass}>
-            Email <span className="font-normal text-slate-500">(optional)</span>
+            Email <span className="font-normal text-muted">(optional)</span>
           </label>
           <input
             id={id('email')}
@@ -395,7 +395,7 @@ function ContactFields({
 
         <div>
           <label htmlFor={id('site')} className={labelClass}>
-            Site <span className="font-normal text-slate-500">(optional)</span>
+            Site <span className="font-normal text-muted">(optional)</span>
           </label>
           <select
             id={id('site')}
@@ -411,7 +411,7 @@ function ContactFields({
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted">
             {sites.length === 0
               ? 'No sites yet — the sites screen arrives in the next slice.'
               : 'Leave as “whole company” for accounts and decision makers.'}
@@ -419,12 +419,12 @@ function ContactFields({
         </div>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-slate-700">
+      <label className="flex items-center gap-2 text-sm text-ink">
         <input
           type="checkbox"
           name="isPrimary"
           defaultChecked={value?.isPrimary}
-          className="h-4 w-4 rounded border-slate-300"
+          className="h-4 w-4 rounded border-line"
         />
         Primary contact — the one to call first
       </label>
@@ -469,7 +469,7 @@ export function ArchiveContactButton({
       <button
         type="submit"
         disabled={pending}
-        className="text-xs font-medium text-red-700 underline hover:text-red-900 disabled:opacity-60"
+        className="text-xs font-medium text-neg underline hover:text-neg disabled:opacity-60"
       >
         {pending ? 'Archiving…' : 'Archive'}
       </button>

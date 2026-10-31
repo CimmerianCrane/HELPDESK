@@ -28,31 +28,31 @@ export default async function CompliancePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Compliance rules</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">Compliance rules</h1>
+        <p className="mt-1 text-muted">
           {rules.length} {rules.length === 1 ? 'rule' : 'rules'}, {inForce} in force today. A schedule
           adopts a rule, which is what puts a citation on the crane&rsquo;s obligations.
         </p>
       </div>
 
       {/* Carried verbatim from `Setting.complianceNotice` (CLAUDE.md rule 2, brief §7.4). */}
-      <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      <p className="rounded-lg border border-warn/40 bg-warn/10 p-4 text-sm text-warn">
         {settings.complianceNotice}
       </p>
 
       {rules.length === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">No rules configured.</p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="font-medium text-ink">No rules configured.</p>
+          <p className="mt-1 text-sm text-muted">
             Add the first one below. Until a rule exists, a schedule&rsquo;s interval and whether an AE
             is needed are typed by hand on the crane.
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg bg-field">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Compliance rules</caption>
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="border-b border-line bg-sheet text-xs text-muted">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Applies to</th>
                 <th scope="col" className="px-4 py-3 font-medium">Rule</th>
@@ -64,31 +64,31 @@ export default async function CompliancePage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-rule">
               {rules.map((rule) => (
-                <tr key={rule.id} className="align-top hover:bg-slate-50">
+                <tr key={rule.id} className="align-top hover:bg-sheet">
                   <td className="px-4 py-3">
-                    <span className="font-medium text-slate-900">
+                    <span className="font-medium text-ink">
                       {CRANE_TYPE_LABELS[rule.craneType]}
                     </span>
-                    <span className="block text-xs text-slate-500">
+                    <span className="block text-xs text-muted">
                       {SCHEDULE_TYPE_LABELS[rule.scheduleType]}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-slate-900">
+                    <span className="text-ink">
                       {rule.intervalMonths ? `Every ${rule.intervalMonths} months` : 'One-off'}
                       {rule.requiresAE ? ' · AE required' : ''}
                     </span>
-                    <span className="mt-1 block text-xs text-slate-600">{rule.sourceReference}</span>
-                    <span className="block text-xs text-slate-500">
+                    <span className="mt-1 block text-xs text-muted">{rule.sourceReference}</span>
+                    <span className="block text-xs text-muted">
                       Reviewed {formatDate(rule.reviewedAt, settings.timezone)}
                     </span>
                     {rule.notes ? (
-                      <span className="mt-1 block text-xs text-slate-500">{rule.notes}</span>
+                      <span className="mt-1 block text-xs text-muted">{rule.notes}</span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-600">
+                  <td className="px-4 py-3 text-xs text-muted">
                     From {formatDate(rule.effectiveFrom, settings.timezone)}
                     <span className="block">To {formatDate(rule.effectiveTo, settings.timezone)}</span>
                   </td>
@@ -96,19 +96,19 @@ export default async function CompliancePage() {
                     <span
                       className={
                         rule.inForce
-                          ? 'rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800'
-                          : 'rounded border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs text-slate-600'
+                          ? 'rounded border border-pos/40 bg-pos/10 px-2 py-0.5 text-xs text-pos'
+                          : 'rounded border border-line bg-raised px-2 py-0.5 text-xs text-muted'
                       }
                     >
                       {rule.inForce ? 'In force' : 'Not in force'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 text-ink">
                     {rule.adoptedCount} {rule.adoptedCount === 1 ? 'schedule' : 'schedules'}
                   </td>
                   <td className="px-4 py-3">
                     <details>
-                      <summary className="cursor-pointer text-sm text-slate-700 underline">
+                      <summary className="cursor-pointer text-sm text-ink underline">
                         Edit
                       </summary>
                       <div className="mt-3 min-w-72">
@@ -129,8 +129,8 @@ export default async function CompliancePage() {
       )}
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">Add a rule</h2>
-        <p className="mt-1 mb-5 text-sm text-slate-600">
+        <h2 className="font-semibold text-ink">Add a rule</h2>
+        <p className="mt-1 mb-5 text-sm text-muted">
           One rule in force per kind of crane and obligation. To replace a rule, give the old one an
           end date first — keeping both in force leaves the app unable to say which applies.
         </p>

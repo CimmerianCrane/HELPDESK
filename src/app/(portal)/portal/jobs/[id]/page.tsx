@@ -33,17 +33,17 @@ export default async function PortalJobPage({ params }: { params: Promise<{ id: 
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/portal/jobs" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/portal/jobs" className="text-sm text-muted underline hover:text-ink">
           ← Jobs
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">{job.number}</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="mt-2 text-title font-semibold text-ink">{job.number}</h1>
+        <p className="mt-1 text-muted">
           {job.jobTypeName} · {job.status.replace(/_/g, ' ').toLowerCase()}
         </p>
       </div>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">Visit</h2>
+        <h2 className="font-semibold text-ink">Visit</h2>
         <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
           <Row label="Raised" value={formatDate(job.raisedAt, settings.timezone)} />
           <Row label="Visit" value={formatDate(job.visitAt, settings.timezone)} />
@@ -51,16 +51,16 @@ export default async function PortalJobPage({ params }: { params: Promise<{ id: 
           <Row label="Site" value={job.siteName ?? '—'} />
         </dl>
         {job.cranes.length > 0 ? (
-          <p className="mt-3 text-sm text-slate-600">Cranes: {job.cranes.join(', ')}</p>
+          <p className="mt-3 text-sm text-muted">Cranes: {job.cranes.join(', ')}</p>
         ) : null}
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
+        <h2 className="text-sm font-semibold text-muted">
           Issued reports
         </h2>
         {withUrls.length === 0 ? (
-          <p className={`${cardClass} mt-3 text-sm text-slate-600`}>
+          <p className={`${cardClass} mt-3 text-sm text-muted`}>
             No report has been issued for this job yet.
           </p>
         ) : (
@@ -71,16 +71,16 @@ export default async function PortalJobPage({ params }: { params: Promise<{ id: 
                 className={`${cardClass} flex flex-wrap items-baseline justify-between gap-3 p-4`}
               >
                 <div>
-                  <p className="font-medium text-slate-900">{report.documentNumber}</p>
-                  <p className="text-sm text-slate-600">{report.craneTag}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="font-medium text-ink">{report.documentNumber}</p>
+                  <p className="text-sm text-muted">{report.craneTag}</p>
+                  <p className="text-xs text-muted">
                     Issued {formatDate(report.approvedAt, settings.timezone)}
                   </p>
                 </div>
                 {report.url ? (
                   <a
                     href={report.url}
-                    className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                    className="rounded-md border border-line bg-field px-4 py-2 text-sm font-medium text-ink hover:bg-raised"
                   >
                     Download PDF
                   </a>
@@ -97,8 +97,8 @@ export default async function PortalJobPage({ params }: { params: Promise<{ id: 
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs tracking-wide text-slate-500 uppercase">{label}</dt>
-      <dd className="mt-0.5 text-slate-900">{value}</dd>
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="mt-0.5 text-ink">{value}</dd>
     </div>
   )
 }

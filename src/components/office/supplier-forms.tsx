@@ -115,7 +115,7 @@ export function SupplierForm({
           defaultValue={values?.leadTimeDays ?? ''}
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           Roughly how long a delivery takes — the reorder screen shows it beside the group.
         </p>
         <FieldError state={state} name="leadTimeDays" />
@@ -142,11 +142,11 @@ export function SupplierForm({
           name="isActive"
           type="checkbox"
           defaultChecked={values?.isActive ?? true}
-          className="mt-1 size-4 rounded border-slate-300"
+          className="mt-1 size-4 rounded border-line"
         />
-        <label htmlFor={`${id}-active`} className="text-sm text-slate-700">
+        <label htmlFor={`${id}-active`} className="text-sm text-ink">
           Active
-          <span className="block text-xs text-slate-500">
+          <span className="block text-xs text-muted">
             A retired supplier keeps its past orders and price history, but no part may prefer it.
           </span>
         </label>

@@ -46,8 +46,8 @@ interface Props {
 const PRIORITY_STYLES: Record<string, string> = {
   P1: 'border-l-4 border-l-red-600',
   P2: 'border-l-4 border-l-amber-500',
-  P3: 'border-l-4 border-l-sky-500',
-  P4: 'border-l-4 border-l-slate-300',
+  P3: 'border-l-4 border-l-muted',
+  P4: 'border-l-4 border-l-faint',
 }
 
 function localTime(value: Date | null, timeZone: string): string {
@@ -91,34 +91,34 @@ function JobCard({
       {...attributes}
       className={[
         // A 44px-tall target at minimum: the board is used on a tablet in a workshop.
-        'cursor-grab touch-none rounded-md border border-slate-200 bg-white p-2 text-left shadow-sm',
-        'focus:ring-2 focus:ring-slate-900 focus:outline-none',
-        isDragging ? 'opacity-50' : 'hover:border-slate-300',
-        leaves.length > 0 ? 'border-l-4 border-l-violet-500' : (PRIORITY_STYLES[job.priority] ?? ''),
+        'cursor-grab touch-none rounded-md border border-line bg-field p-2 text-left ',
+        'focus:ring-2 focus:ring-hivis/60 focus:outline-none',
+        isDragging ? 'opacity-50' : 'hover:border-line',
+        leaves.length > 0 ? 'border-l-4 border-l-info' : (PRIORITY_STYLES[job.priority] ?? ''),
       ].join(' ')}
       aria-label={`${job.number}, ${job.customerName}. Drag to move.`}
     >
       <div className="flex items-start justify-between gap-2">
         <Link
           href={`/jobs/${job.id}`}
-          className="text-sm font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+          className="text-sm font-medium text-ink underline decoration-line hover:decoration-ink"
           // The link is inside a draggable; without this a tap starts a drag instead of navigating.
           onPointerDown={(event) => event.stopPropagation()}
         >
           {job.number}
         </Link>
         {!compact && job.scheduledStart ? (
-          <span className="shrink-0 text-xs text-slate-500">
+          <span className="shrink-0 text-xs text-muted">
             {localTime(job.scheduledStart, timeZone)}–{localTime(job.scheduledEnd, timeZone)}
           </span>
         ) : null}
       </div>
-      <p className="mt-0.5 truncate text-xs text-slate-600">{job.customerName}</p>
+      <p className="mt-0.5 truncate text-xs text-muted">{job.customerName}</p>
       {job.assetTags.length > 0 ? (
-        <p className="truncate text-xs text-slate-500">{job.assetTags.join(', ')}</p>
+        <p className="truncate text-xs text-muted">{job.assetTags.join(', ')}</p>
       ) : null}
       {problems.length > 0 ? (
-        <p className="mt-1 text-xs font-medium text-red-700">
+        <p className="mt-1 text-xs font-medium text-neg">
           {problems.length === 1 ? problems[0]!.message : `${problems.length} clashes`}
         </p>
       ) : null}
@@ -141,8 +141,8 @@ function Cell({
     <div
       ref={setNodeRef}
       className={[
-        'min-h-20 border-t border-l border-slate-200 p-1.5 align-top',
-        isOver ? 'bg-slate-100 ring-2 ring-inset ring-slate-400' : '',
+        'min-h-20 border-t border-l border-line p-1.5 align-top',
+        isOver ? 'bg-raised ring-2 ring-inset ring-ink' : '',
         className,
       ].join(' ')}
     >
@@ -191,21 +191,21 @@ export function ScheduleBoardView({ board, reassign }: Props) {
       <FormMessage state={message} />
 
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg bg-field">
           <table className="w-full min-w-[640px] border-collapse text-left">
             <caption className="sr-only">
               Schedule for the {board.view === 'week' ? 'week beginning' : 'day'} {board.day}
             </caption>
             <thead>
               <tr>
-                <th scope="col" className="w-40 px-3 py-2 text-xs font-medium text-slate-500 uppercase">
+                <th scope="col" className="w-40 px-3 py-2 text-xs font-medium text-muted">
                   Technician
                 </th>
                 {days.map((day) => (
                   <th
                     key={day.toISOString()}
                     scope="col"
-                    className="border-l border-slate-200 px-3 py-2 text-xs font-medium text-slate-500"
+                    className="border-l border-line px-3 py-2 text-xs font-medium text-muted"
                   >
                     {new Intl.DateTimeFormat('en-GB', {
                       timeZone: board.timezone,
@@ -238,18 +238,18 @@ export function ScheduleBoardView({ board, reassign }: Props) {
                           className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: technician.colour ?? '#94a3b8' }}
                         />
-                        <span className="text-sm font-medium text-slate-900">{technician.name}</span>
+                        <span className="text-sm font-medium text-ink">{technician.name}</span>
                       </div>
-                      <p className="mt-0.5 text-xs text-slate-500">
+                      <p className="mt-0.5 text-xs text-muted">
                         {technician.scheduledMinutes > 0
                           ? `${formatDuration(technician.scheduledMinutes * 60_000)} booked`
                           : 'Nothing booked'}
                       </p>
                       {technician.onCall ? (
-                        <p className="text-xs font-medium text-emerald-700">On call</p>
+                        <p className="text-xs font-medium text-pos">On call</p>
                       ) : null}
                       {onLeaveToday ? (
-                        <p className="text-xs font-medium text-violet-700">On leave</p>
+                        <p className="text-xs font-medium text-info">On leave</p>
                       ) : null}
                     </th>
 
@@ -274,38 +274,38 @@ export function ScheduleBoardView({ board, reassign }: Props) {
 
         <DragOverlay>
           {active ? (
-            <div className="w-48 rotate-1 rounded-md border border-slate-300 bg-white p-2 shadow-lg">
-              <p className="text-sm font-medium text-slate-900">{active.number}</p>
-              <p className="truncate text-xs text-slate-600">{active.customerName}</p>
+            <div className="w-48 rotate-1 rounded-md bg-panel p-2">
+              <p className="text-sm font-medium text-ink">{active.number}</p>
+              <p className="truncate text-xs text-muted">{active.customerName}</p>
             </div>
           ) : null}
         </DragOverlay>
       </DndContext>
 
-      {pending ? <p className="text-sm text-slate-500">Saving…</p> : null}
+      {pending ? <p className="text-sm text-muted">Saving…</p> : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-900">Nothing on the board yet</h2>
-          <p className="mt-1 text-xs text-slate-500">
+        <section className="rounded-lg bg-panel p-4">
+          <h2 className="text-sm font-semibold text-ink">Nothing on the board yet</h2>
+          <p className="mt-1 text-xs text-muted">
             A technician and no date, or a date and nobody. Both are refused dispatch until they are
             fixed.
           </p>
           <div className="mt-3 space-y-2">
             {board.undated.length === 0 && board.unassigned.length === 0 ? (
-              <p className="text-sm text-slate-500">Every job on the board is dated and staffed.</p>
+              <p className="text-sm text-muted">Every job on the board is dated and staffed.</p>
             ) : (
               <>
                 {board.undated.map((job) => (
                   <div key={job.id}>
                     <JobCard job={job} timeZone={board.timezone} compact />
-                    <p className="mt-0.5 pl-1 text-xs text-amber-800">No date — drag it onto a day.</p>
+                    <p className="mt-0.5 pl-1 text-xs text-warn">No date — drag it onto a day.</p>
                   </div>
                 ))}
                 {board.unassigned.map((job) => (
                   <div key={job.id}>
                     <JobCard job={job} timeZone={board.timezone} compact />
-                    <p className="mt-0.5 pl-1 text-xs text-amber-800">
+                    <p className="mt-0.5 pl-1 text-xs text-warn">
                       Nobody assigned — drag it onto a technician.
                     </p>
                   </div>
@@ -313,19 +313,19 @@ export function ScheduleBoardView({ board, reassign }: Props) {
               </>
             )}
           </div>
-          <Cell id="unassigned|" className="mt-3 rounded border border-dashed border-slate-300">
-            <p className="text-xs text-slate-400">Drop here to take somebody off a job.</p>
+          <Cell id="unassigned|" className="mt-3 rounded border border-dashed border-line">
+            <p className="text-xs text-faint">Drop here to take somebody off a job.</p>
           </Cell>
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-900">On-call cover</h2>
+        <section className="rounded-lg bg-panel p-4">
+          <h2 className="text-sm font-semibold text-ink">On-call cover</h2>
           {board.onCallGaps.length === 0 ? (
-            <p className="mt-1 text-sm text-emerald-700">
+            <p className="mt-1 text-sm text-pos">
               Somebody is on call for every hour of this {board.view === 'week' ? 'week' : 'day'}.
             </p>
           ) : (
-            <ul className="mt-2 space-y-1 text-sm text-red-800">
+            <ul className="mt-2 space-y-1 text-sm text-neg">
               {board.onCallGaps.map((gap) => (
                 <li key={gap.start.toISOString()}>
                   Nobody on call {localDateTime(gap.start, board.timezone)} –{' '}
@@ -334,23 +334,23 @@ export function ScheduleBoardView({ board, reassign }: Props) {
               ))}
             </ul>
           )}
-          <Link href="/schedule/roster" className="mt-3 inline-block text-sm text-slate-700 underline">
+          <Link href="/schedule/roster" className="mt-3 inline-block text-sm text-ink underline">
             Manage the roster
           </Link>
         </section>
       </div>
 
       {board.later.length > 0 ? (
-        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-900">After this {board.view}</h2>
-          <ul className="mt-2 divide-y divide-slate-100">
+        <section className="rounded-lg bg-panel p-4">
+          <h2 className="text-sm font-semibold text-ink">After this {board.view}</h2>
+          <ul className="mt-2 divide-y divide-rule">
             {board.later.map((job) => (
               <li key={job.id} className="flex items-center justify-between gap-4 py-2 text-sm">
-                <Link href={`/jobs/${job.id}`} className="font-medium text-slate-900 underline">
+                <Link href={`/jobs/${job.id}`} className="font-medium text-ink underline">
                   {job.number}
                 </Link>
-                <span className="text-slate-600">{job.customerName}</span>
-                <span className="text-slate-500">
+                <span className="text-muted">{job.customerName}</span>
+                <span className="text-muted">
                   {job.scheduledStart ? localDateTime(job.scheduledStart, board.timezone) : '—'}
                 </span>
               </li>
@@ -367,7 +367,7 @@ export function ScheduleBoardView({ board, reassign }: Props) {
 function DetailsPanel({ board }: { board: ScheduleBoard }) {
   return (
     <noscript>
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-muted">
         Moving visits needs JavaScript. The assignment and reschedule forms on each job screen do the
         same work without it.
       </p>

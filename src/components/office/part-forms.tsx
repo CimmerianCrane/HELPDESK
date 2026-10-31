@@ -190,7 +190,7 @@ export function PartForm({
             defaultValue={values?.reorderLevel ?? ''}
             className={inputClass}
           />
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted">
             Warn when on hand drops below this. Leave empty to never warn.
           </p>
           <FieldError state={state} name="reorderLevel" />
@@ -230,7 +230,7 @@ export function PartForm({
             </option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           The reorder list groups short parts by this. Without one, the part cannot be ordered.
         </p>
         <FieldError state={state} name="preferredSupplierId" />
@@ -242,11 +242,11 @@ export function PartForm({
           name="trackSerialOrBatch"
           type="checkbox"
           defaultChecked={values?.trackSerialOrBatch ?? false}
-          className="mt-1 size-4 rounded border-slate-300"
+          className="mt-1 size-4 rounded border-line"
         />
-        <label htmlFor={`${id}-track`} className="text-sm text-slate-700">
+        <label htmlFor={`${id}-track`} className="text-sm text-ink">
           Trace by serial or batch
-          <span className="block text-xs text-slate-500">
+          <span className="block text-xs text-muted">
             Wire rope, hooks, brakes and electrical parts: records which serial went on which crane.
           </span>
         </label>
@@ -307,7 +307,7 @@ export function StockEntryForm({
             required
             className={inputClass}
           />
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted">
             Accounted quantity for an adjustment; what arrived for the rest.
           </p>
           <FieldError state={state} name="quantity" />
@@ -544,11 +544,11 @@ export function LocationForm({
           name="isActive"
           type="checkbox"
           defaultChecked={values?.isActive ?? true}
-          className="mt-1 size-4 rounded border-slate-300"
+          className="mt-1 size-4 rounded border-line"
         />
-        <label htmlFor={`${id}-active`} className="text-sm text-slate-700">
+        <label htmlFor={`${id}-active`} className="text-sm text-ink">
           Active
-          <span className="block text-xs text-slate-500">
+          <span className="block text-xs text-muted">
             A retired location still appears on past movements, but no new stock goes there.
           </span>
         </label>

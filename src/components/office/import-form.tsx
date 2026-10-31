@@ -20,8 +20,8 @@ type PreviewAction = (state: FormState, formData: FormData) => Promise<FormState
 type ApplyAction = (state: FormState, formData: FormData) => Promise<FormState>
 
 const OUTCOME_STYLES = {
-  create: 'text-emerald-800',
-  skip: 'text-amber-800',
+  create: 'text-pos',
+  skip: 'text-warn',
 } as const
 
 export function ImportForm({
@@ -69,7 +69,7 @@ export function ImportForm({
             CSV file
           </label>
           <input id="file" name="file" type="file" accept=".csv,text/csv" required className={inputClass} />
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted">
             {fileHint ?? 'UTF-8 CSV, up to 2 MB. Excel: “Save as → CSV UTF-8”. A header row is required.'}
           </p>
         </div>
@@ -83,8 +83,8 @@ export function ImportForm({
             role={preview.ok ? 'status' : 'alert'}
             className={
               preview.ok
-                ? 'rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900'
-                : 'rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800'
+                ? 'rounded-md border border-pos/40 bg-pos/10 px-3 py-2 text-sm text-pos'
+                : 'rounded-md border border-neg/40 bg-neg/10 px-3 py-2 text-sm text-neg'
             }
           >
             {preview.message}
@@ -92,7 +92,7 @@ export function ImportForm({
         ) : null}
 
         {preview.fields?._form ? (
-          <ul className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <ul className="rounded-md border border-neg/40 bg-neg/10 px-4 py-3 text-sm text-neg">
             {preview.fields._form.slice(0, 25).map((message) => (
               <li key={message} className="list-inside list-disc">
                 {message}
@@ -103,40 +103,40 @@ export function ImportForm({
       </form>
 
       {detail.preview ? (
-        <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-5">
+        <section className="space-y-4 rounded-lg bg-panel p-5">
           <div>
-            <h2 className="font-semibold text-slate-900">What will happen</h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <h2 className="font-semibold text-ink">What will happen</h2>
+            <p className="mt-1 text-sm text-muted">
               {detail.preview.toCreate} to add, {detail.preview.toSkip} to skip. Nothing has been
               written yet.
             </p>
           </div>
 
           {detail.preview.unknownColumns.length > 0 ? (
-            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <p className="rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">
               Ignored columns: {detail.preview.unknownColumns.join(', ')}. Only{' '}
               {detail.preview.recognisedColumns.join(', ')} are imported.
             </p>
           ) : null}
 
-          <div className="max-h-96 overflow-y-auto rounded-md border border-slate-200">
+          <div className="max-h-96 overflow-y-auto rounded-md border border-line">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">Rows found in the file</caption>
-              <thead className="sticky top-0 border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+              <thead className="sticky top-0 border-b border-line bg-sheet text-xs text-muted">
                 <tr>
                   <th scope="col" className="px-3 py-2 font-medium">Line</th>
                   <th scope="col" className="px-3 py-2 font-medium">{nameHeading}</th>
                   <th scope="col" className="px-3 py-2 font-medium">Outcome</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-rule">
                 {rows.map((row) => (
                   <tr key={`${row.line}-${row.label}`}>
-                    <td className="px-3 py-2 text-slate-500">{row.line}</td>
-                    <td className="px-3 py-2 text-slate-900">{row.label}</td>
+                    <td className="px-3 py-2 text-muted">{row.line}</td>
+                    <td className="px-3 py-2 text-ink">{row.label}</td>
                     <td className={`px-3 py-2 ${OUTCOME_STYLES[row.outcome]}`}>
                       {row.outcome === 'create' ? 'Add' : 'Skip'}
-                      {row.reason ? <span className="block text-xs text-slate-500">{row.reason}</span> : null}
+                      {row.reason ? <span className="block text-xs text-muted">{row.reason}</span> : null}
                     </td>
                   </tr>
                 ))}
@@ -156,13 +156,13 @@ export function ImportForm({
                   : `Import ${detail.preview.toCreate} ${noun}${detail.preview.toCreate === 1 ? '' : 's'}`}
               </button>
               {applied.message ? (
-                <p role="alert" className="text-sm text-red-800">
+                <p role="alert" className="text-sm text-neg">
                   {applied.message}
                 </p>
               ) : null}
             </form>
           ) : (
-            <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+            <p className="rounded-md border border-line bg-sheet px-3 py-2 text-sm text-muted">
               Nothing to import — every row is already in the system.
             </p>
           )}

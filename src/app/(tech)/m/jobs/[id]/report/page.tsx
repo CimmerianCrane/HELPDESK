@@ -38,7 +38,7 @@ export default async function TechReportPage({
     <div className="space-y-5">
       <Link
         href={`/m/jobs/${id}`}
-        className="text-sm font-medium text-blue-700 underline underline-offset-2"
+        className="text-sm font-medium text-info underline underline-offset-2"
       >
         ← {job.number}
       </Link>

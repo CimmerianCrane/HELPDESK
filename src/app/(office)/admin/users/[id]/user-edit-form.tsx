@@ -73,7 +73,7 @@ export function UserEditForm({
             <>
               {/* Disabled inputs are not submitted, so carry the current role through unchanged. */}
               <input type="hidden" name="role" value={user.role} />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted">
                 You cannot change your own role. Ask another administrator.
               </p>
             </>
@@ -83,7 +83,7 @@ export function UserEditForm({
 
         <div>
           <label htmlFor="phone" className={labelClass}>
-            Phone <span className="font-normal text-slate-500">(optional)</span>
+            Phone <span className="font-normal text-muted">(optional)</span>
           </label>
           <input id="phone" name="phone" defaultValue={user.phone ?? ''} className={inputClass} />
           <FieldError state={state} name="phone" />
@@ -108,7 +108,7 @@ export function UserEditForm({
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-muted">
               The account this login can see in the portal.
             </p>
             <FieldError state={state} name="customerId" />
@@ -116,13 +116,13 @@ export function UserEditForm({
         ) : null}
 
         <div className="flex items-end">
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-ink">
             <input
               type="checkbox"
               name="isActive"
               defaultChecked={user.isActive}
               disabled={isSelf}
-              className="h-4 w-4 rounded border-slate-300"
+              className="h-4 w-4 rounded border-line"
             />
             Active — can sign in
           </label>

@@ -46,8 +46,8 @@ export default async function TicketsPage({
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Tickets</h1>
-          <p className="mt-1 text-slate-600">
+          <h1 className="text-title font-semibold text-ink">Tickets</h1>
+          <p className="mt-1 text-muted">
             {mayTriage
               ? 'What came in, and what the office decided to do about it.'
               : 'Tickets you have raised with the office.'}
@@ -57,7 +57,7 @@ export default async function TicketsPage({
         {mayCreate ? (
           <Link
             href="/tickets/new"
-            className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800"
+            className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft"
           >
             Record a ticket
           </Link>
@@ -67,32 +67,32 @@ export default async function TicketsPage({
       {mayTriage ? (
         <dl className="grid gap-4 sm:grid-cols-3">
           <div className={`${cardClass} py-4`}>
-            <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Open</dt>
-            <dd className="mt-1 text-2xl font-semibold text-slate-900">{stats.open}</dd>
+            <dt className="text-xs font-medium text-muted">Open</dt>
+            <dd className="mt-1 text-2xl font-semibold text-ink">{stats.open}</dd>
           </div>
           <div className={`${cardClass} py-4`}>
-            <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+            <dt className="text-xs font-medium text-muted">
               Past response target
             </dt>
             <dd
               className={
                 stats.breached > 0
-                  ? 'mt-1 text-2xl font-semibold text-red-700'
-                  : 'mt-1 text-2xl font-semibold text-slate-900'
+                  ? 'mt-1 text-2xl font-semibold text-neg'
+                  : 'mt-1 text-2xl font-semibold text-ink'
               }
             >
               {stats.breached}
             </dd>
           </div>
           <div className={`${cardClass} py-4`}>
-            <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+            <dt className="text-xs font-medium text-muted">
               P1 open
             </dt>
             <dd
               className={
                 stats.p1Open > 0
-                  ? 'mt-1 text-2xl font-semibold text-red-700'
-                  : 'mt-1 text-2xl font-semibold text-slate-900'
+                  ? 'mt-1 text-2xl font-semibold text-neg'
+                  : 'mt-1 text-2xl font-semibold text-ink'
               }
             >
               {stats.p1Open}
@@ -103,7 +103,7 @@ export default async function TicketsPage({
 
       <form method="get" className="flex flex-wrap items-end gap-3">
         <div className="min-w-56 flex-1">
-          <label htmlFor="q" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="q" className="block text-sm font-medium text-ink">
             Search
           </label>
           <input
@@ -111,19 +111,19 @@ export default async function TicketsPage({
             name="q"
             defaultValue={q ?? ''}
             placeholder="Ticket number, description, customer or asset tag"
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
 
         <div>
-          <label htmlFor="status" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="status" className="block text-sm font-medium text-ink">
             Status
           </label>
           <select
             id="status"
             name="status"
             defaultValue={status ?? ''}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           >
             <option value="">All</option>
             {TICKET_STATUSES.map((value) => (
@@ -135,14 +135,14 @@ export default async function TicketsPage({
         </div>
 
         <div>
-          <label htmlFor="priority" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="priority" className="block text-sm font-medium text-ink">
             Priority
           </label>
           <select
             id="priority"
             name="priority"
             defaultValue={priority ?? ''}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           >
             <option value="">All</option>
             {PRIORITIES.map((value) => (
@@ -153,12 +153,12 @@ export default async function TicketsPage({
           </select>
         </div>
 
-        <button type="submit" className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800">
+        <button type="submit" className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft">
           Filter
         </button>
 
         {filtered ? (
-          <Link href="/tickets" className="px-2 py-2 text-sm text-slate-600 underline">
+          <Link href="/tickets" className="px-2 py-2 text-sm text-muted underline">
             Clear
           </Link>
         ) : null}
@@ -166,10 +166,10 @@ export default async function TicketsPage({
 
       {tickets.length === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">
+          <p className="font-medium text-ink">
             {filtered ? 'Nothing matches those filters.' : 'No tickets yet.'}
           </p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             {filtered
               ? 'Try a shorter search, or clear the filters.'
               : mayCreate
@@ -178,10 +178,10 @@ export default async function TicketsPage({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg bg-field">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Tickets</caption>
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="border-b border-line bg-sheet text-xs text-muted">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Ticket</th>
                 <th scope="col" className="px-4 py-3 font-medium">Customer</th>
@@ -192,29 +192,29 @@ export default async function TicketsPage({
                 <th scope="col" className="px-4 py-3 font-medium">Reported</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-rule">
               {tickets.map((ticket) => (
-                <tr key={ticket.id} className="align-top hover:bg-slate-50">
+                <tr key={ticket.id} className="align-top hover:bg-sheet">
                   <td className="px-4 py-3">
                     <Link
                       href={`/tickets/${ticket.id}`}
-                      className="font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                      className="font-medium text-ink underline decoration-line hover:decoration-ink"
                     >
                       {ticket.number}
                     </Link>
-                    <span className="mt-0.5 block max-w-xs truncate text-xs text-slate-500">
+                    <span className="mt-0.5 block max-w-xs truncate text-xs text-muted">
                       {ticket.description}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <Link href={`/customers/${ticket.customer.id}`} className="text-slate-900 underline">
+                    <Link href={`/customers/${ticket.customer.id}`} className="text-ink underline">
                       {ticket.customer.tradingName ?? ticket.customer.legalName}
                     </Link>
                     {ticket.site ? (
-                      <span className="block text-xs text-slate-500">{ticket.site.name}</span>
+                      <span className="block text-xs text-muted">{ticket.site.name}</span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted">
                     {ticket.crane ? (
                       <Link href={`/cranes/${ticket.crane.id}`} className="underline">
                         {ticket.crane.assetTag}
@@ -232,7 +232,7 @@ export default async function TicketsPage({
                   <td className="px-4 py-3">
                     <SlaBadge label="Response" sla={ticket.sla.response} />
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-slate-600">
+                  <td className="px-4 py-3 whitespace-nowrap text-muted">
                     {formatDateTime(ticket.reportedAt, settings.timezone)}
                   </td>
                 </tr>
@@ -242,7 +242,7 @@ export default async function TicketsPage({
         </div>
       )}
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         {TICKET_STATUS_DESCRIPTIONS.NEW} {TICKET_STATUS_DESCRIPTIONS.TRIAGED}
       </p>
     </div>

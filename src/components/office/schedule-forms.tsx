@@ -93,27 +93,27 @@ export function AssignTechnicianForm({
       <TechnicianSelect id="assign-technician" name="technicianId" technicians={technicians} />
       <FieldError state={state} name="technicianId" />
 
-      <label className="flex items-center gap-2 text-sm text-slate-800">
-        <input type="checkbox" name="isLead" className="h-4 w-4 rounded border-slate-300" />
+      <label className="flex items-center gap-2 text-sm text-ink">
+        <input type="checkbox" name="isLead" className="h-4 w-4 rounded border-line" />
         <span>
           Lead — the person the dispatch is addressed to
-          <span className="block text-xs text-slate-500">
+          <span className="block text-xs text-muted">
             The first person assigned becomes lead automatically.
           </span>
         </span>
       </label>
 
-      <label className="flex items-start gap-2 text-sm text-slate-800">
+      <label className="flex items-start gap-2 text-sm text-ink">
         <input
           type="checkbox"
           name="override"
           checked={overriding}
           onChange={(event) => setOverriding(event.target.checked)}
-          className="mt-0.5 h-4 w-4 rounded border-slate-300"
+          className="mt-0.5 h-4 w-4 rounded border-line"
         />
         <span>
           Go ahead despite a clash
-          <span className="block text-xs text-slate-500">
+          <span className="block text-xs text-muted">
             Leave counts, and being on another job at the same time. A missing or expired competency
             is never overridable here.
           </span>
@@ -154,7 +154,7 @@ export function UnassignTechnicianForm({
   const [state, formAction, pending] = useActionState(action, IDLE_FORM)
 
   if (technicians.length === 0) {
-    return <p className="text-sm text-slate-500">Nobody is assigned to this job.</p>
+    return <p className="text-sm text-muted">Nobody is assigned to this job.</p>
   }
 
   return (
@@ -235,15 +235,15 @@ export function RescheduleJobForm({
           <FieldError state={state} name="scheduledEnd" />
         </div>
       </div>
-      <p className="text-xs text-slate-500">Times are in {timezone}.</p>
+      <p className="text-xs text-muted">Times are in {timezone}.</p>
 
-      <label className="flex items-center gap-2 text-sm text-slate-800">
+      <label className="flex items-center gap-2 text-sm text-ink">
         <input
           type="checkbox"
           name="confirm"
           checked={confirming}
           onChange={(event) => setConfirming(event.target.checked)}
-          className="h-4 w-4 rounded border-slate-300"
+          className="h-4 w-4 rounded border-line"
         />
         Move it even if somebody is already booked then
       </label>
@@ -303,7 +303,7 @@ export function BumpJobForm({
         <FieldError state={state} name="reason" />
       </div>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         The displaced job goes back to Approved with its dates cleared. This does not place the other
         job — free the slot, then schedule into it.
       </p>
@@ -355,7 +355,7 @@ export function LeaveForm({
 
       <div>
         <label htmlFor="leave-reason" className={labelClass}>
-          Reason <span className="font-normal text-slate-500">(optional)</span>
+          Reason <span className="font-normal text-muted">(optional)</span>
         </label>
         <input
           id="leave-reason"
@@ -420,7 +420,7 @@ export function OnCallForm({
 
       <div>
         <label htmlFor="oncall-notes" className={labelClass}>
-          Notes <span className="font-normal text-slate-500">(optional)</span>
+          Notes <span className="font-normal text-muted">(optional)</span>
         </label>
         <input
           id="oncall-notes"
@@ -432,7 +432,7 @@ export function OnCallForm({
         <FieldError state={state} name="notes" />
       </div>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         Overlapping shifts are allowed on purpose — two people reachable is safer than none.
       </p>
 
@@ -479,12 +479,12 @@ export function BookResourceForm({
         <FieldError state={state} name="resourceId" />
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-slate-800">
+      <label className="flex items-center gap-2 text-sm text-ink">
         <input
           type="checkbox"
           checked={ownSpan}
           onChange={(event) => setOwnSpan(event.target.checked)}
-          className="h-4 w-4 rounded border-slate-300"
+          className="h-4 w-4 rounded border-line"
         />
         Book it for a different span than the visit
       </label>
@@ -508,12 +508,12 @@ export function BookResourceForm({
         </div>
       ) : null}
 
-      <label className="flex items-center gap-2 text-sm text-slate-800">
+      <label className="flex items-center gap-2 text-sm text-ink">
         <input
           type="checkbox"
           checked={confirming}
           onChange={(event) => setConfirming(event.target.checked)}
-          className="h-4 w-4 rounded border-slate-300"
+          className="h-4 w-4 rounded border-line"
         />
         Book it even if it is overdue for calibration or already out
       </label>

@@ -23,48 +23,48 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
   return (
     <article className="space-y-5">
       <header className="space-y-1">
-        <p className="text-sm font-medium text-slate-500">
+        <p className="text-sm font-medium text-muted">
           {job.number} · {job.jobTypeName}
         </p>
-        <h1 className="text-2xl leading-tight font-semibold text-slate-900">{job.customerName}</h1>
-        <p className="text-slate-700">{job.siteName}</p>
+        <h1 className="text-title leading-tight font-semibold text-ink">{job.customerName}</h1>
+        <p className="text-ink">{job.siteName}</p>
         <p className="flex flex-wrap items-center gap-2 pt-1 text-sm">
-          <span className="rounded-full bg-slate-900 px-2.5 py-0.5 font-medium text-white">
+          <span className="rounded-full bg-accent px-2.5 py-0.5 font-medium text-white">
             {JOB_STATUS_LABELS[job.status as keyof typeof JOB_STATUS_LABELS] ?? job.status}
           </span>
-          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 font-medium text-slate-700">
+          <span className="rounded-full bg-raised px-2.5 py-0.5 font-medium text-ink">
             {job.priority}
           </span>
           {job.isLead && (
-            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 font-medium text-emerald-900">
+            <span className="rounded-full bg-pos/10 px-2.5 py-0.5 font-medium text-pos">
               You are the lead
             </span>
           )}
         </p>
       </header>
 
-      <section aria-labelledby="when" className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 id="when" className="text-base font-semibold text-slate-900">
+      <section aria-labelledby="when" className="rounded-lg bg-panel p-4">
+        <h2 id="when" className="text-base font-semibold text-ink">
           When
         </h2>
-        <p className="mt-1 text-lg text-slate-900">
+        <p className="mt-1 text-lg text-ink">
           {start ? formatDateTime(start, timeZone) : 'Not scheduled yet'}
           {end && ` – ${formatDateTime(end, timeZone).slice(-5)}`}
         </p>
         {job.operatingHours && (
-          <p className="mt-1 text-sm text-slate-600">Site hours: {job.operatingHours}</p>
+          <p className="mt-1 text-sm text-muted">Site hours: {job.operatingHours}</p>
         )}
       </section>
 
       {job.warnings.length > 0 && (
         <section
           aria-labelledby="before"
-          className="rounded-xl border border-red-300 bg-red-50 p-4"
+          className="rounded-xl border border-neg/40 bg-neg/10 p-4"
         >
-          <h2 id="before" className="text-base font-semibold text-red-900">
+          <h2 id="before" className="text-base font-semibold text-neg">
             Before you start
           </h2>
-          <ul className="mt-2 space-y-1 text-red-900">
+          <ul className="mt-2 space-y-1 text-neg">
             {job.warnings.map((warning) => (
               <li key={warning}>{warning}</li>
             ))}
@@ -72,68 +72,68 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
         </section>
       )}
 
-      <section aria-labelledby="where" className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 id="where" className="text-base font-semibold text-slate-900">
+      <section aria-labelledby="where" className="rounded-lg bg-panel p-4">
+        <h2 id="where" className="text-base font-semibold text-ink">
           Where
         </h2>
         {job.address ? (
-          <p className="mt-1 text-slate-900">{job.address}</p>
+          <p className="mt-1 text-ink">{job.address}</p>
         ) : (
-          <p className="mt-1 text-slate-600">No address recorded.</p>
+          <p className="mt-1 text-muted">No address recorded.</p>
         )}
 
         {job.contact ? (
-          <div className="mt-3 border-t border-slate-100 pt-3">
-            <p className="text-sm text-slate-500">Ask for</p>
-            <p className="text-slate-900">
+          <div className="mt-3 border-t border-rule pt-3">
+            <p className="text-sm text-muted">Ask for</p>
+            <p className="text-ink">
               {job.contact.name}
-              <span className="text-slate-500"> · {job.contact.role.toLowerCase().replace(/_/g, ' ')}</span>
+              <span className="text-muted"> · {job.contact.role.toLowerCase().replace(/_/g, ' ')}</span>
             </p>
             {job.contact.phone && (
               // A live number is a button, not a number to retype with gloves on.
               <a
                 href={`tel:${job.contact.phone}`}
-                className="mt-1 inline-block text-lg font-medium text-blue-700 underline"
+                className="mt-1 inline-block text-lg font-medium text-info underline"
               >
                 {job.contact.phone}
               </a>
             )}
           </div>
         ) : (
-          <p className="mt-3 text-slate-600">No site contact recorded.</p>
+          <p className="mt-3 text-muted">No site contact recorded.</p>
         )}
 
-        <dl className="mt-3 space-y-3 border-t border-slate-100 pt-3 text-sm">
+        <dl className="mt-3 space-y-3 border-t border-rule pt-3 text-sm">
           <div>
-            <dt className="text-slate-500">Access</dt>
-            <dd className="text-slate-900">{job.accessNotes ?? 'Nothing recorded.'}</dd>
+            <dt className="text-muted">Access</dt>
+            <dd className="text-ink">{job.accessNotes ?? 'Nothing recorded.'}</dd>
           </div>
           <div>
-            <dt className="text-slate-500">Induction</dt>
-            <dd className="text-slate-900">{job.inductionRequirements ?? 'Nothing recorded.'}</dd>
+            <dt className="text-muted">Induction</dt>
+            <dd className="text-ink">{job.inductionRequirements ?? 'Nothing recorded.'}</dd>
           </div>
         </dl>
       </section>
 
-      <section aria-labelledby="what" className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 id="what" className="text-base font-semibold text-slate-900">
+      <section aria-labelledby="what" className="rounded-lg bg-panel p-4">
+        <h2 id="what" className="text-base font-semibold text-ink">
           What needs doing
         </h2>
-        <p className="mt-1 whitespace-pre-line text-slate-900">
+        <p className="mt-1 whitespace-pre-line text-ink">
           {job.description ?? 'No description recorded. Check the cranes below.'}
         </p>
       </section>
 
       {job.crew.length > 0 && (
-        <section aria-labelledby="crew" className="rounded-xl border border-slate-200 bg-white p-4">
-          <h2 id="crew" className="text-base font-semibold text-slate-900">
+        <section aria-labelledby="crew" className="rounded-lg bg-panel p-4">
+          <h2 id="crew" className="text-base font-semibold text-ink">
             On this visit
           </h2>
-          <ul className="mt-1 space-y-1 text-slate-900">
+          <ul className="mt-1 space-y-1 text-ink">
             {job.crew.map((person) => (
               <li key={person.name}>
                 {person.name}
-                {person.isLead && <span className="text-slate-500"> · lead</span>}
+                {person.isLead && <span className="text-muted"> · lead</span>}
               </li>
             ))}
           </ul>
@@ -141,8 +141,8 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
       )}
 
       {job.cranes.length > 0 && (
-        <section aria-labelledby="cranes" className="rounded-xl border border-slate-200 bg-white p-4">
-          <h2 id="cranes" className="text-base font-semibold text-slate-900">
+        <section aria-labelledby="cranes" className="rounded-lg bg-panel p-4">
+          <h2 id="cranes" className="text-base font-semibold text-ink">
             Cranes
           </h2>
           <ul className="mt-2 space-y-4">
@@ -150,18 +150,18 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
               // A bundle cached before slice 8 has neither field; it gets no link rather than an error.
               const report = (job.reports ?? []).find((entry) => entry.craneId === crane.id)
               return (
-              <li key={crane.assetTag} className="border-t border-slate-100 pt-3 first:border-0 first:pt-0">
-                <p className="font-medium text-slate-900">{crane.assetTag}</p>
-                <p className="text-sm text-slate-600">
+              <li key={crane.assetTag} className="border-t border-rule pt-3 first:border-0 first:pt-0">
+                <p className="font-medium text-ink">{crane.assetTag}</p>
+                <p className="text-sm text-muted">
                   {crane.type.replace(/_/g, ' ').toLowerCase()} · SWL {crane.swlKg} kg
                 </p>
                 {crane.status === 'RESTRICTED' && (
-                  <p className="mt-1 rounded-md bg-red-100 px-2 py-1 text-sm font-medium text-red-900">
+                  <p className="mt-1 rounded-md bg-neg/10 px-2 py-1 text-sm font-medium text-neg">
                     Do Not Operate{crane.restrictedReason ? `: ${crane.restrictedReason}` : ''}
                   </p>
                 )}
                 {crane.recent.length > 0 ? (
-                  <ul className="mt-2 space-y-0.5 text-sm text-slate-600">
+                  <ul className="mt-2 space-y-0.5 text-sm text-muted">
                     {crane.recent.map((entry) => (
                       <li key={`${entry.kind}-${entry.at}`}>
                         {formatDate(new Date(entry.at), timeZone)} — {entry.label}
@@ -169,20 +169,20 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
                     ))}
                   </ul>
                 ) : (
-                  <p className="mt-2 text-sm text-slate-500">
+                  <p className="mt-2 text-sm text-muted">
                     Nothing on record for this machine.
                   </p>
                 )}
                 {job.reportTemplate && crane.id && (
                   report ? (
-                    <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900">
+                    <p className="mt-3 rounded-md bg-pos/10 px-3 py-2 text-sm font-medium text-pos">
                       Report {report.status.toLowerCase().replace(/_/g, ' ')}
                       {report.submittedAt && ` · ${formatDate(new Date(report.submittedAt), timeZone)}`}
                     </p>
                   ) : (
                     <Link
                       href={`/m/jobs/${job.id}/report?crane=${crane.id}`}
-                      className="mt-3 inline-block rounded-lg bg-slate-900 px-4 py-2 font-medium text-white"
+                      className="mt-3 inline-block rounded-lg bg-accent px-4 py-2 font-medium text-white"
                     >
                       Fill report
                     </Link>
@@ -198,23 +198,23 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
       {sections.length > 0 && (
         <section
           aria-labelledby="checklist"
-          className="rounded-xl border border-slate-200 bg-white p-4"
+          className="rounded-lg bg-panel p-4"
         >
-          <h2 id="checklist" className="text-base font-semibold text-slate-900">
+          <h2 id="checklist" className="text-base font-semibold text-ink">
             Checklist
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-muted">
             What this job type requires. You fill it in on the report.
           </p>
           <div className="mt-3 space-y-4">
             {sections.map((section) => (
               <div key={section.name}>
-                <h3 className="text-sm font-medium text-slate-700">{section.name}</h3>
+                <h3 className="text-sm font-medium text-ink">{section.name}</h3>
                 <ul className="mt-1 space-y-1">
                   {section.items.map((item) => (
-                    <li key={item.code} className="text-slate-900">
+                    <li key={item.code} className="text-ink">
                       {item.label}
-                      {item.unit && <span className="text-slate-500"> ({item.unit})</span>}
+                      {item.unit && <span className="text-muted"> ({item.unit})</span>}
                     </li>
                   ))}
                 </ul>

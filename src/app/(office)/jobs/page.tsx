@@ -129,14 +129,14 @@ export default async function JobsPage({
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Jobs</h1>
-          <p className="mt-1 text-slate-600">The work, from the decision to the invoice.</p>
+          <h1 className="text-title font-semibold text-ink">Jobs</h1>
+          <p className="mt-1 text-muted">The work, from the decision to the invoice.</p>
         </div>
 
         {mayCreate ? (
           <Link
             href="/jobs/new"
-            className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800"
+            className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft"
           >
             Create a job
           </Link>
@@ -145,30 +145,30 @@ export default async function JobsPage({
 
       <dl className="grid gap-4 sm:grid-cols-3">
         <div className={`${cardClass} py-4`}>
-          <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Open</dt>
-          <dd className="mt-1 text-2xl font-semibold text-slate-900">{stats.open}</dd>
+          <dt className="text-xs font-medium text-muted">Open</dt>
+          <dd className="mt-1 text-2xl font-semibold text-ink">{stats.open}</dd>
         </div>
         <div className={`${cardClass} py-4`}>
-          <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+          <dt className="text-xs font-medium text-muted">
             Past an SLA target
           </dt>
           <dd
             className={
               stats.breached > 0
-                ? 'mt-1 text-2xl font-semibold text-red-700'
-                : 'mt-1 text-2xl font-semibold text-slate-900'
+                ? 'mt-1 text-2xl font-semibold text-neg'
+                : 'mt-1 text-2xl font-semibold text-ink'
             }
           >
             {stats.breached}
           </dd>
         </div>
         <div className={`${cardClass} py-4`}>
-          <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">On hold</dt>
+          <dt className="text-xs font-medium text-muted">On hold</dt>
           <dd
             className={
               stats.onHold > 0
-                ? 'mt-1 text-2xl font-semibold text-amber-800'
-                : 'mt-1 text-2xl font-semibold text-slate-900'
+                ? 'mt-1 text-2xl font-semibold text-warn'
+                : 'mt-1 text-2xl font-semibold text-ink'
             }
           >
             {stats.onHold}
@@ -176,13 +176,13 @@ export default async function JobsPage({
         </div>
       </dl>
 
-      <form method="get" className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <form method="get" className="rounded-lg bg-panel p-4">
         {view === 'calendar' ? <input type="hidden" name="view" value="calendar" /> : null}
         {view === 'calendar' ? <input type="hidden" name="month" value={month} /> : null}
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="sm:col-span-2">
-            <label htmlFor="q" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="q" className="block text-sm font-medium text-ink">
               Search
             </label>
             <input
@@ -190,19 +190,19 @@ export default async function JobsPage({
               name="q"
               defaultValue={filters.q}
               placeholder="Job number, customer, asset tag or PO reference"
-              className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
             />
           </div>
 
           <div>
-            <label htmlFor="status" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="status" className="block text-sm font-medium text-ink">
               Status
             </label>
             <select
               id="status"
               name="status"
               defaultValue={filters.status}
-              className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
             >
               <option value="">All</option>
               {JOB_STATUSES.map((value) => (
@@ -214,14 +214,14 @@ export default async function JobsPage({
           </div>
 
           <div>
-            <label htmlFor="priority" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="priority" className="block text-sm font-medium text-ink">
               Priority
             </label>
             <select
               id="priority"
               name="priority"
               defaultValue={filters.priority}
-              className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
             >
               <option value="">All</option>
               {Object.entries(PRIORITY_SHORT_LABELS).map(([value, label]) => (
@@ -233,14 +233,14 @@ export default async function JobsPage({
           </div>
 
           <div>
-            <label htmlFor="sla" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="sla" className="block text-sm font-medium text-ink">
               SLA state
             </label>
             <select
               id="sla"
               name="sla"
               defaultValue={filters.sla}
-              className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
             >
               <option value="">Any</option>
               <option value="breached">Breached</option>
@@ -250,14 +250,14 @@ export default async function JobsPage({
           </div>
 
           <div>
-            <label htmlFor="technicianId" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="technicianId" className="block text-sm font-medium text-ink">
               Technician
             </label>
             <select
               id="technicianId"
               name="technicianId"
               defaultValue={filters.technicianId}
-              className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
             >
               <option value="">Anybody</option>
               {technicians.map((technician) => (
@@ -269,14 +269,14 @@ export default async function JobsPage({
           </div>
 
           <div>
-            <label htmlFor="jobTypeId" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="jobTypeId" className="block text-sm font-medium text-ink">
               Kind of work
             </label>
             <select
               id="jobTypeId"
               name="jobTypeId"
               defaultValue={filters.jobTypeId}
-              className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
             >
               <option value="">All</option>
               {jobTypes.map((jobType) => (
@@ -288,7 +288,7 @@ export default async function JobsPage({
           </div>
 
           <div>
-            <label htmlFor="from" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="from" className="block text-sm font-medium text-ink">
               Visit from
             </label>
             <input
@@ -296,32 +296,32 @@ export default async function JobsPage({
               name="from"
               type="date"
               defaultValue={filters.from}
-              className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
             />
           </div>
 
           <div>
-            <label htmlFor="to" className="block text-sm font-medium text-slate-700">
-              to
+            <label htmlFor="to" className="block text-sm font-medium text-ink">
+              Visit to
             </label>
             <input
               id="to"
               name="to"
               type="date"
               defaultValue={filters.to}
-              className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
             />
           </div>
 
           <div>
-            <label htmlFor="sort" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="sort" className="block text-sm font-medium text-ink">
               Sort
             </label>
             <select
               id="sort"
               name="sort"
               defaultValue={filters.sort}
-              className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
             >
               <option value="">Working order</option>
               <option value="newest">Newest first</option>
@@ -333,25 +333,25 @@ export default async function JobsPage({
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
             type="submit"
-            className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800"
+            className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft"
           >
             Filter
           </button>
 
           {filtered ? (
-            <Link href={view === 'calendar' ? `/jobs?view=calendar` : '/jobs'} className="text-sm text-slate-600 underline">
+            <Link href={view === 'calendar' ? `/jobs?view=calendar` : '/jobs'} className="text-sm text-muted underline">
               Clear
             </Link>
           ) : null}
 
           <div className="ml-auto flex flex-wrap items-center gap-3">
-            <div className="inline-flex overflow-hidden rounded-md border border-slate-300">
+            <div className="inline-flex overflow-hidden rounded-md border border-line">
               <Link
                 href={href({ view: '', month: '', page: '' })}
                 className={
                   view === 'list'
-                    ? 'bg-slate-900 px-3 py-1.5 text-sm font-medium text-white'
-                    : 'bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100'
+                    ? 'bg-accent px-3 py-1.5 text-sm font-medium text-white'
+                    : 'bg-field px-3 py-1.5 text-sm text-ink hover:bg-raised'
                 }
               >
                 List
@@ -360,8 +360,8 @@ export default async function JobsPage({
                 href={href({ view: 'calendar', page: '' })}
                 className={
                   view === 'calendar'
-                    ? 'bg-slate-900 px-3 py-1.5 text-sm font-medium text-white'
-                    : 'bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100'
+                    ? 'bg-accent px-3 py-1.5 text-sm font-medium text-white'
+                    : 'bg-field px-3 py-1.5 text-sm text-ink hover:bg-raised'
                 }
               >
                 Calendar
@@ -370,7 +370,7 @@ export default async function JobsPage({
 
             <a
               href={exportHref}
-              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              className="rounded-md border border-line bg-field px-3 py-2 text-sm text-ink hover:bg-raised"
             >
               Export CSV
             </a>
@@ -387,10 +387,10 @@ export default async function JobsPage({
 
       {jobs.length === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">
+          <p className="font-medium text-ink">
             {filtered ? 'Nothing matches those filters.' : 'No jobs yet.'}
           </p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             {filtered
               ? 'Try a shorter search, or clear the filters.'
               : mayCreate
@@ -407,10 +407,58 @@ export default async function JobsPage({
         />
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+          {/* Below `md` the table's eight columns cannot fit a phone without scrolling sideways, so
+              the same rows are a two-line list: the job and its customer, then the state that decides
+              what happens next. The fields are moved, never dropped. */}
+          <ul className="divide-y divide-rule overflow-hidden rounded-lg bg-field md:hidden">
+            {pageJobs.map((job) => (
+              <li key={job.id} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/jobs/${job.id}`}
+                      className="font-medium text-ink underline decoration-line"
+                    >
+                      {job.number}
+                    </Link>
+                    <span className="block truncate text-xs text-muted">
+                      {job.jobType.name}
+                    </span>
+                  </div>
+                  <JobStatusBadge status={job.status} />
+                </div>
+
+                <p className="mt-1 truncate text-sm">
+                  <Link href={`/customers/${job.customer.id}`} className="text-ink underline">
+                    {job.customer.tradingName ?? job.customer.legalName}
+                  </Link>
+                  {job.site ? <span className="text-muted"> · {job.site.name}</span> : null}
+                </p>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted">
+                  <PriorityBadge priority={job.priority} />
+                  <span>
+                    {job.cranes.length === 0
+                      ? 'No crane'
+                      : job.cranes.map((crane) => crane.assetTag).join(', ')}
+                  </span>
+                  {job.scheduledStart ? (
+                    <span>{formatDateTime(job.scheduledStart, settings.timezone)}</span>
+                  ) : null}
+                </div>
+
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <JobSlaBadge label="Response" sla={job.sla.response} />
+                  <JobSlaBadge label="Resolve" sla={job.sla.resolution} />
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden overflow-x-auto rounded-lg bg-field md:block">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">Jobs</caption>
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+              <thead className="border-b border-line bg-sheet text-xs text-muted">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-medium">Job</th>
                   <th scope="col" className="px-4 py-3 font-medium">Customer</th>
@@ -422,35 +470,35 @@ export default async function JobsPage({
                   <th scope="col" className="px-4 py-3 font-medium">Raised</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-rule">
                 {pageJobs.map((job) => (
-                  <tr key={job.id} className="align-top hover:bg-slate-50">
+                  <tr key={job.id} className="align-top hover:bg-sheet">
                     <td className="px-4 py-3">
                       <Link
                         href={`/jobs/${job.id}`}
-                        className="font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                        className="font-medium text-ink underline decoration-line hover:decoration-ink"
                       >
                         {job.number}
                       </Link>
-                      <span className="mt-0.5 block text-xs text-slate-500">{job.jobType.name}</span>
+                      <span className="mt-0.5 block text-xs text-muted">{job.jobType.name}</span>
                       {job.ticket ? (
                         <Link
                           href={`/tickets/${job.ticket.id}`}
-                          className="mt-0.5 block text-xs text-slate-500 underline"
+                          className="mt-0.5 block text-xs text-muted underline"
                         >
                           from {job.ticket.number}
                         </Link>
                       ) : null}
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/customers/${job.customer.id}`} className="text-slate-900 underline">
+                      <Link href={`/customers/${job.customer.id}`} className="text-ink underline">
                         {job.customer.tradingName ?? job.customer.legalName}
                       </Link>
                       {job.site ? (
-                        <span className="block text-xs text-slate-500">{job.site.name}</span>
+                        <span className="block text-xs text-muted">{job.site.name}</span>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-muted">
                       {job.cranes.length === 0
                         ? '—'
                         : job.cranes.map((crane) => crane.assetTag).join(', ')}
@@ -467,12 +515,12 @@ export default async function JobsPage({
                         <JobSlaBadge label="Resolve" sla={job.sla.resolution} />
                       </div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-slate-600">
+                    <td className="px-4 py-3 whitespace-nowrap text-muted">
                       {job.scheduledStart
                         ? formatDateTime(job.scheduledStart, settings.timezone)
                         : '—'}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-slate-600">
+                    <td className="px-4 py-3 whitespace-nowrap text-muted">
                       {job.reportedAt ? formatDateTime(job.reportedAt, settings.timezone) : '—'}
                     </td>
                   </tr>
@@ -483,7 +531,7 @@ export default async function JobsPage({
 
           {pages > 1 ? (
             <nav aria-label="Pages" className="flex flex-wrap items-center justify-between gap-3 text-sm">
-              <p className="text-slate-600">
+              <p className="text-muted">
                 Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, jobs.length)} of{' '}
                 {jobs.length}.
               </p>
@@ -491,7 +539,7 @@ export default async function JobsPage({
                 {page > 1 ? (
                   <Link
                     href={href({ page: String(page - 1) })}
-                    className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-slate-700 hover:bg-slate-100"
+                    className="rounded-md border border-line bg-field px-3 py-1.5 text-ink hover:bg-raised"
                   >
                     ← Previous
                   </Link>
@@ -499,7 +547,7 @@ export default async function JobsPage({
                 {page < pages ? (
                   <Link
                     href={href({ page: String(page + 1) })}
-                    className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-slate-700 hover:bg-slate-100"
+                    className="rounded-md border border-line bg-field px-3 py-1.5 text-ink hover:bg-raised"
                   >
                     Next →
                   </Link>
@@ -534,19 +582,19 @@ function CalendarView({
   )
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="rounded-lg bg-panel p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold text-slate-900">{label}</h2>
+        <h2 className="font-semibold text-ink">{label}</h2>
         <div className="flex gap-2">
           <Link
             href={href({ month: shiftMonth(month, -1) })}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+            className="rounded-md border border-line bg-field px-3 py-1.5 text-sm text-ink hover:bg-raised"
           >
             ← Previous month
           </Link>
           <Link
             href={href({ month: shiftMonth(month, 1) })}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+            className="rounded-md border border-line bg-field px-3 py-1.5 text-sm text-ink hover:bg-raised"
           >
             Next month →
           </Link>
@@ -555,7 +603,7 @@ function CalendarView({
 
       <div className="mt-4 overflow-x-auto">
         <div className="min-w-[42rem]">
-          <div className="grid grid-cols-7 border-b border-slate-200 pb-2 text-xs font-medium tracking-wide text-slate-500 uppercase">
+          <div className="grid grid-cols-7 border-b border-line pb-2 text-xs font-medium text-muted">
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
               <div key={day} className="px-1">
                 {day}
@@ -567,13 +615,13 @@ function CalendarView({
             {days.map((day) => (
               <div
                 key={day.date}
-                className={`min-h-24 border-r border-b border-slate-100 p-1.5 text-xs last:border-r-0 ${
-                  day.outside ? 'bg-slate-50 text-slate-400' : 'text-slate-700'
+                className={`min-h-24 border-r border-b border-rule p-1.5 text-xs last:border-r-0 ${
+                  day.outside ? 'bg-sheet text-faint' : 'text-ink'
                 }`}
               >
-                <p className={day.isToday ? 'font-semibold text-slate-900' : undefined}>
+                <p className={day.isToday ? 'font-semibold text-ink' : undefined}>
                   {Number(day.date.slice(8))}
-                  {day.isToday ? <span className="ml-1 text-slate-500">today</span> : null}
+                  {day.isToday ? <span className="ml-1 text-muted">today</span> : null}
                 </p>
                 <ul className="mt-1 space-y-1">
                   {day.jobs.map((job) => (
@@ -583,8 +631,8 @@ function CalendarView({
                         title={`${job.number} — ${job.customer.tradingName ?? job.customer.legalName}`}
                         className={`block truncate rounded border px-1 py-0.5 ${
                           job.priority === 'P1'
-                            ? 'border-red-200 bg-red-50 text-red-800'
-                            : 'border-slate-200 bg-white text-slate-700'
+                            ? 'border-neg/40 bg-neg/10 text-neg'
+                            : 'border-line bg-field text-ink'
                         }`}
                       >
                         {job.number}

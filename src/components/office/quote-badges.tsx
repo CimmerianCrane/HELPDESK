@@ -2,11 +2,11 @@ import { QUOTE_STATUS_LABELS, type QuoteStatusName } from '@/lib/validation/quot
 
 /** The same status chip on the list, the detail page and the job page's section. */
 const STYLES: Record<QuoteStatusName, string> = {
-  DRAFT: 'border-slate-300 bg-slate-50 text-slate-700',
-  SENT: 'border-sky-300 bg-sky-50 text-sky-900',
-  ACCEPTED: 'border-emerald-300 bg-emerald-50 text-emerald-900',
-  DECLINED: 'border-red-300 bg-red-50 text-red-800',
-  EXPIRED: 'border-amber-300 bg-amber-50 text-amber-900',
+  DRAFT: 'border-line bg-sheet text-ink',
+  SENT: 'border-info/40 bg-info/10 text-info',
+  ACCEPTED: 'border-pos/40 bg-pos/10 text-pos',
+  DECLINED: 'border-neg/40 bg-neg/10 text-neg',
+  EXPIRED: 'border-warn/40 bg-warn/10 text-warn',
 }
 
 export function QuoteStatusBadge({ status }: { status: QuoteStatusName }) {

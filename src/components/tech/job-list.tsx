@@ -1,4 +1,7 @@
+import type { JobStatus, Priority } from '@prisma/client'
 import Link from 'next/link'
+import { JobStatusBadge } from '@/components/office/job-badges'
+import { PriorityBadge } from '@/components/office/ticket-badges'
 import { formatDateTime } from '@/lib/format'
 import { addDays, dayKey } from '@/lib/time'
 import type { TechJobSummary } from '@/server/tech/my-jobs'
@@ -22,9 +25,9 @@ export function JobList({
 }) {
   if (jobs.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-6 text-center">
-        <p className="text-lg font-medium text-slate-900">Nothing booked</p>
-        <p className="mt-1 text-slate-600">
+      <div className="rounded-lg bg-panel p-6 text-center">
+        <p className="text-lg font-medium text-ink">Nothing booked</p>
+        <p className="mt-1 text-muted">
           You have no open jobs. The office will send work here when it is planned.
         </p>
       </div>
@@ -52,7 +55,7 @@ export function JobList({
     <div className="space-y-6">
       {ordered.map(([key, list]) => (
         <section key={key} aria-labelledby={`day-${key}`} className="space-y-3">
-          <h2 id={`day-${key}`} className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
+          <h2 id={`day-${key}`} className="text-sm font-semibold text-muted">
             {key === 'undated' ? 'Waiting for a date' : dayHeading(key, today, tomorrow, list[0]!, timeZone)}
           </h2>
           <ul className="space-y-3">
@@ -60,29 +63,27 @@ export function JobList({
               <li key={job.id}>
                 <Link
                   href={`/m/jobs/${job.id}`}
-                  className="block rounded-xl border border-slate-200 bg-white p-4 active:bg-slate-50"
+                  className="block rounded-lg bg-panel p-4 active:bg-sheet"
                 >
                   <p className="flex items-baseline justify-between gap-3">
-                    <span className="font-medium text-slate-900">{job.customerName}</span>
-                    <span className="shrink-0 text-sm text-slate-600">
+                    <span className="font-medium text-ink">{job.customerName}</span>
+                    <span className="shrink-0 text-sm text-muted">
                       {job.scheduledStart
                         ? formatDateTime(new Date(job.scheduledStart), timeZone).slice(-5)
                         : '—'}
                     </span>
                   </p>
-                  <p className="text-sm text-slate-600">{job.siteName}</p>
-                  <p className="mt-1 text-sm text-slate-700">
+                  <p className="text-sm text-muted">{job.siteName}</p>
+                  <p className="mt-1 text-sm text-ink">
                     {job.number} · {job.jobTypeName}
                   </p>
-                  <p className="mt-2 flex flex-wrap gap-2 text-xs font-medium">
-                    <span className="rounded-full bg-slate-900 px-2 py-0.5 text-white">
-                      {job.status.replace(/_/g, ' ').toLowerCase()}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">
-                      {job.priority}
-                    </span>
+                  <p className="mt-2 flex flex-wrap gap-2 text-xs">
+                    {/* Status and priority arrive as `string` because they come straight off the
+                        offline cache; they are the Prisma enums when written. */}
+                    <JobStatusBadge status={job.status as JobStatus} />
+                    <PriorityBadge priority={job.priority as Priority} />
                     {job.restricted > 0 && (
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-red-900">
+                      <span className="rounded border border-neg/40 bg-neg/10 px-2 py-0.5 font-medium text-neg">
                         Do not operate
                       </span>
                     )}

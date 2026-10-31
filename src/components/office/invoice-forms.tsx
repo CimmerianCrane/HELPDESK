@@ -62,16 +62,16 @@ export function InvoiceForm({
       <FormMessage state={state} />
 
       {suggested && suggested.length > 0 ? (
-        <div className="rounded-md border border-sky-200 bg-sky-50 p-3">
-          <p className="text-sm font-medium text-sky-900">Parts issued on this job</p>
-          <p className="mt-1 text-xs text-sky-800">
+        <div className="rounded-md border border-info/40 bg-info/10 p-3">
+          <p className="text-sm font-medium text-info">Parts issued on this job</p>
+          <p className="mt-1 text-xs text-info">
             Offered at their sell price, from the stock movements the technician recorded. Add one,
             then adjust anything that should be charged differently — warranty, or a fixed price.
           </p>
           <ul className="mt-2 space-y-1">
             {suggested.map((line, index) => (
               <li key={index} className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-sm text-sky-900">
+                <span className="text-sm text-info">
                   {line.description} · {line.quantity} × ${line.unitPrice.toFixed(2)}
                 </span>
                 <button
@@ -79,7 +79,7 @@ export function InvoiceForm({
                   onClick={() =>
                     setLines((current) => [...current, { ...blankLine(), ...line, key: (nextKey += 1), quantity: String(line.quantity), unitPrice: line.unitPrice.toFixed(2) }])
                   }
-                  className="text-sm text-sky-900 underline hover:text-sky-950"
+                  className="text-sm text-info underline hover:text-ink"
                 >
                   Add to invoice
                 </button>
@@ -91,7 +91,7 @@ export function InvoiceForm({
 
       <div className="space-y-3">
         {lines.map((line) => (
-          <div key={line.key} className="grid gap-2 rounded-md border border-slate-200 p-3 sm:grid-cols-12">
+          <div key={line.key} className="grid gap-2 rounded-md border border-line p-3 sm:grid-cols-12">
             <div className="sm:col-span-8">
               <label className={labelClass} htmlFor={`description-${line.key}`}>
                 Description
@@ -143,7 +143,7 @@ export function InvoiceForm({
                 <button
                   type="button"
                   onClick={() => setLines((current) => current.filter((row) => row.key !== line.key))}
-                  className="text-sm text-slate-500 underline hover:text-slate-800"
+                  className="text-sm text-muted underline hover:text-ink"
                 >
                   Remove this line
                 </button>
@@ -162,7 +162,7 @@ export function InvoiceForm({
         Add a line
       </button>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         GST is added at the rate in Settings when the invoice is issued. A draft can be edited; once
         it is issued, the lines are the numbers the customer is charged.
       </p>

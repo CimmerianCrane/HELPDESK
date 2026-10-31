@@ -38,7 +38,7 @@ export function CompanySlaForm({
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Company-wide response and resolution targets</caption>
-          <thead className="border-b border-slate-200 text-xs tracking-wide text-slate-500 uppercase">
+          <thead className="border-b border-line text-xs text-muted">
             <tr>
               <th scope="col" className="px-2 py-2 font-medium">Priority</th>
               <th scope="col" className="px-2 py-2 font-medium">
@@ -49,16 +49,16 @@ export function CompanySlaForm({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-rule">
             {values.map((value) => (
               <tr key={value.priority} className="align-top">
                 <td className="px-2 py-3">
-                  <span className="font-medium text-slate-900">{PRIORITY_LABELS[value.priority]}</span>
-                  <span className="block text-xs text-slate-500">
+                  <span className="font-medium text-ink">{PRIORITY_LABELS[value.priority]}</span>
+                  <span className="block text-xs text-muted">
                     {PRIORITY_DESCRIPTIONS[value.priority]}
                   </span>
                   {value.isFallback ? (
-                    <span className="mt-1 block rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900">
+                    <span className="mt-1 block rounded bg-warn/10 px-1.5 py-0.5 text-xs font-medium text-warn">
                       Nothing configured — the built-in default is in force
                     </span>
                   ) : null}

@@ -43,14 +43,14 @@ export default async function PartsPage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Parts</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">Parts</h1>
+        <p className="mt-1 text-muted">
           {parts.length} line{parts.length === 1 ? '' : 's'}
           {filtered ? ' matching' : ' in the catalogue'}
           {belowCount > 0 ? (
             <>
               {' · '}
-              <Link href="/parts?level=below" className="font-medium text-amber-800 underline">
+              <Link href="/parts?level=below" className="font-medium text-warn underline">
                 {belowCount} below reorder level
               </Link>
             </>
@@ -59,48 +59,36 @@ export default async function PartsPage({
           )}
           .
         </p>
-        <p className="mt-2 max-w-3xl text-sm text-slate-500">
+        <p className="mt-2 max-w-3xl text-sm text-muted">
           On hand is the sum of every stock movement — parts issued on a job, deliveries received and
           adjustments after a count. It is never typed in directly: a change is a movement, with a
           reason and a person against it.
         </p>
-        <p className="mt-2 text-sm">
-          <Link href="/parts/locations" className="text-slate-700 underline hover:text-slate-900">
-            Stock locations
-          </Link>{' '}
-          <span className="text-slate-500">
-            — the store, bins, vans and parts held on site, and what each one holds.
-          </span>
-        </p>
-        <p className="mt-1 text-sm">
-          <Link href="/parts/reorder" className="text-slate-700 underline hover:text-slate-900">
-            Reorder
-          </Link>{' '}
-          <span className="text-slate-500">
-            — what is below reorder, grouped by supplier, and the purchase orders on their way.
-          </span>
-        </p>
-        <p className="mt-1 text-sm">
-          <Link href="/suppliers" className="text-slate-700 underline hover:text-slate-900">
-            Suppliers
-          </Link>{' '}
-          <span className="text-slate-500">
-            — who the store buys from, and the price history behind each order.
-          </span>
-        </p>
-        <p className="mt-1 text-sm">
-          <Link href="/stock-takes" className="text-slate-700 underline hover:text-slate-900">
-            Stock takes
-          </Link>{' '}
-          <span className="text-slate-500">
-            — count a shelf blind, review the difference, and post the correction.
-          </span>
-        </p>
+        {/* The four screens the store also lives in. Laid out as links rather than four prose
+            paragraphs, so the store's shape is legible at a glance instead of read as sentences. */}
+        <ul className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ['/parts/locations', 'Stock locations', 'The store, bins, vans and parts held on site.'],
+            ['/parts/reorder', 'Reorder', 'Below reorder, by supplier, plus orders on their way.'],
+            ['/suppliers', 'Suppliers', 'Who the store buys from, and the price history.'],
+            ['/stock-takes', 'Stock takes', 'Count a shelf blind, review, post the correction.'],
+          ].map(([href, title, detail]) => (
+            <li key={href}>
+              <Link
+                href={href}
+                className="block rounded-md px-3 py-2 text-ink hover:bg-raised hover:underline hover:underline-offset-2"
+              >
+                <span className="font-medium">{title}</span>
+                <span className="mt-0.5 block text-xs text-muted">{detail}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <form method="get" className="flex flex-wrap items-end gap-3">
         <div className="min-w-56 flex-1">
-          <label htmlFor="q" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="q" className="block text-sm font-medium text-ink">
             Search
           </label>
           <input
@@ -108,19 +96,19 @@ export default async function PartsPage({
             name="q"
             defaultValue={filters.q}
             placeholder="Part number, description or crane model"
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
 
         <div>
-          <label htmlFor="brand" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="brand" className="block text-sm font-medium text-ink">
             Brand
           </label>
           <select
             id="brand"
             name="brand"
             defaultValue={filters.brand}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           >
             <option value="">All</option>
             {brands.map((brand) => (
@@ -131,23 +119,23 @@ export default async function PartsPage({
           </select>
         </div>
 
-        <label className="flex items-center gap-2 pb-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 pb-2 text-sm text-ink">
           <input
             type="checkbox"
             name="level"
             value="below"
             defaultChecked={filters.level === 'below'}
-            className="size-4 rounded border-slate-300"
+            className="size-4 rounded border-line"
           />
           Below reorder only
         </label>
 
-        <button type="submit" className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800">
+        <button type="submit" className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft">
           Filter
         </button>
 
         {filtered ? (
-          <Link href="/parts" className="px-2 py-2 text-sm text-slate-600 underline">
+          <Link href="/parts" className="px-2 py-2 text-sm text-muted underline">
             Clear
           </Link>
         ) : null}
@@ -155,10 +143,10 @@ export default async function PartsPage({
 
       {parts.length === 0 ? (
         <div className={`${cardClass} text-center`}>
-          <p className="font-medium text-slate-900">
+          <p className="font-medium text-ink">
             {filtered ? 'Nothing matches those filters.' : 'The catalogue is empty.'}
           </p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             {filtered
               ? 'Try a shorter search, or clear the filters.'
               : mayWrite
@@ -167,10 +155,10 @@ export default async function PartsPage({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg bg-field">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Parts catalogue with on-hand quantities</caption>
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="border-b border-line bg-sheet text-xs text-muted">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Part</th>
                 <th scope="col" className="px-4 py-3 font-medium">Brand / fits</th>
@@ -179,22 +167,22 @@ export default async function PartsPage({
                 <th scope="col" className="px-4 py-3 text-right font-medium">Sell</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-rule">
               {parts.map((part) => (
-                <tr key={part.id} className="align-top hover:bg-slate-50">
+                <tr key={part.id} className="align-top hover:bg-sheet">
                   <td className="px-4 py-3">
                     <Link
                       href={`/parts/${part.id}`}
-                      className="font-mono text-sm font-medium text-slate-900 underline decoration-slate-300 hover:decoration-slate-900"
+                      className="font-mono text-sm font-medium text-ink underline decoration-line hover:decoration-ink"
                     >
                       {part.partNumber}
                     </Link>
-                    <span className="block text-slate-700">{part.description}</span>
+                    <span className="block text-ink">{part.description}</span>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted">
                     {part.brand ?? '—'}
                     {part.compatibleModels.length > 0 ? (
-                      <span className="block text-xs text-slate-500">
+                      <span className="block text-xs text-muted">
                         Fits {part.compatibleModels.join(', ')}
                       </span>
                     ) : null}
@@ -203,24 +191,24 @@ export default async function PartsPage({
                     <span
                       className={
                         part.onHand < 0
-                          ? 'font-medium text-red-700'
+                          ? 'font-medium text-neg'
                           : part.belowReorder
-                            ? 'font-medium text-amber-800'
-                            : 'text-slate-900'
+                            ? 'font-medium text-warn'
+                            : 'text-ink'
                       }
                     >
                       {part.onHand} {part.uom}
                     </span>
                     {part.onHand < 0 ? (
-                      <span className="block text-xs text-red-700">More issued than received</span>
+                      <span className="block text-xs text-neg">More issued than received</span>
                     ) : part.belowReorder ? (
-                      <span className="block text-xs text-amber-800">Below reorder level</span>
+                      <span className="block text-xs text-warn">Below reorder level</span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-600">
+                  <td className="px-4 py-3 text-right text-muted">
                     {part.reorderLevel === null ? '—' : `${part.reorderLevel} ${part.uom}`}
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-700">
+                  <td className="px-4 py-3 text-right text-ink">
                     {formatMoney(part.sellPrice, settings.currency)}
                   </td>
                 </tr>
@@ -232,7 +220,7 @@ export default async function PartsPage({
 
       {mayWrite ? (
         <details className={cardClass}>
-          <summary className="cursor-pointer font-semibold text-slate-900">
+          <summary className="cursor-pointer font-semibold text-ink">
             Add a part to the catalogue
           </summary>
           <div className="mt-4">
@@ -245,7 +233,7 @@ export default async function PartsPage({
           </div>
         </details>
       ) : (
-        <p className="text-sm text-slate-500">The store maintains the catalogue.</p>
+        <p className="text-sm text-muted">The store maintains the catalogue.</p>
       )}
     </div>
   )

@@ -28,19 +28,19 @@ export default async function ImportCranesPage({
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/cranes" className="text-sm text-slate-600 underline">
+        <Link href="/cranes" className="text-sm text-muted underline">
           ← Crane register
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Import cranes</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="mt-2 text-title font-semibold text-ink">Import cranes</h1>
+        <p className="mt-1 text-muted">
           Add a register from a spreadsheet. You will see exactly what will happen before anything is
           saved.
         </p>
       </div>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">Which customer?</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="font-semibold text-ink">Which customer?</h2>
+        <p className="mt-1 text-sm text-muted">
           A crane belongs to a customer and stands at one of its sites. The file names the site; the
           site has to exist already.
         </p>
@@ -49,14 +49,14 @@ export default async function ImportCranesPage({
             be bookmarked. */}
         <form method="get" className="mt-4 flex flex-wrap items-end gap-3">
           <div className="min-w-64">
-            <label htmlFor="customerId" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="customerId" className="block text-sm font-medium text-ink">
               Customer
             </label>
             <select
               id="customerId"
               name="customerId"
               defaultValue={customerId ?? ''}
-              className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm"
+              className="mt-1 block w-full rounded-md border border-line bg-field px-3 py-2 text-ink"
             >
               <option value="">Choose…</option>
               {customers.map((customer) => (
@@ -66,15 +66,15 @@ export default async function ImportCranesPage({
               ))}
             </select>
           </div>
-          <button type="submit" className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800">
+          <button type="submit" className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft">
             Choose
           </button>
         </form>
       </section>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">The file</h2>
-        <ul className="mt-2 space-y-1 text-sm text-slate-600">
+        <h2 className="font-semibold text-ink">The file</h2>
+        <ul className="mt-2 space-y-1 text-sm text-muted">
           <li>One header row, then one crane per row — up to {MAX_CRANE_IMPORT_ROWS} rows per file.</li>
           <li>
             Required columns: <code className="font-mono">{REQUIRED_CRANE_COLUMNS.join(', ')}</code>.
@@ -92,7 +92,7 @@ export default async function ImportCranesPage({
         </ul>
         <p className="mt-4">
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a href="/cranes/import/template" className="text-sm font-medium text-slate-900 underline">
+          <a href="/cranes/import/template" className="text-sm font-medium text-ink underline">
             Download the template
           </a>
         </p>
@@ -100,8 +100,8 @@ export default async function ImportCranesPage({
 
       {chosen ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Choose a file for {chosen.legalName}</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Choose a file for {chosen.legalName}</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
             Every crane in the file is added to {chosen.legalName}.
           </p>
           <ImportForm
@@ -113,7 +113,7 @@ export default async function ImportCranesPage({
           />
         </section>
       ) : (
-        <p className="text-sm text-slate-600">Choose a customer above to upload a register.</p>
+        <p className="text-sm text-muted">Choose a customer above to upload a register.</p>
       )}
     </div>
   )

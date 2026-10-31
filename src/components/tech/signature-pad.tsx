@@ -92,12 +92,12 @@ export function SignaturePad({
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-sm font-medium text-slate-700">{label}</span>
+        <span className="text-sm font-medium text-ink">{label}</span>
         {(value || !disabled) && (
           <button
             type="button"
             onClick={clear}
-            className="text-sm font-medium text-blue-700 underline"
+            className="text-sm font-medium text-info underline"
           >
             Clear
           </button>
@@ -114,9 +114,9 @@ export function SignaturePad({
         onPointerUp={end}
         onPointerCancel={end}
         onPointerLeave={end}
-        className="mt-1 h-32 w-full touch-none rounded-lg border border-slate-300 bg-white"
+        className="mt-1 h-32 w-full touch-none rounded-lg border border-line bg-field"
       />
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-muted">
         {value ? 'Signed.' : 'Sign with a finger or a stylus.'}
       </p>
     </div>

@@ -76,25 +76,25 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/tickets" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <Link href="/tickets" className="text-sm text-muted underline hover:text-ink">
           ← Tickets
         </Link>
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-semibold text-slate-900">{ticket.number}</h1>
+              <h1 className="text-title font-semibold text-ink">{ticket.number}</h1>
               <PriorityBadge priority={ticket.priority} />
               <TicketStatusBadge status={ticket.status} />
             </div>
-            <p className="mt-1 text-slate-600">
-              <Link href={`/customers/${ticket.customer.id}`} className="underline hover:text-slate-900">
+            <p className="mt-1 text-muted">
+              <Link href={`/customers/${ticket.customer.id}`} className="underline hover:text-ink">
                 {ticket.customer.legalName}
               </Link>
               {ticket.site ? (
                 <>
                   {' · '}
-                  <Link href={`/sites/${ticket.site.id}`} className="underline hover:text-slate-900">
+                  <Link href={`/sites/${ticket.site.id}`} className="underline hover:text-ink">
                     {ticket.site.name}
                   </Link>
                 </>
@@ -102,7 +102,7 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
               {ticket.crane ? (
                 <>
                   {' · '}
-                  <Link href={`/cranes/${ticket.crane.id}`} className="underline hover:text-slate-900">
+                  <Link href={`/cranes/${ticket.crane.id}`} className="underline hover:text-ink">
                     {ticket.crane.assetTag}
                   </Link>
                 </>
@@ -110,7 +110,7 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
             </p>
           </div>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted">
             Reported {formatDateTime(ticket.reportedAt, settings.timezone)} by{' '}
             {TICKET_SOURCE_LABELS[ticket.source as keyof typeof TICKET_SOURCE_LABELS] ?? ticket.source}
           </p>
@@ -118,8 +118,8 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
       </div>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">Service level</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="font-semibold text-ink">Service level</h2>
+        <p className="mt-1 text-sm text-muted">
           Both clocks start when the ticket was reported, not when it was triaged. Minutes are
           calendar minutes, so a call at 23:50 has the full target overnight.
         </p>
@@ -146,43 +146,43 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className={`${cardClass} lg:col-span-2`}>
-          <h2 className="font-semibold text-slate-900">What was reported</h2>
-          <p className="mt-3 whitespace-pre-wrap text-slate-900">{ticket.description}</p>
+          <h2 className="font-semibold text-ink">What was reported</h2>
+          <p className="mt-3 whitespace-pre-wrap text-ink">{ticket.description}</p>
 
-          <h3 className="mt-6 text-xs font-medium tracking-wide text-slate-500 uppercase">
+          <h3 className="mt-6 text-xs font-medium text-muted">
             Triage notes
           </h3>
-          <p className="mt-1 whitespace-pre-wrap text-slate-700">
+          <p className="mt-1 whitespace-pre-wrap text-ink">
             {ticket.triageNotes ?? 'Nothing written yet.'}
           </p>
 
-          <p className="mt-4 text-sm text-slate-500">{TICKET_STATUS_DESCRIPTIONS[ticket.status]}</p>
+          <p className="mt-4 text-sm text-muted">{TICKET_STATUS_DESCRIPTIONS[ticket.status]}</p>
         </section>
 
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">History</h2>
+          <h2 className="font-semibold text-ink">History</h2>
           <dl className="mt-4 space-y-3 text-sm">
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Reported</dt>
-              <dd className="text-slate-900">{formatDateTime(ticket.reportedAt, settings.timezone)}</dd>
+              <dt className="text-xs font-medium text-muted">Reported</dt>
+              <dd className="text-ink">{formatDateTime(ticket.reportedAt, settings.timezone)}</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Triaged</dt>
-              <dd className="text-slate-900">
+              <dt className="text-xs font-medium text-muted">Triaged</dt>
+              <dd className="text-ink">
                 {ticket.respondedAt
                   ? formatDateTime(ticket.respondedAt, settings.timezone)
                   : 'Not yet'}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Finished</dt>
-              <dd className="text-slate-900">
+              <dt className="text-xs font-medium text-muted">Finished</dt>
+              <dd className="text-ink">
                 {ticket.closedAt ? formatDateTime(ticket.closedAt, settings.timezone) : 'Not yet'}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">Jobs</dt>
-              <dd className="text-slate-900">
+              <dt className="text-xs font-medium text-muted">Jobs</dt>
+              <dd className="text-ink">
                 {ticket.jobCount === 0
                   ? 'None raised yet'
                   : `${ticket.jobCount} ${ticket.jobCount === 1 ? 'job' : 'jobs'}`}
@@ -194,15 +194,15 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
 
       {mayCreateJob && jobs.length > 0 ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Jobs from this call</h2>
-          <ul className="mt-4 divide-y divide-slate-100">
+          <h2 className="font-semibold text-ink">Jobs from this call</h2>
+          <ul className="mt-4 divide-y divide-rule">
             {jobs.map((job) => (
               <li key={job.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div>
-                  <Link href={`/jobs/${job.id}`} className="font-medium text-slate-900 underline">
+                  <Link href={`/jobs/${job.id}`} className="font-medium text-ink underline">
                     {job.number}
                   </Link>
-                  <span className="ml-2 text-sm text-slate-600">{job.jobType.name}</span>
+                  <span className="ml-2 text-sm text-muted">{job.jobType.name}</span>
                 </div>
                 <JobStatusBadge status={job.status} />
               </li>
@@ -213,8 +213,8 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
 
       {mayCreateJob && isOpen && jobOptions ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Turn this into jobs</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Turn this into jobs</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
             One job per visit. The customer, site and crane come from the ticket. Once converted, the
             ticket is the record of the call and the jobs carry the work.
           </p>
@@ -225,7 +225,7 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
               defaultPriority={ticket.priority}
             />
           ) : (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted">
               This ticket names no site or crane. Add one under “Correct the record” first — a job
               needs an address to send somebody to.
             </p>
@@ -236,8 +236,8 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
       {mayTriage && isOpen ? (
         <div className="grid gap-6 lg:grid-cols-2">
           <section className={cardClass}>
-            <h2 className="font-semibold text-slate-900">Triage</h2>
-            <p className="mt-1 mb-5 text-sm text-slate-600">
+            <h2 className="font-semibold text-ink">Triage</h2>
+            <p className="mt-1 mb-5 text-sm text-muted">
               Set the priority and write down what happens next. Saving the first triage stamps the
               response time.
             </p>
@@ -250,8 +250,8 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
           </section>
 
           <section className={cardClass}>
-            <h2 className="font-semibold text-slate-900">Finish it</h2>
-            <p className="mt-1 mb-5 text-sm text-slate-600">
+            <h2 className="font-semibold text-ink">Finish it</h2>
+            <p className="mt-1 mb-5 text-sm text-muted">
               For a call that needs no visit, or one that is not going ahead. Work that needs a
               technician becomes a job instead.
             </p>
@@ -262,8 +262,8 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
 
       {mayTriage ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Correct the record</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Correct the record</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
             Fix what was written down. Priority is changed through triage, and every edit is in the
             audit log.
           </p>
@@ -279,15 +279,15 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
 
       {mayTriage && isFinished ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Reopen</h2>
-          <p className="mt-1 mb-4 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Reopen</h2>
+          <p className="mt-1 mb-4 text-sm text-muted">
             If the fault turned out to be real after all, reopen this ticket rather than raising a
             duplicate — the history stays in one place.
           </p>
           <form action={reopenTicketAction.bind(null, ticket.id)}>
             <button
               type="submit"
-              className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700 hover:bg-slate-100"
+              className="rounded-md border border-line bg-field px-4 py-2 font-medium text-ink hover:bg-raised"
             >
               Reopen ticket
             </button>
@@ -317,24 +317,24 @@ function SlaPanel({
     sla.state === 'breached' && sla.elapsedMs !== null && sla.elapsedMs < 0 ? -sla.elapsedMs : 0
 
   return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-      <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">{label}</p>
+    <div className="rounded-md border border-line bg-sheet p-4">
+      <p className="text-xs font-medium text-muted">{label}</p>
       <p
         className={
           sla.state === 'breached'
-            ? 'mt-1 text-lg font-semibold text-red-700'
+            ? 'mt-1 text-lg font-semibold text-neg'
             : sla.state === 'at-risk'
-              ? 'mt-1 text-lg font-semibold text-amber-800'
-              : 'mt-1 text-lg font-semibold text-slate-900'
+              ? 'mt-1 text-lg font-semibold text-warn'
+              : 'mt-1 text-lg font-semibold text-ink'
         }
       >
         {SLA_STATE_LABELS[sla.state]}
       </p>
-      <p className="mt-1 text-sm text-slate-600">
+      <p className="mt-1 text-sm text-muted">
         Target {formatDuration(targetMinutes * 60_000)}
         {sla.dueAt ? <> · due {formatDateTime(sla.dueAt, timeZone)}</> : null}
       </p>
-      <p className="mt-1 text-sm text-slate-600">
+      <p className="mt-1 text-sm text-muted">
         {sla.state === 'met' && metAt ? (
           <>Answered {formatDateTime(metAt, timeZone)}</>
         ) : sla.state === 'breached' ? (
@@ -349,7 +349,7 @@ function SlaPanel({
           'No clock running.'
         )}
       </p>
-      <p className="mt-2 text-xs text-slate-500">{explanation}</p>
+      <p className="mt-2 text-xs text-muted">{explanation}</p>
     </div>
   )
 }

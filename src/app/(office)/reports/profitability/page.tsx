@@ -36,8 +36,8 @@ export default async function ProfitabilityPage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Profitability</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">Profitability</h1>
+        <p className="mt-1 text-muted">
           {report.invoiceCount} billed {report.invoiceCount === 1 ? 'invoice' : 'invoices'} ·{' '}
           {money(report.totals.revenue)} revenue · {money(report.totals.margin)} margin
           {filtered && report.window.from ? (
@@ -49,7 +49,7 @@ export default async function ProfitabilityPage({
           ) : null}
           .
         </p>
-        <p className="mt-2 max-w-3xl text-sm text-slate-500">
+        <p className="mt-2 max-w-3xl text-sm text-muted">
           Revenue is the invoice subtotal excluding GST, on issued, partly paid and paid invoices,
           dated by when the invoice was issued. <strong>Cost is the parts issued on the job</strong> at
           what they cost us — labour is billed but not costed, because no hourly rate is recorded
@@ -60,7 +60,7 @@ export default async function ProfitabilityPage({
 
       <form method="get" className="flex flex-wrap items-end gap-3">
         <div>
-          <label htmlFor="from" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="from" className="block text-sm font-medium text-ink">
             Issued from
           </label>
           <input
@@ -68,11 +68,11 @@ export default async function ProfitabilityPage({
             name="from"
             type="date"
             defaultValue={filters.from}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
         <div>
-          <label htmlFor="to" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="to" className="block text-sm font-medium text-ink">
             Issued to
           </label>
           <input
@@ -80,27 +80,27 @@ export default async function ProfitabilityPage({
             name="to"
             type="date"
             defaultValue={filters.to}
-            className="mt-1 block rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 block rounded-md border border-line bg-field px-3 py-2 text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-hivis/40"
           />
         </div>
         <button
           type="submit"
-          className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800"
+          className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft"
         >
           Apply
         </button>
         {filtered ? (
-          <Link href="/reports/profitability" className="px-2 py-2 text-sm text-slate-600 underline">
+          <Link href="/reports/profitability" className="px-2 py-2 text-sm text-muted underline">
             Clear
           </Link>
         ) : null}
       </form>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">Totals</h2>
+        <h2 className="font-semibold text-ink">Totals</h2>
         <table className="mt-3 w-full text-left text-sm">
           <caption className="sr-only">Totals for the period</caption>
-          <thead className="border-b border-slate-200 text-xs tracking-wide text-slate-500 uppercase">
+          <thead className="border-b border-line text-xs text-muted">
             <tr>
               <th scope="col" className="py-2 font-medium">Revenue</th>
               <th scope="col" className="py-2 text-right font-medium">Parts cost</th>
@@ -109,11 +109,11 @@ export default async function ProfitabilityPage({
           </thead>
           <tbody>
             <tr>
-              <td className="py-2 text-slate-900">{money(report.totals.revenue)}</td>
-              <td className="py-2 text-right text-slate-800">{money(report.totals.partsCost)}</td>
+              <td className="py-2 text-ink">{money(report.totals.revenue)}</td>
+              <td className="py-2 text-right text-ink">{money(report.totals.partsCost)}</td>
               <td
                 className={`py-2 text-right font-medium ${
-                  report.totals.margin < 0 ? 'text-red-700' : 'text-slate-900'
+                  report.totals.margin < 0 ? 'text-neg' : 'text-ink'
                 }`}
               >
                 {money(report.totals.margin)}
@@ -122,7 +122,7 @@ export default async function ProfitabilityPage({
           </tbody>
         </table>
         {report.unattributedRevenue > 0 ? (
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="mt-3 text-sm text-muted">
             {money(report.unattributedRevenue)} of that revenue is on invoice lines with no job behind
             them — labour typed straight onto an invoice, or parts re-raised after the link was lost.
             It counts in the totals and against its customer, but in no contract or job type, because
@@ -166,15 +166,15 @@ function MarginTable({
 }) {
   return (
     <section className={cardClass}>
-      <h2 className="font-semibold text-slate-900">{title}</h2>
+      <h2 className="font-semibold text-ink">{title}</h2>
 
       {rows.length === 0 ? (
-        <p className="mt-2 text-sm text-slate-600">{empty}</p>
+        <p className="mt-2 text-sm text-muted">{empty}</p>
       ) : (
         <div className="mt-3 overflow-x-auto">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">{title}, by revenue</caption>
-            <thead className="border-b border-slate-200 text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="border-b border-line text-xs text-muted">
               <tr>
                 <th scope="col" className="py-2 font-medium">Name</th>
                 <th scope="col" className="py-2 text-right font-medium">Revenue</th>
@@ -183,20 +183,20 @@ function MarginTable({
                 <th scope="col" className="py-2 text-right font-medium">Margin %</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-rule">
               {rows.map((row) => (
-                <tr key={row.key} className="hover:bg-slate-50">
-                  <td className="py-2 text-slate-900">{row.label}</td>
-                  <td className="py-2 text-right text-slate-800">{money(row.revenue)}</td>
-                  <td className="py-2 text-right text-slate-800">{money(row.partsCost)}</td>
+                <tr key={row.key} className="hover:bg-sheet">
+                  <td className="py-2 text-ink">{row.label}</td>
+                  <td className="py-2 text-right text-ink">{money(row.revenue)}</td>
+                  <td className="py-2 text-right text-ink">{money(row.partsCost)}</td>
                   <td
                     className={`py-2 text-right font-medium ${
-                      row.margin < 0 ? 'text-red-700' : 'text-slate-900'
+                      row.margin < 0 ? 'text-neg' : 'text-ink'
                     }`}
                   >
                     {money(row.margin)}
                   </td>
-                  <td className="py-2 text-right text-slate-600">
+                  <td className="py-2 text-right text-muted">
                     {row.marginRatio === null ? '—' : `${Math.round(row.marginRatio * 100)}%`}
                   </td>
                 </tr>

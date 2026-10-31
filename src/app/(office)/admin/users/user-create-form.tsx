@@ -76,7 +76,7 @@ export function UserCreateForm({
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted">
             {roles.find((option) => option.value === role)?.description}
           </p>
           <FieldError state={state} name="role" />
@@ -84,7 +84,7 @@ export function UserCreateForm({
 
         <div>
           <label htmlFor="phone" className={labelClass}>
-            Phone <span className="font-normal text-slate-500">(optional)</span>
+            Phone <span className="font-normal text-muted">(optional)</span>
           </label>
           <input id="phone" name="phone" className={inputClass} />
           <FieldError state={state} name="phone" />
@@ -94,7 +94,7 @@ export function UserCreateForm({
           <div>
             <label htmlFor="employeeNo" className={labelClass}>
               Employee number{' '}
-              <span className="font-normal text-slate-500">(optional, appears on job sheets)</span>
+              <span className="font-normal text-muted">(optional, appears on job sheets)</span>
             </label>
             <input id="employeeNo" name="employeeNo" className={inputClass} />
             <FieldError state={state} name="employeeNo" />
@@ -114,7 +114,7 @@ export function UserCreateForm({
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-muted">
               The account this login can see in the portal. Nothing else is visible to it.
             </p>
             <FieldError state={state} name="customerId" />
@@ -133,7 +133,7 @@ export function UserCreateForm({
             autoComplete="new-password"
             className={inputClass}
           />
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted">
             At least 12 characters. Shown as you type so you can read it out — the user changes it
             after signing in.
           </p>

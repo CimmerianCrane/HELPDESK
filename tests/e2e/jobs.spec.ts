@@ -155,14 +155,16 @@ test('an administrator sees the audit trail of a record, and a dispatcher never 
   await expect(page.getByRole('cell', { name: 'create' })).toBeVisible()
 
   // The dispatcher holds neither user.manage nor audit.read, so the admin layout turns them away
-  // before the page renders — and the nav link is not offered either.
+  // before the page renders.
   await expect(page.getByRole('link', { name: 'Audit' })).toBeVisible()
   await page.getByRole('button', { name: 'Sign out' }).click()
   // Wait for the sign-out request to land. Navigating straight to /login cancels it, and the page
   // then sees the session that was never cleared and redirects to the dashboard.
   await page.waitForURL(/\/login/)
   await signIn(page, DISPATCHER)
-  await expect(page.getByRole('link', { name: 'Audit' })).toHaveCount(0)
+  // The nav shows five destinations, and only the area you are in lists its pages. `/dashboard` is
+  // in Today, so no Admin heading is rendered at all.
+  await expect(page.getByRole('link', { name: 'Admin' })).toHaveCount(0)
   await page.goto('/admin/audit')
   await expect(page.getByRole('heading', { name: 'Not available for your role' })).toBeVisible()
 })

@@ -54,20 +54,20 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/quotes" className="text-sm text-slate-600 underline">
+        <Link href="/quotes" className="text-sm text-muted underline">
           All quotes
         </Link>
         <div className="mt-2 flex flex-wrap items-baseline gap-3">
-          <h1 className="text-2xl font-semibold text-slate-900">{quote.number}</h1>
+          <h1 className="text-title font-semibold text-ink">{quote.number}</h1>
           <QuoteStatusBadge status={quote.status} />
           <a
             href={`/api/quotes/${quote.id}/pdf`}
-            className="text-sm text-slate-600 underline hover:text-slate-900"
+            className="text-sm text-muted underline hover:text-ink"
           >
             Download the PDF
           </a>
         </div>
-        <p className="mt-1 text-slate-600">
+        <p className="mt-1 text-muted">
           {quote.customer.name}
           {' · '}
           {quote.job ? (
@@ -79,7 +79,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           )}
           {' · '}quoted {formatDate(quote.createdAt, settings.timezone)}
         </p>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-muted">
           {quote.validUntil
             ? `Valid until ${formatDate(quote.validUntil, settings.timezone)}`
             : 'No expiry date'}
@@ -89,10 +89,10 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className={`${cardClass} lg:col-span-2`}>
-          <h2 className="font-semibold text-slate-900">Lines</h2>
+          <h2 className="font-semibold text-ink">Lines</h2>
           <table className="mt-3 w-full text-left text-sm">
             <thead>
-              <tr className="text-xs text-slate-500">
+              <tr className="text-xs text-muted">
                 <th className="py-1 font-medium">Description</th>
                 <th className="py-1 font-medium">Qty</th>
                 <th className="py-1 font-medium">Unit price</th>
@@ -101,20 +101,20 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
             </thead>
             <tbody>
               {quote.lines.map((line) => (
-                <tr key={line.id} className="border-t border-slate-100">
-                  <td className="py-1 text-slate-800">
+                <tr key={line.id} className="border-t border-rule">
+                  <td className="py-1 text-ink">
                     {line.description}
                     {line.isVariation ? (
-                      <span className="ml-2 rounded border border-indigo-300 bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-800">
+                      <span className="ml-2 rounded border border-info/40 bg-info/10 px-1.5 py-0.5 text-xs text-info">
                         Variation
                       </span>
                     ) : null}
                   </td>
-                  <td className="py-1 text-slate-800">{line.quantity}</td>
-                  <td className="py-1 text-slate-800">
+                  <td className="py-1 text-ink">{line.quantity}</td>
+                  <td className="py-1 text-ink">
                     {formatMoney(line.unitPrice, settings.currency)}
                   </td>
-                  <td className="py-1 text-slate-800">
+                  <td className="py-1 text-ink">
                     {formatMoney(line.lineTotal, settings.currency)}
                   </td>
                 </tr>
@@ -124,35 +124,35 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
 
           <dl className="mt-4 ml-auto w-full max-w-xs space-y-1 text-sm">
             <div className="flex justify-between">
-              <dt className="text-slate-600">Subtotal</dt>
-              <dd className="text-slate-900">{formatMoney(quote.subtotal, settings.currency)}</dd>
+              <dt className="text-muted">Subtotal</dt>
+              <dd className="text-ink">{formatMoney(quote.subtotal, settings.currency)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-slate-600">
+              <dt className="text-muted">
                 GST ({Math.round(quote.gstRate * 10000) / 100}%)
               </dt>
-              <dd className="text-slate-900">{formatMoney(quote.gstAmount, settings.currency)}</dd>
+              <dd className="text-ink">{formatMoney(quote.gstAmount, settings.currency)}</dd>
             </div>
-            <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold">
+            <div className="flex justify-between border-t border-line pt-1 font-semibold">
               <dt>Total</dt>
               <dd>{formatMoney(quote.total, settings.currency)}</dd>
             </div>
           </dl>
 
           {quote.notes ? (
-            <div className="mt-4 border-t border-slate-200 pt-3">
-              <h3 className="text-xs font-medium tracking-wide text-slate-500 uppercase">Notes</h3>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{quote.notes}</p>
+            <div className="mt-4 border-t border-line pt-3">
+              <h3 className="text-xs font-medium text-muted">Notes</h3>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{quote.notes}</p>
             </div>
           ) : null}
         </section>
 
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">What happens next</h2>
+          <h2 className="font-semibold text-ink">What happens next</h2>
 
           {quote.status === 'DRAFT' ? (
             <>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-2 text-sm text-muted">
                 Check the lines, then send it. Sending fixes the numbers and puts the job into Quoted.
               </p>
               {mayWrite ? (
@@ -170,7 +170,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
 
           {quote.status === 'SENT' ? (
             <>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-2 text-sm text-muted">
                 Record the customer&rsquo;s answer. Accepting moves the job to Approved.
               </p>
               {canDecide ? (
@@ -194,19 +194,19 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           ) : null}
 
           {quote.status === 'ACCEPTED' ? (
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-sm text-muted">
               Accepted. The job is approved; raise the work when it suits the schedule.
             </p>
           ) : null}
 
           {quote.status === 'DECLINED' ? (
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-sm text-muted">
               Declined by the customer. Raise a new quote if the scope changes.
             </p>
           ) : null}
 
           {quote.status === 'EXPIRED' ? (
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-sm text-muted">
               This quote lapsed on {formatDate(quote.validUntil, settings.timezone)}. Raise a new one
               if the customer still wants the work.
             </p>
@@ -216,8 +216,8 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
 
       {canEdit ? (
         <section className={cardClass}>
-          <h2 className="font-semibold text-slate-900">Edit the draft</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="font-semibold text-ink">Edit the draft</h2>
+          <p className="mt-1 text-sm text-muted">
             Replaces the lines and reprices at the current GST rate. The quote number stays the same.
           </p>
           <div className="mt-4">

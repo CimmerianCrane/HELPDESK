@@ -30,20 +30,20 @@ export default async function ReportsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Reports</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-title font-semibold text-ink">Reports</h1>
+        <p className="mt-1 text-muted">
           Signed in the field, waiting for a decision. Approving issues a numbered PDF and tells the
           customer; sending one back tells the technician what to fix.
         </p>
       </div>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">
+        <h2 className="font-semibold text-ink">
           Waiting for approval {waiting.length > 0 ? `(${waiting.length})` : ''}
         </h2>
 
         {waiting.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-muted">
             Nothing submitted. Reports appear here as technicians finish them.
           </p>
         ) : (
@@ -52,12 +52,12 @@ export default async function ReportsPage() {
       </section>
 
       <section className={cardClass}>
-        <h2 className="font-semibold text-slate-900">
+        <h2 className="font-semibold text-ink">
           Sent back {returned.length > 0 ? `(${returned.length})` : ''}
         </h2>
 
         {returned.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-600">Nothing outstanding.</p>
+          <p className="mt-2 text-sm text-muted">Nothing outstanding.</p>
         ) : (
           <ReportTable rows={returned} timeZone={settings.timezone} />
         )}
@@ -76,7 +76,7 @@ function ReportTable({
   return (
     <div className="mt-4 overflow-x-auto">
       <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-200 text-xs tracking-wide text-slate-500 uppercase">
+        <thead className="border-b border-line text-xs text-muted">
           <tr>
             <th className="py-2 pr-4 font-medium">Job</th>
             <th className="py-2 pr-4 font-medium">Customer</th>
@@ -89,25 +89,25 @@ function ReportTable({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id} className="border-b border-slate-100 last:border-0">
+            <tr key={row.id} className="border-b border-rule last:border-0">
               <td className="py-2 pr-4">
-                <Link href={`/reports/${row.id}`} className="font-medium text-slate-900 underline">
+                <Link href={`/reports/${row.id}`} className="font-medium text-ink underline">
                   {row.jobNumber}
                 </Link>
-                <span className="block text-xs text-slate-500">{row.jobTypeName}</span>
+                <span className="block text-xs text-muted">{row.jobTypeName}</span>
               </td>
-              <td className="py-2 pr-4 text-slate-700">{row.customerName}</td>
-              <td className="py-2 pr-4 text-slate-700">{row.craneTag}</td>
-              <td className="py-2 pr-4 text-slate-700">{row.technicianName ?? '—'}</td>
-              <td className="py-2 pr-4 text-slate-700">
+              <td className="py-2 pr-4 text-ink">{row.customerName}</td>
+              <td className="py-2 pr-4 text-ink">{row.craneTag}</td>
+              <td className="py-2 pr-4 text-ink">{row.technicianName ?? '—'}</td>
+              <td className="py-2 pr-4 text-ink">
                 {row.safeToOperate
                   ? SAFE_TO_OPERATE_LABELS[row.safeToOperate as keyof typeof SAFE_TO_OPERATE_LABELS]
                   : '—'}
               </td>
-              <td className="py-2 pr-4 text-slate-700">
+              <td className="py-2 pr-4 text-ink">
                 {formatDateTime(row.submittedAt, timeZone)}
               </td>
-              <td className="py-2 text-slate-700">{REPORT_STATUS_LABELS[row.status]}</td>
+              <td className="py-2 text-ink">{REPORT_STATUS_LABELS[row.status]}</td>
             </tr>
           ))}
         </tbody>

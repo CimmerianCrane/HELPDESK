@@ -19,7 +19,7 @@ export async function CreateScheduleForm() {
 
   if (cranes.length === 0) {
     return (
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-muted">
         Add a crane to the register first — a schedule is an obligation on a machine.
       </p>
     )

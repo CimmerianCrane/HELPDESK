@@ -1489,10 +1489,10 @@ gap, recorded in `ASSUMPTIONS.md` 84: an archived schedule is invisible outside 
 
 **One build trap found here, since fixed.** `npm run build` and `npm run dev` used to share `.next`, so
 building against a live dev server corrupted both (the build died on
-`Invariant: no direct app page entry found for /login`, then every dev route 500s). `next dev` now
-writes `.next-dev` (`next.config.ts` keys `distDir` on `NODE_ENV`), so the two never meet, a build
-still lands in `.next` where Vercel expects it, and stopping the dev server first is no longer
-needed. `npm run dev:stop` stops whatever holds the dev port, for the remaining case — a schema
+`Invariant: no direct app page entry found for /login`, then every dev route 500s). Next.js 16 now
+separates them natively — `next dev` writes `.next/dev` and a build still lands in `.next` where
+Vercel expects it — so the `distDir` switch this fix originally used is gone from `next.config.ts`,
+and stopping the dev server first is no longer needed. `npm run dev:stop` stops whatever holds the dev port, for the remaining case — a schema
 change still needs the dev server restarted, because it keeps serving the Prisma engine it started
 with.
 
