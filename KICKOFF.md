@@ -24,6 +24,19 @@ record behind it is split into the files below so no single one is a wall of tex
 > Nothing in the app is waiting on code. What is left is operational: set the three VAPID vars for
 > push (see slice 43) and run the Play Store steps (slice 45).
 >
+> **Play Store wrapper deferred (3 Nov 2026).** The owner paused the Play Console half of slice 45
+> until the app has had real field use — Google rejects a wrapper that is "just a website", and the
+> offline mode, push and QR scanner are what answer that. The app-side half is built and returns 404
+> until `ANDROID_PACKAGE_NAME` / `ANDROID_SHA256_FINGERPRINTS` are set. Runbook: README "Play Store".
+>
+> **First admin on a clean database (3 Nov 2026).** `npm run admin:create` (`scripts/create-admin.ts`)
+> closes a gap found while planning the first production deploy: `/admin/users` needs an admin to sign
+> in first, and `prisma/seed.ts` skips demo accounts wherever `DATABASE_URL` is not localhost, so a
+> fresh Supabase project had no way in at all. The script writes the same `User` row and `AuditLog`
+> CREATE entry `createUser` would. The deploy order is now `db:deploy` → `seed` → `admin:create`
+> (README "Deployment"). Typecheck, lint and `npm run build` pass; it has not yet been run against a
+> live Postgres.
+>
 > **Security hardening (2 Nov 2026)** — an eighteen-point audit, then the fixes it found. The code
 > was already strong on authorization, SQL, storage and password hashing; what was missing was
 > configuration and edge cases. Shipped: a full security header set and CSP in `next.config.ts`

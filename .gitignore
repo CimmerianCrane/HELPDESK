@@ -20,6 +20,7 @@ dist/
 /public/sw.js.map
 
 coverage/
+.lighthouse/
 test-results/
 playwright-report/
 blob-report/
