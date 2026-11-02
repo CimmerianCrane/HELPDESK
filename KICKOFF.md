@@ -151,7 +151,8 @@ dead, and both were found on 31 Oct 2026 (see `docs/HISTORY.md`):
   `npm run dev:lan` — it finds the machine's address and starts `next dev --hostname <it>`; it prints the
   URL to open on the phone. `npm run dev` is still right for desktop-only work.
 
-**The gates all pass** — `npm run verify` (488 unit, slice 43 included) and `npm run build`. E2E is green
+**The gates all pass** — `npm run verify` (506 unit as at 2 Nov 2026) and `npm run build` re-run after
+the nav and servicing-checklist work. E2E is green
 after slice 42 against the production server: technician + tablet projects **27 passed, 0 skipped**. The
 offline worker test had been skipping itself even under a build — it navigated before the sign-in
 redirect landed — and now runs for real. `npm run test:integration` was green at slice 43 for the two
@@ -181,19 +182,24 @@ Work through this in order:
 1. **Look at the dashboard at 1440** — the two-card row under "Today on the board" had ragged bottom
    edges; `items-start` was removed from the grid in `src/app/(office)/dashboard/page.tsx`, so the
    cards should now share a bottom edge. Confirm by eye and check the shorter panel does not now read
-   as dead space.
+   as dead space. **Confirmed 2 Nov 2026** — the row is one panel with a single bottom edge, and the
+   shorter column does not read as empty.
 2. **Review the screens not yet seen at full resolution:** `/cranes`, `/invoices`, `/tickets`,
    `/schedule`, `/reports`, `/admin`, `/quotes`, `/stock-takes`, the `(portal)` screens. (The
    technician app at 390px is covered by the phone project; the tablet at 800×1280 by the tablet
-   project — both green as at slice 41. Check 768/1024/1280 by eye.)
+   project — both green as at slice 41. Check 768/1024/1280 by eye.) **Checked programmatically
+   2 Nov 2026** — all ten at 1440: no console errors, no horizontal overflow. A taste pass is still
+   the owner's.
 3. **Sweep for `text-hivis` on pale surfaces** app-wide. Any yellow running text not on charcoal or on
-   a hivis fill is a contrast failure (white/yellow pairing is 1.6:1).
+   a hivis fill is a contrast failure (white/yellow pairing is 1.6:1). **Swept 2 Nov 2026** — every
+   use sits on charcoal (`bg-anchor`/`bg-black`) or is a hover state; none on a pale surface.
 4. **Reconcile the UI docs** — `docs/UI-REVIEW.md` was split on 31 Oct 2026 and its earlier sections
    moved to `docs/UI-REVIEW-FINDINGS.md`, so the old sage-palette contradiction is gone; re-read both
    only if a screen disagrees with them.
 5. **Confirm "ADA MORALES"** in the customers table — the office header reads "Alice Tan", so the
    uppercase string looks like seed sample data. Check no CSS `uppercase` is applied to names; if it
-   is only seed copy, leave it.
+   is only seed copy, leave it. **Checked 2 Nov 2026** — no `Morales` string and no CSS `uppercase`
+   in the source; that row was seed copy and is no longer there.
 6. **Taste-skill gate** — `lint.mjs` on the changed source is **0 FAIL / 0 WARN**. `inspect.mjs`
    **cannot be run on the office screens**: it has no session support, so pointed at `/dashboard` it
    measures the login screen and warns about *that* (`CRANE SERVICES` micro-label, the void beside the
