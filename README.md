@@ -171,6 +171,13 @@ sat in Seoul. Round-trip *count* still matters — nothing is cached, because ev
 `force-dynamic` on purpose — just less than it did. Three things keep navigation quick, in order of
 effect:
 
+0. **Pin the Vercel Functions to `sin1`.** Vercel runs a new project's functions in **`iad1`
+   (Washington, DC)** by default, whatever the database's region. `vercel.json` sets
+   `"regions": ["sin1"]` for exactly this reason: with the functions in the US and the database in
+   Singapore, every query paid a transpacific round trip and `SELECT 1` took over a second. Check a
+   deployment with `curl -D - https://www.cranedesk.app/api/health` — the `X-Vercel-Id` header must
+   read `sin1::sin1::…`, and `latencyMs` should be tens, not thousands.
+
 1. **`connection_limit=5` on `DATABASE_URL`** (not `1`). The pages fetch their independent data with
    `Promise.all`; at a limit of 1 those queries queue up and run one after another, so a page that
    issues six queries pays for six in series. Measured against the old Seoul project: six parallel
