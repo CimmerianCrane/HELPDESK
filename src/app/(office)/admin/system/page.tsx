@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 import { cardClass } from '@/components/office/ui'
 import { formatDateTime } from '@/lib/format'
-import { errorMessage } from '@/lib/logger'
+import { errorMessage, logger } from '@/lib/logger'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/server/auth/context'
+import { requireCapability } from '@/server/auth/context'
 import { capabilitiesFor } from '@/server/auth/permissions'
 import { getSettings } from '@/server/settings/settings'
 import { ROLE_LABELS } from '@/server/users/labels'
@@ -20,13 +20,19 @@ export const dynamic = 'force-dynamic'
  * actually allow, not what somebody typed into a table.
  */
 export default async function SystemPage() {
-  const context = await requireAuth()
+  // Checked here as well as by the admin layout: a layout does not stop a page rendering beside it.
+  const context = await requireCapability('user.manage')
 
   const [settings, database] = await Promise.all([
     getSettings(),
     db.$queryRaw`SELECT 1`.then(
       () => ({ up: true as const, detail: '' }),
-      (error: unknown) => ({ up: false as const, detail: errorMessage(error) }),
+      (error: unknown) => {
+        // The reason goes to the log. A Prisma message names the host and the database, and this
+        // screen is one screenshot away from a support thread.
+        logger.error('admin.system.db-down', { error: errorMessage(error) })
+        return { up: false as const, detail: 'unavailable' }
+      },
     ),
   ])
 

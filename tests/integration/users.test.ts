@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import type { Role } from '@prisma/client'
 import { auditTrail } from '@/server/audit/audit'
-import { ForbiddenError, RuleError, ValidationError } from '@/server/auth/errors'
+import { ForbiddenError, NotFoundError, RuleError, ValidationError } from '@/server/auth/errors'
 import type { AuthContext } from '@/server/auth/types'
-import { createUser, getUser, listUsers, setUserPassword, updateUser } from '@/server/users/users'
+import { hashPassword, verifyPassword } from '@/server/auth/password'
+import {
+  changeOwnPassword,
+  createUser,
+  getUser,
+  listUsers,
+  setUserPassword,
+  updateUser,
+} from '@/server/users/users'
 import { inRolledBackTx, testSuffix, type Tx } from './helpers'
 
 /**
@@ -426,6 +434,109 @@ describe('resetting a password', () => {
       await expect(
         setUserPassword(contextFor(storekeeper), target.id, { password: 'a-long-enough-password' }, tx),
       ).rejects.toBeInstanceOf(ForbiddenError)
+    })
+  })
+})
+
+describe('changing your own password', () => {
+  /** A user who can actually sign in, which is what `changeOwnPassword` verifies against. */
+  async function makeUserWithPassword(tx: Tx, role: Role, password: string) {
+    const user = await makeUser(tx, role)
+    await tx.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password) } })
+    return user
+  }
+
+  it('verifies the current password before replacing it, and records no password', async () => {
+    await inRolledBackTx(async (tx) => {
+      const user = await makeUserWithPassword(tx, 'TECHNICIAN', 'the-old-password-11')
+      const newPassword = 'the-new-password-22'
+
+      await changeOwnPassword(
+        contextFor(user),
+        { currentPassword: 'the-old-password-11', password: newPassword },
+        tx,
+      )
+
+      const after = await tx.user.findUniqueOrThrow({ where: { id: user.id } })
+      expect(await verifyPassword(newPassword, after.passwordHash)).toBe(true)
+      expect(await verifyPassword('the-old-password-11', after.passwordHash)).toBe(false)
+      expect(after.passwordChangedAt).toBeInstanceOf(Date)
+
+      const trail = await tx.auditLog.findMany({ where: { entity: 'User', entityId: user.id } })
+      expect(trail).toHaveLength(1)
+      const recorded = JSON.stringify(trail)
+      expect(recorded).not.toContain(newPassword)
+      expect(recorded).not.toContain(after.passwordHash)
+    })
+  })
+
+  it('refuses the wrong current password and leaves the stored hash alone', async () => {
+    await inRolledBackTx(async (tx) => {
+      const user = await makeUserWithPassword(tx, 'DISPATCHER', 'the-old-password-11')
+      const before = await tx.user.findUniqueOrThrow({ where: { id: user.id } })
+
+      await expect(
+        changeOwnPassword(
+          contextFor(user),
+          { currentPassword: 'not-the-password', password: 'the-new-password-22' },
+          tx,
+        ),
+      ).rejects.toBeInstanceOf(ValidationError)
+
+      const after = await tx.user.findUniqueOrThrow({ where: { id: user.id } })
+      expect(after.passwordHash).toBe(before.passwordHash)
+    })
+  })
+
+  it('refuses to set the password it is already', async () => {
+    await inRolledBackTx(async (tx) => {
+      const user = await makeUserWithPassword(tx, 'ADMIN', 'the-old-password-11')
+
+      await expect(
+        changeOwnPassword(
+          contextFor(user),
+          { currentPassword: 'the-old-password-11', password: 'the-old-password-11' },
+          tx,
+        ),
+      ).rejects.toBeInstanceOf(ValidationError)
+    })
+  })
+
+  it('takes the account from the caller, never from the input', async () => {
+    await inRolledBackTx(async (tx) => {
+      const caller = await makeUserWithPassword(tx, 'TECHNICIAN', 'the-old-password-11')
+      const victim = await makeUserWithPassword(tx, 'ADMIN', 'the-old-password-11')
+      const victimHash = (await tx.user.findUniqueOrThrow({ where: { id: victim.id } })).passwordHash
+
+      // A `userId` in the body is ignored; there is no way to name another account at all.
+      await changeOwnPassword(
+        contextFor(caller),
+        {
+          currentPassword: 'the-old-password-11',
+          password: 'the-new-password-22',
+          userId: victim.id,
+        },
+        tx,
+      )
+
+      expect((await tx.user.findUniqueOrThrow({ where: { id: victim.id } })).passwordHash).toBe(
+        victimHash,
+      )
+    })
+  })
+
+  it('refuses an inactive account', async () => {
+    await inRolledBackTx(async (tx) => {
+      const user = await makeUserWithPassword(tx, 'TECHNICIAN', 'the-old-password-11')
+      await tx.user.update({ where: { id: user.id }, data: { isActive: false } })
+
+      await expect(
+        changeOwnPassword(
+          contextFor(user),
+          { currentPassword: 'the-old-password-11', password: 'the-new-password-22' },
+          tx,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundError)
     })
   })
 })

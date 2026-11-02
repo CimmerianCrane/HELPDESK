@@ -11,7 +11,12 @@ import {
 import { withAudit } from '@/server/audit/audit'
 import { NotFoundError, RuleError } from '@/server/auth/errors'
 import { assertCan } from '@/server/auth/permissions'
-import { jobReadWhere, resourceReadWhere } from '@/server/auth/scope'
+import {
+  jobReadWhere,
+  onCallShiftReadWhere,
+  resourceReadWhere,
+  unavailabilityReadWhere,
+} from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { getSettings } from '@/server/settings/settings'
 import { onCallGaps, spansOverlap } from './board'
@@ -236,8 +241,8 @@ export async function deleteUnavailability(
   await withAudit(
     context,
     async (tx, log) => {
-      const before = await tx.unavailability.findUnique({
-        where: { id: leaveId },
+      const before = await tx.unavailability.findFirst({
+        where: { id: leaveId, ...unavailabilityReadWhere(context) },
         select: { id: true, technicianId: true, startAt: true, endAt: true, reason: true },
       })
       if (!before) throw new NotFoundError('No such leave.')
@@ -397,8 +402,8 @@ export async function deleteOnCallShift(
   await withAudit(
     context,
     async (tx, log) => {
-      const before = await tx.onCallShift.findUnique({
-        where: { id: shiftId },
+      const before = await tx.onCallShift.findFirst({
+        where: { id: shiftId, ...onCallShiftReadWhere(context) },
         select: { id: true, technicianId: true, startAt: true, endAt: true, notes: true },
       })
       if (!before) throw new NotFoundError('No such shift.')
@@ -585,8 +590,10 @@ export async function releaseResource(
   await withAudit(
     context,
     async (tx, log) => {
-      const before = await tx.jobResource.findUnique({
-        where: { jobId_resourceId: { jobId, resourceId } },
+      // The booking itself is found by its own key, but the resource it names is still a row the
+      // caller must be allowed to see — `resourceReadWhere` is what decides that.
+      const before = await tx.jobResource.findFirst({
+        where: { jobId, resourceId, resource: resourceReadWhere(context) },
         select: { startAt: true, endAt: true, resource: { select: { name: true } } },
       })
       if (!before) throw new NotFoundError('That resource is not booked on this job.')

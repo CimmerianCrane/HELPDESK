@@ -341,8 +341,17 @@ export async function acknowledgeDecline(
         throw new RuleError('That finding is already closed.')
       }
 
+      // Bound to this finding, not merely to being a signature: otherwise any PNG already uploaded
+      // as somebody's signature could be attached here, and the record would claim this customer
+      // declined. `receiveDeliveryOrder` binds its own the same way.
       const signature = await tx.file.findFirst({
-        where: { id: input.signatureFileId, kind: 'SIGNATURE', deletedAt: null },
+        where: {
+          id: input.signatureFileId,
+          kind: 'SIGNATURE',
+          entity: 'Finding',
+          entityId: findingId,
+          deletedAt: null,
+        },
         select: { id: true },
       })
       if (!signature) {

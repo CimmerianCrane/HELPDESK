@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
+import { safeNext } from '@/lib/safe-next'
 import { getAuthContext } from '@/server/auth/context'
 import { can } from '@/server/auth/permissions'
 import { LoginForm } from './login-form'
@@ -24,7 +25,8 @@ export default async function LoginPage({
   const context = await getAuthContext()
   if (context) {
     const home = can(context.role, 'portal.read') ? '/portal' : '/dashboard'
-    redirect(next && next.startsWith('/') ? next : home)
+    // The same rule the action uses. `next.startsWith('/')` alone accepts `//evil.com`.
+    redirect(safeNext(next, home))
   }
 
   return (

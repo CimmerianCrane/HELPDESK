@@ -32,10 +32,21 @@ export interface MessageAdapter {
   send(message: Message): Promise<MessageResult>
 }
 
-/** Writes to the log. Used in development, and anywhere a gateway is not configured. */
+/**
+ * Writes to the log. Used in development, and anywhere a gateway is not configured.
+ *
+ * In production it withholds the body and the number: SMS and WhatsApp both default here, so a deploy
+ * that forgot the driver would otherwise put customers' phone numbers and fault descriptions in the
+ * hosting logs, while reporting the send as a success.
+ */
 export const consoleMessageAdapter: MessageAdapter = {
   name: 'console',
   async send(message) {
+    if (process.env.NODE_ENV === 'production') {
+      logger.warn('message.not-sent', { chars: message.text.length })
+      return { ok: true }
+    }
+
     logger.info('message.console', { to: message.to, text: message.text })
     return { ok: true }
   },

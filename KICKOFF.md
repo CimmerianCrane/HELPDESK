@@ -24,6 +24,32 @@ record behind it is split into the files below so no single one is a wall of tex
 > Nothing in the app is waiting on code. What is left is operational: set the three VAPID vars for
 > push (see slice 43) and run the Play Store steps (slice 45).
 >
+> **Security hardening (2 Nov 2026)** — an eighteen-point audit, then the fixes it found. The code
+> was already strong on authorization, SQL, storage and password hashing; what was missing was
+> configuration and edge cases. Shipped: a full security header set and CSP in `next.config.ts`
+> (nonce-less on purpose — a nonce forces every page dynamic and costs the static `/offline`
+> Serwist precaches), the `//evil.com` open redirect closed by one shared `safeNext` in
+> `src/lib/safe-next.ts`, `internalError()` replacing six routes that returned the raw error text at
+> 500, DB-backed rate limits on the three repeatable write endpoints, a constant-time cron secret,
+> a production-only env fail-fast, scrypt raised to N=2^16, a self-service **Change password** screen
+> at `/account/password`, CSV formula-injection defusing, five missing scope filters, and production
+> log hygiene for the console email/SMS adapters. Gate: `npm run verify` (516 unit),
+> `npm run test:integration` (418) and `npm run build` pass, and the headers, cron 401/401/200 and
+> the unauthenticated `/account/password` redirect were checked against `next start`.
+>
+> **Before the first deploy of this change:** `AUTH_SECRET`, `CRON_SECRET` and a non-localhost
+> `APP_BASE_URL` must all be set in Vercel, or the app refuses to start. That is the intent, but it
+> is a deploy-time failure, not a runtime one. Generate a secret with
+> `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`.
+>
+> **Deferred dependency upgrades** — one task, not four surprises. All four need a major and none is
+> reachable at runtime today, so they were deliberately left for a dedicated pass:
+> `zod` 3 → 4 (the only runtime-reachable advisory; fixed in 4.6.6+), `vitest` 2 → 5 (two criticals,
+> but they live in the Vitest UI server, which `npm run test` never starts), `@serwist/next` 9
+> (npm's offered "fix" is a downgrade to 8.4.4) and `prisma` 6 → 7.10.1+ (build-time CLI only).
+> **Do not run `npm audit fix`**: its non-forced plan downgrades Prisma 6.19.3 → 6.12.0 to dodge an
+> advisory that covers 6.13.0–7.10.0, trading seven minor releases for a build-time-only issue.
+>
 > **One navigation everywhere (1 Nov 2026)** — the owner reported the sidebar was not standardised
 > across pages and asked for a single, intuitive one for all users and all pages. The office and the
 > field shell already shared `ShellNav`; the **customer portal did not** — it carried its own light

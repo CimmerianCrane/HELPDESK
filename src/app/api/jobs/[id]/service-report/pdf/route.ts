@@ -11,12 +11,13 @@ import { serviceReportPdfUrl } from '@/server/service-reports/service-reports'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const context = await getAuthContext()
   if (!context) return new Response('Sign in first.', { status: 401 })
 
   const url = await serviceReportPdfUrl(context, id)
   if (!url) return new Response('No issued Service Report for this job.', { status: 404 })
-  return Response.redirect(url, 303)
+  // The disk driver returns a relative path; Response.redirect requires an absolute URL.
+  return Response.redirect(new URL(url, request.url).toString(), 303)
 }

@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { errorMessage } from '@/lib/logger'
+import { errorMessage, logger } from '@/lib/logger'
 
 // Never cached, never prerendered at build time — this is what a load balancer polls.
 export const dynamic = 'force-dynamic'
@@ -15,13 +15,15 @@ export async function GET() {
       time: new Date().toISOString(),
     })
   } catch (error) {
+    // The status is public; the reason is not. A Prisma failure names the host, the database and the
+    // constraint that refused — a free reconnaissance report to anyone who can reach this URL.
+    logger.error('health.db-down', { error: errorMessage(error) })
     return Response.json(
       {
         status: 'error',
         db: 'down',
         latencyMs: Date.now() - startedAt,
         time: new Date().toISOString(),
-        error: errorMessage(error),
       },
       { status: 503 },
     )

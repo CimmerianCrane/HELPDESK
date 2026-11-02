@@ -93,5 +93,11 @@ export const updateUserSchema = withCustomerRule(
 
 export const setPasswordSchema = z.object({ password })
 
+/** A user changing their own password. The current one is a presence check, not a length rule. */
+export const changeOwnPasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Enter your current password.'),
+  password,
+})
+
 export type CreateUserInput = z.infer<typeof createUserSchema>
 export type UpdateUserInput = z.infer<typeof updateUserSchema>

@@ -109,6 +109,41 @@ export const LOGIN_LIMITS = {
   perIp: { limit: 30, windowMs: 15 * 60 * 1000 },
 } as const
 
+interface Policy {
+  limit: number
+  windowMs: number
+}
+
+/**
+ * The write endpoints a signed-in caller can call repeatedly. Keyed by user id rather than by address:
+ * the id cannot be forged, so a shared site office behind one NAT is not throttled as one.
+ *
+ * Generous on purpose — a technician syncing a 20-line report with photos should never meet these.
+ * They bound a runaway loop or a stolen session, which is the threat.
+ */
+export const API_LIMITS = {
+  uploadUrl: { limit: 200, windowMs: 5 * 60 * 1000 },
+  techSync: { limit: 60, windowMs: 5 * 60 * 1000 },
+  pushSubscribe: { limit: 20, windowMs: 5 * 60 * 1000 },
+} as const satisfies Record<string, Policy>
+
+/**
+ * Consumes one attempt for a signed-in caller and returns the `429` to send if they are over, or
+ * `null` to carry on. The route handlers answer dozens of calls; they should not each repeat the
+ * status, the body and the header.
+ */
+export async function throttle(
+  context: { userId: string },
+  policy: Policy,
+): Promise<Response | null> {
+  const result = await rateLimit(`user:${context.userId}`, policy.limit, policy.windowMs)
+  if (result.allowed) return null
+  return Response.json(
+    { error: 'That is too many requests. Wait a moment and try again.' },
+    { status: 429, headers: { 'Retry-After': String(result.retryAfterSeconds) } },
+  )
+}
+
 export function emailKey(email: string): string {
   return `email:${email.trim().toLowerCase()}`
 }

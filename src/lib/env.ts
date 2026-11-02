@@ -62,6 +62,26 @@ const schema = z.object({
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 })
 
+/**
+ * The settings no production deployment can run without. Checked here rather than left to fail at
+ * first use, because each one fails quietly and expensively: a missing `AUTH_SECRET` means Auth.js
+ * signs everybody out on every deploy, a missing `CRON_SECRET` means the nightly run never happens,
+ * and a localhost `APP_BASE_URL` prints the wrong host on every QR label and asset link.
+ *
+ * `next build` runs with NODE_ENV=production but has no credentials and is not a deployment, so it is
+ * excluded by phase — otherwise a build from a laptop would need production secrets to succeed.
+ */
+const REQUIRED_IN_PRODUCTION = ['AUTH_SECRET', 'CRON_SECRET'] as const
+
+function missingInProduction(data: z.infer<typeof schema>): string[] {
+  if (process.env.NODE_ENV !== 'production') return []
+  if (process.env.NEXT_PHASE === 'phase-production-build') return []
+
+  const missing: string[] = REQUIRED_IN_PRODUCTION.filter((key) => !data[key])
+  if (/^https?:\/\/localhost[:/]/.test(data.APP_BASE_URL)) missing.push('APP_BASE_URL')
+  return missing
+}
+
 export type Env = z.infer<typeof schema>
 
 let cached: Env | undefined
@@ -77,6 +97,14 @@ export function env(): Env {
       const problems = JSON.stringify(parsed.error.flatten().fieldErrors, null, 2)
       throw new Error(`Invalid environment configuration:\n${problems}`)
     }
+
+    const missing = missingInProduction(parsed.data)
+    if (missing.length > 0) {
+      throw new Error(
+        `Invalid environment configuration. These must be set in production:\n  ${missing.join('\n  ')}`,
+      )
+    }
+
     cached = parsed.data
   }
   return cached

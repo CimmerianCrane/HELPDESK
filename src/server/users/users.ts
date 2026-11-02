@@ -1,10 +1,15 @@
 import type { Prisma, Role } from '@prisma/client'
 import { db, type Tx } from '@/lib/db'
 import { parseInput } from '@/lib/validation/parse'
-import { createUserSchema, setPasswordSchema, updateUserSchema } from '@/lib/validation/users'
+import {
+  changeOwnPasswordSchema,
+  createUserSchema,
+  setPasswordSchema,
+  updateUserSchema,
+} from '@/lib/validation/users'
 import { withAudit } from '@/server/audit/audit'
-import { NotFoundError, RuleError } from '@/server/auth/errors'
-import { hashPassword } from '@/server/auth/password'
+import { NotFoundError, RuleError, ValidationError } from '@/server/auth/errors'
+import { hashPassword, verifyPassword } from '@/server/auth/password'
 import { assertCan } from '@/server/auth/permissions'
 import type { AuthContext } from '@/server/auth/types'
 
@@ -290,6 +295,57 @@ export async function setUserPassword(
         action: 'UPDATE',
         before: { passwordChanged: false },
         after: { passwordChanged: true, changedByAdmin: context.userId },
+      })
+    },
+    client,
+  )
+}
+
+/**
+ * A user changing their own password. Deliberately takes no capability: this is the one write every
+ * role may make, and only to their own row — the id comes from `context.userId` and is never read
+ * from the request, so there is nothing for a caller to point at somebody else.
+ *
+ * The current password is required because a session left open on a shared site tablet is exactly the
+ * situation this screen exists for. It stamps `passwordChangedAt` like an admin reset, which ends
+ * every other session through `sessionIsCurrent` — including the one that made the change, so the
+ * form signs the user back in rather than leaving them on a dead token.
+ */
+export async function changeOwnPassword(
+  context: AuthContext,
+  raw: unknown,
+  client: Tx = db,
+): Promise<void> {
+  const input = parseInput(changeOwnPasswordSchema, raw)
+
+  const user = await client.user.findFirst({
+    where: { id: context.userId, isActive: true, deletedAt: null },
+    select: { id: true, passwordHash: true },
+  })
+  if (!user) throw new NotFoundError('No such user.')
+
+  if (!(await verifyPassword(input.currentPassword, user.passwordHash))) {
+    throw new ValidationError({ currentPassword: ['That is not your current password.'] })
+  }
+  if (input.currentPassword === input.password) {
+    throw new ValidationError({ password: ['Choose a password you have not used here.'] })
+  }
+
+  const passwordHash = await hashPassword(input.password)
+
+  await withAudit(
+    context,
+    async (tx, log) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: { passwordHash, passwordChangedAt: new Date() },
+      })
+      await log({
+        entity: 'User',
+        entityId: user.id,
+        action: 'UPDATE',
+        before: { passwordChanged: false },
+        after: { passwordChanged: true, changedByAdmin: false },
       })
     },
     client,

@@ -10,7 +10,9 @@ services:
       POSTGRES_PASSWORD: cimmerian
       POSTGRES_DB: cimmerian
     ports:
-      - '5432:5432'
+      # Loopback only: a development database with a password of `cimmerian` must not be reachable
+      # from the rest of the office wifi.
+      - '127.0.0.1:5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

@@ -154,9 +154,16 @@ export function parseCsv(text: string): CsvTable {
   return { headers, rows }
 }
 
-/** Quotes a value for CSV export. Used by the job-list export in a later slice. */
+/**
+ * Quotes a value for CSV export. Used by the job, invoice and template exports.
+ *
+ * A cell starting `=`, `+`, `-` or `@` is a formula as far as Excel and Sheets are concerned, and a
+ * customer name is a value somebody chose that this app writes into a file the office double-clicks.
+ * Prefixing a `'` neutralises it: both spreadsheets show the text and evaluate nothing.
+ */
 export function csvEscape(value: unknown): string {
-  const text = value == null ? '' : String(value)
+  const raw = value == null ? '' : String(value)
+  const text = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }
 

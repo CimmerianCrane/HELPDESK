@@ -1,6 +1,6 @@
-import { errorMessage } from '@/lib/logger'
 import { getAuthContext } from '@/server/auth/context'
-import { isAppError } from '@/server/auth/errors'
+import { internalError, isAppError } from '@/server/auth/errors'
+import { API_LIMITS, throttle } from '@/server/auth/rate-limit'
 import { syncBundle } from '@/server/tech/my-jobs'
 import { applyTechSync, parseSyncRequest } from '@/server/tech/outbox'
 
@@ -31,7 +31,7 @@ export async function GET() {
     if (isAppError(error)) {
       return Response.json({ error: error.message, code: error.code }, { status: error.status })
     }
-    return Response.json({ error: errorMessage(error) }, { status: 500 })
+    return internalError(error)
   }
 }
 
@@ -46,6 +46,9 @@ export async function POST(request: Request) {
     return Response.json({ error: 'You must sign in to sync.' }, { status: 401 })
   }
 
+  const limited = await throttle(context, API_LIMITS.techSync)
+  if (limited) return limited
+
   try {
     const { items } = parseSyncRequest(await request.json())
     const results = await applyTechSync(context, items)
@@ -54,6 +57,6 @@ export async function POST(request: Request) {
     if (isAppError(error)) {
       return Response.json({ error: error.message, code: error.code }, { status: error.status })
     }
-    return Response.json({ error: errorMessage(error) }, { status: 500 })
+    return internalError(error)
   }
 }

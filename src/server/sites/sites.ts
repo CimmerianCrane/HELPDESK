@@ -226,8 +226,10 @@ export async function updateSite(
   const updated = await withAudit(
     context,
     async (tx, log) => {
+      // The scope filter as well as the capability: today only roles that see every site hold
+      // `site.write`, but a capability without a scope is a bug waiting for the map to change.
       const before = await tx.site.findFirst({
-        where: { id: siteId, deletedAt: null },
+        where: { id: siteId, ...siteReadWhere(context) },
         select: { ...siteSelect, accessNotes: true, inductionRequirements: true, operatingHours: true },
       })
       if (!before) throw new NotFoundError('No such site.')
@@ -303,7 +305,7 @@ export async function archiveSite(
     context,
     async (tx, log) => {
       const before = await tx.site.findFirst({
-        where: { id: siteId, deletedAt: null },
+        where: { id: siteId, ...siteReadWhere(context) },
         select: { id: true, name: true, _count: { select: { cranes: { where: { deletedAt: null } } } } },
       })
       if (!before) throw new NotFoundError('No such site.')

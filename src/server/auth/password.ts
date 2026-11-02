@@ -28,8 +28,20 @@ function scryptAsync(
  * existing hashes: existing rows keep verifying under the parameters they were created with.
  *
  *   scrypt$<N>$<r>$<p>$<salt>$<hash>
+ *
+ * N=2^16 is 64 MiB of memory per hash. OWASP suggests 2^17, which is 128 MiB and would risk an OOM on
+ * a small serverless function; this is the step that doubles the cost without that risk.
  */
-const PARAMS = { N: 16_384, r: 8, p: 1, keylen: 64 } as const
+const PARAMS = { N: 65_536, r: 8, p: 1, keylen: 64 } as const
+
+/**
+ * Node's default `maxmem` is 32 MiB, which 2^16 exceeds — it would throw, not hash. The formula is the
+ * one Node documents: 128 bytes per (N, r) block, doubled for headroom. Derived from the *stored*
+ * parameters in `verifyPassword` so a 2^14 hash written before this change still verifies.
+ */
+function maxmemFor(N: number, r: number): number {
+  return 128 * N * r * 2
+}
 
 /** Unicode-normalised so a password typed with a different input method still matches. */
 function normalise(plain: string): string {
@@ -42,6 +54,7 @@ export async function hashPassword(plain: string): Promise<string> {
     N: PARAMS.N,
     r: PARAMS.r,
     p: PARAMS.p,
+    maxmem: maxmemFor(PARAMS.N, PARAMS.r),
   })
 
   return [
@@ -83,9 +96,14 @@ export async function verifyPassword(plain: string, stored: string): Promise<boo
 
   let actual: Buffer
   try {
-    actual = await scryptAsync(normalise(plain), salt, expected.length, { N, r, p })
+    actual = await scryptAsync(normalise(plain), salt, expected.length, {
+      N,
+      r,
+      p,
+      maxmem: maxmemFor(N, r),
+    })
   } catch {
-    // Bad parameters (e.g. an N that exceeds maxmem) — treat as a failed login, not a crash.
+    // Nonsense parameters (or a hash that would need gigabytes) — a failed login, not a crash.
     return false
   }
 

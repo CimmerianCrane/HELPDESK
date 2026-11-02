@@ -345,12 +345,15 @@ export function ShellNav({
           >
             {initials(user.name)}
           </span>
-          <span className={`min-w-0 ${labelClass}`}>
-            <span className="block truncate text-sm leading-tight text-on-anchor">{user.name}</span>
-            <span className="block truncate text-xs leading-tight text-on-anchor-muted">
-              {user.role}
+          {/* The account block is also the way to the one screen every role has in common. */}
+          <Link href="/account/password" className={`min-w-0 ${labelClass}`}>
+            <span className="block truncate text-sm leading-tight text-on-anchor hover:underline">
+              {user.name}
             </span>
-          </span>
+            <span className="block truncate text-xs leading-tight text-on-anchor-muted">
+              Change password
+            </span>
+          </Link>
         </div>
       </aside>
     </>

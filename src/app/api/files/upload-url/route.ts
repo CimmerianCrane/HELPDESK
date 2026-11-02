@@ -1,6 +1,6 @@
-import { errorMessage } from '@/lib/logger'
 import { getAuthContext } from '@/server/auth/context'
-import { isAppError } from '@/server/auth/errors'
+import { internalError, isAppError } from '@/server/auth/errors'
+import { API_LIMITS, throttle } from '@/server/auth/rate-limit'
 import { requestUpload } from '@/server/storage/files'
 
 /**
@@ -17,6 +17,9 @@ export async function POST(request: Request) {
     return Response.json({ error: 'You must sign in to upload.' }, { status: 401 })
   }
 
+  const limited = await throttle(context, API_LIMITS.uploadUrl)
+  if (limited) return limited
+
   try {
     const ticket = await requestUpload(context, await request.json())
     return Response.json(ticket)
@@ -27,6 +30,6 @@ export async function POST(request: Request) {
         { status: error.status },
       )
     }
-    return Response.json({ error: errorMessage(error) }, { status: 500 })
+    return internalError(error)
   }
 }

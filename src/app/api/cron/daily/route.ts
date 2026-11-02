@@ -1,5 +1,7 @@
+import { timingSafeEqual } from 'node:crypto'
 import { env } from '@/lib/env'
-import { errorMessage, logger } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { internalError } from '@/server/auth/errors'
 import { pruneRateLimitBuckets } from '@/server/auth/rate-limit'
 import { runScheduleReminders } from '@/server/reminders/reminders'
 import { resendUnemailedReports } from '@/server/reports/email-retry'
@@ -25,7 +27,13 @@ export const dynamic = 'force-dynamic'
 function authorised(request: Request): boolean {
   const secret = env().CRON_SECRET
   if (!secret) return process.env.NODE_ENV !== 'production'
-  return request.headers.get('authorization') === `Bearer ${secret}`
+
+  // Constant-time, the same way the storage tokens are compared: `===` returns as soon as it finds a
+  // difference, which is a usable oracle against a secret of unknown length.
+  const expected = Buffer.from(`Bearer ${secret}`)
+  const given = Buffer.from(request.headers.get('authorization') ?? '')
+  if (expected.length !== given.length) return false
+  return timingSafeEqual(expected, given)
 }
 
 export async function GET(request: Request) {
@@ -51,7 +59,6 @@ export async function GET(request: Request) {
       reminders,
     })
   } catch (error) {
-    logger.error('cron.daily.failed', { error: errorMessage(error) })
-    return Response.json({ ok: false, error: errorMessage(error) }, { status: 500 })
+    return internalError(error)
   }
 }

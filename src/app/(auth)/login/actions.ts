@@ -3,6 +3,7 @@
 import { AuthError } from 'next-auth'
 import { headers } from 'next/headers'
 import { z } from 'zod'
+import { safeNext } from '@/lib/safe-next'
 import { signIn } from '@/server/auth/config'
 import {
   LOGIN_LIMITS,
@@ -21,16 +22,6 @@ const schema = z.object({
   email: z.string().trim().toLowerCase().min(1, 'Enter your email address.'),
   password: z.string().min(1, 'Enter your password.'),
 })
-
-/**
- * Where to go after signing in. Only same-origin absolute paths are accepted: `//evil.com` and
- * `https://evil.com` both pass a naive `startsWith('/')` check and would make this an open redirect.
- */
-function safeNext(value: FormDataEntryValue | null): string {
-  const raw = typeof value === 'string' ? value : ''
-  if (!raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) return '/dashboard'
-  return raw
-}
 
 export async function signInAction(_previous: LoginState, formData: FormData): Promise<LoginState> {
   const parsed = schema.safeParse({
@@ -67,7 +58,7 @@ export async function signInAction(_previous: LoginState, formData: FormData): P
     await signIn('credentials', {
       email: parsed.data.email,
       password: parsed.data.password,
-      redirectTo: safeNext(formData.get('next')),
+      redirectTo: safeNext(formData.get('next'), '/dashboard'),
     })
     return { message: null }
   } catch (error) {

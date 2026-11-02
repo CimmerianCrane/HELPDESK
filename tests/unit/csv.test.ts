@@ -85,4 +85,20 @@ describe('csvEscape', () => {
     expect(csvEscape('has"quote')).toBe('"has""quote"')
     expect(csvEscape(null)).toBe('')
   })
+
+  /**
+   * A customer name or a job note is a value somebody else chose, and the export is a file the office
+   * double-clicks. Excel and Sheets both evaluate a cell that starts with `=` — so the export must not
+   * hand them one.
+   */
+  it('defuses a cell a spreadsheet would run as a formula', () => {
+    expect(csvEscape('=HYPERLINK("http://evil","click")')).toBe(
+      `"'=HYPERLINK(""http://evil"",""click"")"`,
+    )
+    expect(csvEscape('+1')).toBe("'+1")
+    expect(csvEscape('-1')).toBe("'-1")
+    expect(csvEscape('@SUM(A1)')).toBe("'@SUM(A1)")
+    // A hyphen inside the text is not a formula, and is left alone.
+    expect(csvEscape('Tower crane - 5t')).toBe('Tower crane - 5t')
+  })
 })

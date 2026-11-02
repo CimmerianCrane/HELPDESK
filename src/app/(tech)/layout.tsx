@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import Image from 'next/image'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { ShellNav, ShellNavTrigger, type NavLink } from '@/components/shell/shell-nav'
@@ -119,7 +120,17 @@ export default async function TechLayout({ children }: { children: ReactNode }) 
                   <SyncStatus />
                 </div>
               </div>
-              <TechSignOut />
+              <div className="flex shrink-0 items-center gap-2">
+                {/* The rail carries this at `lg`, but the installed app hides the rail entirely, so
+                    the one screen every role shares needs its own way in here. */}
+                <Link
+                  href="/account/password"
+                  className="rounded-md border border-on-anchor-muted/40 px-3 py-1.5 text-sm text-on-anchor active:bg-white/10"
+                >
+                  Password
+                </Link>
+                <TechSignOut />
+              </div>
             </div>
           </header>
 

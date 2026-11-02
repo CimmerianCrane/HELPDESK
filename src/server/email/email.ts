@@ -31,10 +31,25 @@ export interface EmailAdapter {
   send(message: EmailMessage): Promise<EmailResult>
 }
 
-/** Writes to the log. Used in development, and anywhere email is not configured. */
+/**
+ * Writes to the log. Used in development, and anywhere email is not configured.
+ *
+ * In production it never writes the body. `EMAIL_DRIVER` defaults to this adapter, so a deploy that
+ * forgot the variable would otherwise copy customer names, addresses and fault descriptions into the
+ * hosting logs — and say nothing about the fact that no mail was sent at all.
+ */
 export const consoleEmailAdapter: EmailAdapter = {
   name: 'console',
   async send(message) {
+    if (process.env.NODE_ENV === 'production') {
+      logger.warn('email.not-sent', {
+        to: message.to,
+        subject: message.subject,
+        chars: message.text.length,
+      })
+      return { ok: true }
+    }
+
     logger.info('email.console', {
       to: message.to,
       from: env().EMAIL_FROM,

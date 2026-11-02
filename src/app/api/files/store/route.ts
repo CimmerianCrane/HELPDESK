@@ -1,7 +1,8 @@
+import { db } from '@/lib/db'
+import { attachmentFilename } from '@/lib/download'
 import { env } from '@/lib/env'
-import { errorMessage } from '@/lib/logger'
 import { MAX_UPLOAD_BYTES } from '@/lib/validation/reports'
-import { isAppError } from '@/server/auth/errors'
+import { internalError, isAppError } from '@/server/auth/errors'
 import { completeUpload } from '@/server/storage/files'
 import { isSafeStorageKey, storage, verifyUploadToken } from '@/server/storage/storage'
 
@@ -37,7 +38,7 @@ export async function PUT(request: Request) {
     if (isAppError(error)) {
       return Response.json({ error: error.message }, { status: error.status })
     }
-    return Response.json({ error: errorMessage(error) }, { status: 500 })
+    return internalError(error)
   }
 }
 
@@ -57,12 +58,18 @@ export async function GET(request: Request) {
 
   try {
     const bytes = await storage().get(key)
-    return new Response(new Uint8Array(bytes).buffer as ArrayBuffer, {
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Cache-Control': 'private, max-age=900',
-      },
-    })
+    const headers: Record<string, string> = { 'Cache-Control': 'private, max-age=900' }
+    if (url.searchParams.get('download') === '1') {
+      // The token proves the grant; the row only supplies the name and type already stored for it.
+      const file = await db.file.findFirst({
+        where: { storageKey: key },
+        select: { filename: true, mimeType: true },
+      })
+      const name = file?.filename ?? key.split('/').pop() ?? 'download'
+      headers['Content-Type'] = file?.mimeType ?? 'application/octet-stream'
+      headers['Content-Disposition'] = `attachment; filename="${attachmentFilename(name)}"`
+    }
+    return new Response(new Uint8Array(bytes).buffer as ArrayBuffer, { headers })
   } catch {
     return Response.json({ error: 'That file is not available.' }, { status: 404 })
   }

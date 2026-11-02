@@ -1,3 +1,5 @@
+import { errorMessage, logger } from '@/lib/logger'
+
 /**
  * Errors the service layer throws. Each carries the HTTP status it should become, so route handlers
  * and server actions can translate them in one place instead of mapping error types by hand.
@@ -54,4 +56,16 @@ export class RuleError extends AppError {
 
 export function isAppError(error: unknown): error is AppError {
   return error instanceof AppError
+}
+
+/**
+ * The answer to an unexpected error in a route handler: a generic body, and the real one in the log.
+ *
+ * Prisma messages name tables, columns and constraints; the storage adapters put the whole upstream
+ * response in theirs. Neither belongs in a response, including to a signed-in caller — and `/api/health`
+ * is answered to anybody at all.
+ */
+export function internalError(error: unknown): Response {
+  logger.error('request.unhandled', { error: errorMessage(error) })
+  return Response.json({ error: 'Something went wrong. Try again.' }, { status: 500 })
 }

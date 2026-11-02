@@ -1,6 +1,6 @@
-import { errorMessage, logger } from '@/lib/logger'
 import { getAuthContext } from '@/server/auth/context'
-import { isAppError } from '@/server/auth/errors'
+import { internalError, isAppError } from '@/server/auth/errors'
+import { API_LIMITS, throttle } from '@/server/auth/rate-limit'
 import { subscribePush, unsubscribePush } from '@/server/notify/push'
 
 /**
@@ -15,6 +15,9 @@ export async function POST(request: Request) {
   const context = await getAuthContext()
   if (!context) return Response.json({ error: 'You must sign in to do that.' }, { status: 401 })
 
+  const limited = await throttle(context, API_LIMITS.pushSubscribe)
+  if (limited) return limited
+
   try {
     await subscribePush(context, await request.json().catch(() => null))
     return Response.json({ ok: true })
@@ -25,8 +28,7 @@ export async function POST(request: Request) {
         { status: error.status },
       )
     }
-    logger.error('push.subscribe.failed', { error: errorMessage(error) })
-    return Response.json({ error: errorMessage(error) }, { status: 500 })
+    return internalError(error)
   }
 }
 
@@ -34,12 +36,14 @@ export async function DELETE(request: Request) {
   const context = await getAuthContext()
   if (!context) return Response.json({ error: 'You must sign in to do that.' }, { status: 401 })
 
+  const limited = await throttle(context, API_LIMITS.pushSubscribe)
+  if (limited) return limited
+
   try {
     await unsubscribePush(context, await request.json().catch(() => null))
     return Response.json({ ok: true })
   } catch (error) {
     if (isAppError(error)) return Response.json({ error: error.message }, { status: error.status })
-    logger.error('push.unsubscribe.failed', { error: errorMessage(error) })
-    return Response.json({ error: errorMessage(error) }, { status: 500 })
+    return internalError(error)
   }
 }
