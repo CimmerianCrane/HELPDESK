@@ -20,6 +20,7 @@
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
     "seed": "prisma db seed",
+    "admin:create": "tsx scripts/create-admin.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
