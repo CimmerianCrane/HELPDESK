@@ -88,10 +88,77 @@ test('the report form is two columns and the submit bar clears the nav', async (
   expect(Math.abs(photos!.y - signatures!.y)).toBeLessThan(2)
 
   const submit = await page.getByRole('button', { name: /submit report|try sending/i }).boundingBox()
-  const nav = await page.getByRole('navigation', { name: 'Main' }).boundingBox()
+  const nav = await page.getByRole('navigation', { name: 'Field' }).boundingBox()
   expect(submit).not.toBeNull()
   expect(nav).not.toBeNull()
   expect(submit!.y + submit!.height).toBeLessThanOrEqual(nav!.y + 1)
+})
+
+/**
+ * The fault this file guards against: the field shell had no navigation at all once you were inside
+ * `/m/` — only a one-item bar — while every office screen had the rail. At tablet and desk width the
+ * rail must carry a technician's own list plus the office screens their role may open, and it must
+ * never offer one they cannot.
+ */
+test('the technician gets the same rail as the office, filtered by role', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/m/jobs')
+  await expect(page.getByRole('heading', { name: 'My jobs' })).toBeVisible()
+
+  // Below `lg` the rail is folded away and the bar carries the thumb-sized destinations.
+  const bar = page.getByRole('navigation', { name: 'Field' })
+  await expect(bar).toBeVisible()
+  expect(await bar.getByRole('link').count()).toBeGreaterThan(1)
+
+  // At desk width the bar goes and the rail takes over — the same component the office uses.
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await expect(bar).toBeHidden()
+  const rail = page.locator('aside#office-nav')
+  await expect(rail).toBeVisible()
+  await expect(rail.getByRole('link', { name: 'My jobs' })).toBeVisible()
+
+  // A technician holds no `job.read.all`: the company job list must not be on their rail.
+  await expect(rail.getByRole('link', { name: 'Jobs', exact: true })).toHaveCount(0)
+  await expect(rail.getByRole('link', { name: 'Invoices' })).toHaveCount(0)
+  await expect(rail.getByRole('link', { name: 'Users' })).toHaveCount(0)
+})
+
+/**
+ * The installed app is scoped to `/m/` by its manifest, so a rail link to an office screen would
+ * leave the app and open Chrome. Both the bar and the rail are gated on the same display-mode query
+ * so that the landscape tablet — which is wide enough for the rail — keeps the bar instead.
+ *
+ * Emulating `display-mode` is not available to Playwright, so this asserts the CSS contract: the two
+ * utilities exist, and each keys off `display-mode`. A manual check in an installed app is the proof.
+ */
+test('the standalone guard keeps the field bar in the installed app', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/m/jobs')
+  await expect(page.getByRole('heading', { name: 'My jobs' })).toBeVisible()
+
+  const rules = await page.evaluate(() => {
+    const found: string[] = []
+    const walk = (list: CSSRuleList) => {
+      for (const rule of list) {
+        const text = rule.cssText ?? ''
+        if (text.includes('display-mode')) found.push(text)
+        const nested = (rule as CSSMediaRule).cssRules
+        if (nested) walk(nested)
+      }
+    }
+    for (const sheet of document.styleSheets) {
+      try {
+        walk(sheet.cssRules)
+      } catch {
+        // A cross-origin sheet cannot be read; every sheet here is same-origin.
+      }
+    }
+    return found
+  })
+
+  expect(rules.length, 'no display-mode utility was emitted').toBeGreaterThan(0)
+  expect(rules.join('\n')).toContain('standalone')
+  expect(rules.join('\n')).toContain('browser')
 })
 
 test('the shell uses the tablet width, not a phone column', async ({ page }) => {

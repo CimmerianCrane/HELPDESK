@@ -6,7 +6,7 @@ import { useSyncExternalStore } from 'react'
  * The one chance to turn a Chrome tab into an installed app (slice 41).
  *
  * `beforeinstallprompt` fires once, early, and cannot be re-asked for — so it is captured in a
- * module-level variable by a script that runs before React hydrates (in the tech layout). This
+ * module-level variable by a script in the root layout that runs before React hydrates. This
  * component only reads what that stored. Until it fires, the card shows the browser's own route in
  * instead of a button that does nothing: Chrome's menu → Add to Home screen.
  *

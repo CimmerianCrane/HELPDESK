@@ -28,7 +28,14 @@ export default defineConfig({
   // serially, which is a better trade than a suite that fails or passes on scheduling luck.
   workers: 1,
   projects: [
-    { name: 'office', use: { ...devices['Desktop Chrome'] } },
+    // The field specs are written for the field shell: the phone spec asserts the bottom bar, which
+    // is deliberately gone above `lg`, and the tablet spec is written for 800x1280. Both have their
+    // own project, so running them at desktop width would test a layout they do not describe.
+    {
+      name: 'office',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /tech\.spec\.ts|tech-tablet\.spec\.ts/,
+    },
     // Technician screens are mobile-first and must be checked at ~390px (brief §14).
     // The acceptance paths are the exception: they are long office-only tests whose phone halves
     // already run here as `report.spec.ts`, so they only run in the desktop project.

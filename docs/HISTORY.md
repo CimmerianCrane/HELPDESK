@@ -118,11 +118,18 @@ in `docs/PLAN-SLICES.md`; the slice tables are `docs/PLAN.md` §7.2, §7.13 and 
 > up once the app is installed, and one that does not.
 >
 > 1. **`beforeinstallprompt` fires before hydration.** Chrome offers it once, as soon as the manifest
->    loads, and never again for that navigation. A `useEffect` capture would miss it, so a small inline
->    script in the tech layout (server-rendered, outside React) stores the event on `window`; the
->    install card subscribes to it. With no captured event the card still renders, pointing at
+>    loads, and never again for that navigation. A `useEffect` capture would miss it, so a
+>    `next/script` `beforeInteractive` tag stores the event on `window`; the install card subscribes
+>    to it. With no captured event the card still renders, pointing at
 >    Chrome's own menu — the card's job is getting the app installed, and a hidden card does nothing
 >    for a browser that chose not to fire the event. It shows on `/m/jobs` only.
+>
+>    That script had to move to the **root layout** (1 Nov 2026). It began in `(tech)/layout.tsx`,
+>    which is correct only for a direct page load: the dashboard's "Open my jobs" is a `<Link>`, so
+>    the field layout mounts inside React. React 19 warns about a `<script>` rendered there and never
+>    executes it, and `beforeInteractive` does not save it — Next only hoists that strategy out of
+>    server-rendered HTML. The result was a dead installer on the one route a technician takes into
+>    the app. The root layout is the only component that does not re-render on a navigation.
 > 2. **`skipWaiting: false` makes the worker's `message` listener load-bearing.** A waiting worker
 >    activates on the banner tap or when no client is open. The banner lives in the tech layout,
 >    and it reloads once on `controllerchange` — guarded by a flag, because `clientsClaim` fires that

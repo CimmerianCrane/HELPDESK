@@ -118,3 +118,24 @@ table,
     var(--color-anchor) 6px 12px
   );
 }
+
+/*
+ * The field app's bottom bar is fixed, so the page has to pay its height. Both halves — hiding the
+ * bar and paying for it — key off one condition, written once: the bar is drawn unless the window is
+ * a browser tab at `lg`. The installed app keeps it at every width (it is scoped to `/m/`, so a rail
+ * link would leave the app for Chrome). Split across Tailwind utilities, the pair would depend on
+ * which one the cascade happened to sort last.
+ */
+.field-bottom-pad {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 64rem) and (display-mode: browser) {
+  .field-bottom-pad {
+    padding-bottom: 1rem;
+  }
+
+  .field-bar {
+    display: none;
+  }
+}

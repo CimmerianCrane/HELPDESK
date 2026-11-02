@@ -24,6 +24,35 @@ record behind it is split into the files below so no single one is a wall of tex
 > Nothing in the app is waiting on code. What is left is operational: set the three VAPID vars for
 > push (see slice 43) and run the Play Store steps (slice 45).
 >
+> **One navigation everywhere (1 Nov 2026)** — the owner reported the sidebar was not standardised
+> across pages and asked for a single, intuitive one for all users and all pages. The office and the
+> field shell already shared `ShellNav`; the **customer portal did not** — it carried its own light
+> header and a hand-written link array. Now `src/components/shell/shell-nav.tsx` is rendered by all
+> three, fed by one capability-filtered list in `src/server/auth/nav.ts` (the portal's own array is
+> gone; a customer is picked by audience, not by filtering a combined list, because they hold
+> `crane.read` too). The rail is **grouped and fully open** — Today · Work · Register · Inventory ·
+> Money · Admin, one line icon per page, Admin pinned to the foot with the account — replacing the
+> five-area model where only the area you were in expanded. Stock takes moved to **Inventory** beside
+> the parts book. The Menu button moved into each shell's top band as a flex child, retiring the
+> hardcoded `pl-24` both headers carried to dodge it, and the rail is `lg:h-dvh` sticky so the account
+> block stays on the window. No schema change, no new dependency (icons are inline SVG). Gate:
+> `npm run verify` (506 unit, 9 of them new in `tests/unit/nav.test.ts`) and `npm run build` pass;
+> auth, portal, inbox, jobs, technician and tablet e2e are green. The new nav test caught a real bug
+> on the way: concatenating the office and portal lists handed customers the office `/certificates`
+> and `/schedules`. Direction notes are in `docs/UI-REVIEW.md` ("the one rail, third revision").
+>
+> **Field navigation fixed (1 Nov 2026)** — the owner found that a technician inside the field app had
+> **no navigation at all**: one bar with one item ("My jobs") at every width, while every office
+> screen had the charcoal rail. Both shells now read one nav list in `src/server/auth/nav.ts`; a
+> phone gets a bottom bar of four destinations and a **browser** at `lg` gets the same capability-
+> filtered rail the office uses. The rail stays hidden in the **installed** app at every width — its
+> office links leave `/m/`, and opening Chrome from an installed app is what slice 40 prevents. The
+> bottom bar is named "Field" so it is not a second "Main" landmark. The report form's submit bar
+> would have covered the rail's foot; the header padding fix is now superseded by the Menu button
+> living in the band. No schema change, no new dependency. `npm run verify` (497 unit) and
+> `npm run build` pass; field, auth, inbox and smoke e2e are green against both the dev server and
+> `npm start`. Details in `docs/PLAN-TABLET-APP.md` ("Field navigation").
+>
 > **Slice 45 is built (31 Oct 2026)** — the app-side half of a Play Store listing. Digital Asset
 > Links are served at `/.well-known/assetlinks.json` (a `rewrites()` entry to `/api/assetlinks`, since
 > a dotted directory breaks the App Router) from `ANDROID_PACKAGE_NAME` and

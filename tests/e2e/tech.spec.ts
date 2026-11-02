@@ -30,8 +30,10 @@ test('a technician sees My jobs on a phone', async ({ page }) => {
   await page.goto('/m/jobs')
 
   await expect(page.getByRole('heading', { name: 'My jobs' })).toBeVisible()
-  // The bottom bar and the sync line are what make this a field app rather than a web page.
-  await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
+  // The bottom bar and the sync line are what make this a field app rather than a web page. It is
+  // its own landmark ("Field") because the shell also carries the office rail at `lg`.
+  await expect(page.getByRole('navigation', { name: 'Field' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Field' }).getByRole('link', { name: 'My jobs' })).toBeVisible()
   await expect(page.getByText(/Up to date|Offline/)).toBeVisible()
 })
 
@@ -74,12 +76,30 @@ test('the manifest is installable and stays inside the phone routes', async ({ r
 })
 
 test('the install card is offered in a browser tab, and only on My jobs', async ({ page }) => {
+  const consoleErrors: string[] = []
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text())
+  })
+
   await signIn(page, TECHNICIAN)
   await expect(page).toHaveURL(/\/dashboard/)
-  await page.goto('/m/jobs')
+  // A `<Link>`, not `page.goto`: arriving from the dashboard mounts the field layout inside React
+  // rather than server-rendering it. A capture script in that layout is silently dropped here, which
+  // is exactly the fault the owner hit and a direct page load would never show.
+  await page.getByRole('link', { name: /open my jobs/i }).click()
 
   // A browser context is never standalone, so this is the state a technician arrives in.
   await expect(page.getByText('Install on this tablet')).toBeVisible()
+
+  // Headless Chrome never fires the real event, so dispatch one: the capture script has to be
+  // listening *by now* for the card to have anything to install with.
+  const captured = await page.evaluate(() => {
+    const event = new Event('beforeinstallprompt', { cancelable: true })
+    window.dispatchEvent(event)
+    return { stored: window.__techInstallPrompt === event, prevented: event.defaultPrevented }
+  })
+  expect(captured).toEqual({ stored: true, prevented: true })
+  expect(consoleErrors).toEqual([])
 
   // Dismissed for 30 days, not for ever — and it does not follow them into a form.
   await page.getByRole('button', { name: 'Not now' }).click()

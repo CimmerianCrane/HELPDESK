@@ -1,13 +1,18 @@
 import type { Metadata, Viewport } from 'next'
 import Image from 'next/image'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { ShellNav, ShellNavTrigger, type NavLink } from '@/components/shell/shell-nav'
 import { AppUpdate } from '@/components/tech/app-update'
+import { FieldBar } from '@/components/tech/field-bar'
 import { SyncStatus } from '@/components/tech/sync-status'
 import { TechSignOut } from '@/components/tech/tech-sign-out'
 import { SyncProvider } from '@/offline/use-tech-sync'
 import { getAuthContext } from '@/server/auth/context'
+import { FIELD_BAR, fieldNavFor } from '@/server/auth/nav'
+import { can } from '@/server/auth/permissions'
+import { unreadNotificationCount } from '@/server/notifications/inbox'
+import { ROLE_LABELS } from '@/server/users/labels'
 
 /**
  * The technician shell: mobile-first, one column, big tap targets, and the real gate for everything
@@ -23,6 +28,10 @@ import { getAuthContext } from '@/server/auth/context'
  * Cimmerian mark is the same chrome as the office, so the phone and the desk read as one product. The bar stays charcoal
  * rather than yellow because a yellow header at full width is a glare patch, and the yellow is worth
  * more on the one action a shift turns on.
+ *
+ * Navigation is one list for both shells (`server/auth/nav.ts`): a phone gets the bottom bar, and a
+ * browser window at desk width gets the same rail the office has. The rail is deliberately absent in
+ * the installed app — its links leave `/m/`.
  *
  * The cached pages are still gated on the way in: the service worker only ever serves documents
  * that were fetched with a session, and signing out clears the data cache (see `TechSignOut`).
@@ -52,61 +61,79 @@ export default async function TechLayout({ children }: { children: ReactNode }) 
   if (!context) redirect('/m/login')
   if (!context.technicianId) redirect('/dashboard')
 
+  // The same rows the office rail reads, so the field shell can never offer a screen this role
+  // cannot open. A technician's list is short by construction — the capability map decides it.
+  const links: NavLink[] = fieldNavFor(context.role).map((item) => ({
+    href: item.href,
+    label: item.label,
+    icon: item.icon,
+    group: item.group,
+  }))
+  const unread = can(context.role, 'notification.read')
+    ? await unreadNotificationCount(context)
+    : 0
+  const bar = links
+    .filter((link) => (FIELD_BAR as readonly string[]).includes(link.href))
+    .map((link) => ({ ...link, badge: link.href === '/inbox' ? unread : undefined }))
+
   return (
     <SyncProvider>
-      {/* Must run before hydration: `beforeinstallprompt` fires once and cannot be re-asked for, so
-          the event is kept for the install card to use when the technician taps. */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__techInstallPrompt=e;(window.__techInstallListeners||[]).forEach(function(f){f()})})`,
-        }}
-      />
-      <div className="min-h-dvh bg-sheet">
-        <AppUpdate />
-        <header className="sticky top-0 z-10 bg-anchor">
-          {/* The status bar sits over the hazard band in standalone mode, so the band is pushed
-              clear of it rather than being hidden by it. */}
-          <div className="pt-[env(safe-area-inset-top)]">
-            <div className="hazard-band h-2" aria-hidden />
-          </div>
-          <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-3 md:max-w-4xl md:px-6 lg:max-w-6xl lg:px-8">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <Image
-                src="/cimmerian-mark.png"
-                width={26}
-                height={26}
-                alt=""
-                className="size-[26px] shrink-0 rounded-[3px]"
-                priority
-              />
-              <div className="min-w-0">
-                <p className="truncate font-display text-lg leading-none font-semibold text-on-anchor">
-                  {context.name}
-                </p>
-                <SyncStatus />
-              </div>
+      <div className="relative min-h-dvh bg-sheet lg:flex">
+        {/* The same charcoal rail as the office, but only in a browser tab wide enough for it. In the
+            installed app it stays hidden and `FieldBar` stays shown, even in landscape: the rail's
+            office links leave `/m/`, and leaving the app for Chrome is the one thing an installed
+            field app must not do. Both use the same query so neither wins by cascade order. */}
+        <div className="contents max-lg:hidden [@media(display-mode:standalone)]:hidden">
+          <ShellNav links={links} user={{ name: context.name, role: ROLE_LABELS[context.role] }} />
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <AppUpdate />
+          <header className="sticky top-0 z-10 bg-anchor">
+            {/* The status bar sits over the hazard band in standalone mode, so the band is pushed
+                clear of it rather than being hidden by it. */}
+            <div className="pt-[env(safe-area-inset-top)]">
+              <div className="hazard-band h-2" aria-hidden />
             </div>
-            <TechSignOut />
-          </div>
-        </header>
+            {/* The Menu button is the band's first child below `lg`; it is absent in the installed
+                app, where the rail is hidden at every width and the bar is the navigation. */}
+            <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+              {/* One SyncStatus, never two copies: at `lg` the rail carries the name and role, so the
+                  header keeps the sync state alone; below it the state sits under the name. */}
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="max-lg:[@media(display-mode:standalone)]:hidden">
+                  <ShellNavTrigger />
+                </div>
+                <Image
+                  src="/cimmerian-mark.png"
+                  width={26}
+                  height={26}
+                  alt=""
+                  className="size-[26px] shrink-0 rounded-[3px] lg:hidden"
+                  priority
+                />
+                <div className="min-w-0">
+                  <p className="truncate font-display text-lg leading-none font-semibold text-on-anchor lg:hidden">
+                    {context.name}
+                  </p>
+                  <SyncStatus />
+                </div>
+              </div>
+              <TechSignOut />
+            </div>
+          </header>
 
-        <main className="mx-auto max-w-lg px-4 pt-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:max-w-4xl md:px-6 lg:max-w-6xl lg:px-8">
-          {children}
-        </main>
+          {/* The bottom padding is paid only where the bar is drawn — below `lg`, and everywhere in
+              the installed app — using the same two conditions as `FieldBar` itself (see
+              `.field-bottom-pad`), so the page is never left with a band of empty space. */}
+          <main className="field-bottom-pad mx-auto w-full max-w-lg px-4 pt-4 md:max-w-4xl md:px-6 lg:max-w-6xl lg:px-8">
+            {children}
+          </main>
+        </div>
 
-        <nav
-          aria-label="Main"
-          className="fixed inset-x-0 bottom-0 border-t border-line bg-field pb-[env(safe-area-inset-bottom)]"
-        >
-          <div className="mx-auto flex max-w-lg md:max-w-4xl lg:max-w-6xl">
-            <Link
-              href="/m/jobs"
-              className="flex-1 border-t-2 border-hivis py-4 text-center font-medium text-ink active:bg-raised"
-            >
-              My jobs
-            </Link>
-          </div>
-        </nav>
+        {/* The phone's bar: the three or four things a thumb reaches for, and nothing else. The
+            rail above `lg` carries everything the role may open. */}
+        <FieldBar links={bar} />
       </div>
     </SyncProvider>
   )

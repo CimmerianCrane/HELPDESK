@@ -37,13 +37,39 @@ were true. The first revision kept the five-area structure but left four defects
   preference), and the account is pinned to its foot — the phone sheet gets the same foot instead of
   ending in a void.
 
+### the one rail, third revision (1 Nov 2026)
+
+The owner reported the sidebar was not standardised across pages. It was: the office and the field
+shell shared `ShellNav`, but the **customer portal carried its own light header and a hand-written
+link array**, and the old rail showed five areas with only the one you were in expanded. Settled with
+the owner: **one rail on every signed-in surface, grouped and fully open.**
+
+- **One component, one list.** `src/components/shell/shell-nav.tsx` and `src/server/auth/nav.ts`,
+  rendered by the office, the field shell (browser at `lg`) and the portal. The portal's own array is
+  gone. A customer is chosen by audience (`portal.read` without `dashboard.office`), not by a
+  capability filter over one combined list — a customer holds `crane.read` and `certificate.read`,
+  so filtering would have offered them the office's `/certificates` and `/schedules`.
+- **Every section is open**, under a labelled heading: Today · Work · Register · Inventory · Money ·
+  Admin. Finding a page no longer means visiting another area first. Admin stays pinned to the foot
+  with the account block.
+- **One line icon per page** replaces the area-initial chip, so a row says what it opens, and the
+  mark is what survives the collapsed rail. Icons are inline SVG in `src/components/shell/icons.tsx`
+  — no icon dependency (UI-REVIEW §6).
+- **Stock takes moved from Money to a new Inventory group**, beside the parts book it counts.
+- **The Menu button moved into each shell's top band** as a normal flex child. It used to float
+  absolutely over the header, which forced both headers to carry a hardcoded `pl-24` to keep the
+  brand clear; that padding is gone. The rail's open state is an external store read by both the rail
+  and the trigger, so there is still no effect.
+- **The rail is `lg:h-dvh` sticky** with its own scrolling list, so the account block stays on the
+  window with every section open.
+
 ### steps 1 and 2 (§4)
 
-- **Sidebar** — `shell-nav.tsx` renders five destinations (Today · Work · Register · Money · Admin),
-  and only the area you are in shows its pages; the others are one link each, with a dot if anything
-  inside is unread. The three §3.2 bugs are fixed: the active row is the accent (longest-prefix match,
-  so `/reports/profitability` no longer lights **Reports** too), and the Menu button sits on the ink
-  band clear of the brand and the bar.
+- **Sidebar** (superseded by the third revision above) — `shell-nav.tsx` rendered five destinations
+  (Today · Work · Register · Money · Admin), and only the area you were in showed its pages; the
+  others were one link each, with a dot if anything inside was unread. The three §3.2 bugs are fixed:
+  the active row is the accent (longest-prefix match, so `/reports/profitability` no longer lights
+  **Reports** too), and the Menu button sat on the ink band clear of the brand and the bar.
 - **Dashboard** — the finding is the page title, the strip gained "▲ 3 more than yesterday" per
   figure, "Today on the board" (today's visits + who is on call) follows it, empty panels are gone,
   and "System and permissions" moved to `/admin/system`.
@@ -62,6 +88,8 @@ Asked and answered. **Do not re-litigate these in a fresh session; build them.**
   its own sub-pages; the capability filter stays. Fewest links visible at once, which is what
   "cluttered" meant. The nav data in `(office)/layout.tsx` gains a level; `ShellNav` renders the
   current area's children.
+  **Superseded 1 Nov 2026** — the owner found the areas hid too much, and the portal was a second
+  shell. Now: one rail on every surface, grouped and fully open (see "the one rail, third revision").
 - **Dashboard: ops board, today first.** The finding sentence becomes the page title (the greeting
   moves into it or goes), the four-tile strip stays as the hero, then "today on the board" (today's
   visits + on-call), then only the panels that have content. Each figure gains a comparison against
@@ -72,7 +100,8 @@ Asked and answered. **Do not re-litigate these in a fresh session; build them.**
 ### Settled in the build
 
 - Sidebar: the unread count is on the child (`Inbox`), and a dot on the collapsed **Today** area when
-  the count is non-zero (as recommended).
+  the count is non-zero (as recommended). (The dot was removed with the area chips in the third
+  revision; the count badge on Inbox is the only unread signal, and it is on the row itself.)
 - The "yesterday" comparison is the same open-job set read at `now − 24h` through the same `jobSla`
   rule, not a second query with its own definition. Today's visit window is a wall-clock day in
   `settings.timezone` via `wallTimeToUtc`, not UTC midnight.

@@ -162,9 +162,10 @@ test('an administrator sees the audit trail of a record, and a dispatcher never 
   // then sees the session that was never cleared and redirects to the dashboard.
   await page.waitForURL(/\/login/)
   await signIn(page, DISPATCHER)
-  // The nav shows five destinations, and only the area you are in lists its pages. `/dashboard` is
-  // in Today, so no Admin heading is rendered at all.
+  // Every section is open in the rail now, but a dispatcher holds neither `user.manage` nor
+  // `audit.read`, so the Admin section is not rendered for them at all.
   await expect(page.getByRole('link', { name: 'Admin' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Audit' })).toHaveCount(0)
   await page.goto('/admin/audit')
   await expect(page.getByRole('heading', { name: 'Not available for your role' })).toBeVisible()
 })

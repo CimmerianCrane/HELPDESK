@@ -30,7 +30,8 @@ stay inside `/m/`, so an office login that wanders onto a field route is still b
 
 | Question | Decision | Why |
 |---|---|---|
-| Tablet layout | Widen the single column (`max-w-lg md:max-w-4xl lg:max-w-6xl`) and let cards form two columns at `md`. **No two-pane list/detail router, no sidebar.** | Two-pane is a router rewrite (parallel routes) for a navigation that already works with a back tap. It can be added later without undoing this. |
+| Tablet layout | Widen the single column (`max-w-lg md:max-w-4xl lg:max-w-6xl`) and let cards form two columns at `md`. **No two-pane list/detail router.** | Two-pane is a router rewrite (parallel routes) for a navigation that already works with a back tap. It can be added later without undoing this. |
+| Field navigation (**revised 1 Nov 2026**) | One nav list for both shells (`src/server/auth/nav.ts`). A phone gets a bottom bar of thumb-sized destinations; a **browser tab** at `lg` gets the same charcoal rail the office has, capability-filtered. The rail is **hidden in the installed app at every width** (`display-mode`), because its office links leave `/m/` and opening Chrome from an installed app is what slice 40 exists to prevent. | The original "no sidebar" decision left the technician with no navigation at all once inside `/m/` — a bar with a single item — while every office screen had the rail. The display-mode split keeps the installed app self-contained and still fixes the browser case. |
 | "Full-screen" | `display: 'standalone'` | That is the app-window-without-browser-chrome the owner asked for. `fullscreen` would hide the clock and battery for an eight-hour shift and break the safe-area assumptions. |
 | Orientation | `orientation: 'any'` | Landscape is how a crane gets inspected. |
 | Icons | Generate PNG 192 / 512 / 512-maskable from the two existing SVGs, commit them. | Chrome accepts SVG, but PNG keeps launcher rendering and the Play/TWA path deterministic. Generated once by a committed script, never at build time. |
@@ -42,10 +43,51 @@ stay inside `/m/`, so an office login that wanders onto a field route is still b
 | Store listing | Trusted Web Activity via Bubblewrap, last. | Produces a real Android App Bundle from this codebase. |
 
 ## Slices
-
 Each slice ends with `npm run verify`. Slices that touch the worker, the manifest or the install
 path also need `npm run build` — the dev server never exercises the service worker (Serwist is
 disabled in development by design).
+
+### Field navigation — a rail in a browser, a bar on the phone (built 1 Nov 2026)
+
+**The fault.** Once inside `/m/`, a technician had exactly one navigation item — a full-width bar
+with "My jobs" on it — at every width. Every office screen had the charcoal rail; the field screens
+had nothing. A technician who opened the app in a browser at a desk was stranded.
+
+**What landed.**
+
+- `src/server/auth/nav.ts` (new) — the one `APP_NAV` list and `navFor(role)`, moved out of
+  `(office)/layout.tsx` and now read by both shells. `fieldNavFor(role)` puts **My jobs** on top of
+  the same office rows; `FIELD_BAR` names the four phone destinations.
+- `src/components/tech/field-bar.tsx` (new, client) — the bottom bar, moved out of the layout because
+  it needs the pathname for `aria-current`. Named **"Field"**, not "Main": the rail in the same shell
+  already answers to "Main", and two landmarks with one name break a screen reader and every
+  selector that counts them.
+- `src/app/(tech)/layout.tsx` — renders `ShellNav` under a wrapper that is `max-lg:hidden` and
+  `[@media(display-mode:standalone)]:hidden`. The installed app keeps the bar at every width; a
+  browser tab hands over to the rail at `lg`.
+
+**Why the display-mode gate.** The manifest scopes the installed app to `/m/`, so a rail link to
+`/jobs` leaves the app for Chrome. The bar and the space the page reserves for it are one CSS rule
+(`.field-bar` / `.field-bottom-pad` in `globals.css`) so they cannot disagree: both are undone by the
+single `@media (min-width: 64rem) and (display-mode: browser)` block. The rail is the complement —
+`max-lg:hidden` plus `[@media(display-mode:standalone)]:hidden`. **Emulating `display-mode` is not
+possible in Playwright**, so the spec asserts the emitted CSS contract and the installed-app check
+stays manual.
+
+**Also fixed here (pre-existing, exposed by the new bar).**
+
+- The report form's submit bar was `fixed inset-x-0` and would have covered the rail's foot; above
+  `lg` it is now `sticky` to the form's foot instead, which follows a collapsed rail with no width
+  arithmetic.
+- Both shells padded the header `pl-20` while the Menu button's box ends at 84px, so the brand was
+  clipped by 4px at every width below `lg`. Both are `pl-24` now, and the left padding is no longer
+  reset at `sm`.
+- `playwright.config.ts` — the `office` project ignored `tech-tablet.spec.ts` only; it now also
+  ignores `tech.spec.ts`. Both are written for the field shell (the bar is correctly absent above
+  `lg`), and both have their own project.
+
+**Verified:** `npm run verify` (497 unit), `npm run build`, and `tech`/`tech-tablet`/`auth`/`inbox`/
+`smoke` e2e against both the dev server and `npm start`. Checked by eye at 390, 800, 1024 and 1440.
 
 ### Slice 40 — A tablet-shaped shell and an installable manifest
 
@@ -118,7 +160,10 @@ eye, not only in the emulator. Removing `'use client'` from `outbox.ts`/`db.ts` 
 **Built 31 Oct 2026.** How it landed, and where this file was wrong, are in `docs/HISTORY.md` ("Slice 41 —
 install and update"). Two corrections: the install card renders even when `beforeinstallprompt` never
 fires (it points at Chrome's own menu), because a hidden card installs nothing; and the event has to be
-captured by an inline script in the tech layout, since it fires before React hydrates.
+captured before React hydrates, by a `next/script` `beforeInteractive` tag — in the **root** layout.
+Not the field one: a `<Link>` from the dashboard into `/m/jobs` mounts the field layout inside React,
+where React 19 refuses to execute a `<script>` and `beforeInteractive` is not hoisted. That silently
+killed the installer on the one route a technician takes into the app.
 
 **Goal:** a technician can install the app from inside it, and a new deploy reaches them without
 interrupting a report.
