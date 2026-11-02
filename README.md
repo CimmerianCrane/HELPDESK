@@ -312,8 +312,14 @@ Then:
 
 1. `npm run db:deploy` from your machine once, to apply migrations to the production database. The
    build does not migrate; keep it that way, so a deploy cannot half-apply a schema change.
-2. Keep the Supabase project's PITR or daily backup on before real data goes in.
-3. The health endpoint is `/api/health` — point an uptime check at it.
+2. `npm run seed` against the same database, for the settings, job types, templates and SLA policies.
+   It skips the demo accounts and demo book wherever the database is not on this machine — that is
+   the guard working, not a failure.
+3. `npm run admin:create` — there is no other way in. `/admin/users` needs an admin to sign in first,
+   and the seed will not create one on a hosted database. Change the password at `/account/password`
+   once you are in.
+4. Keep the Supabase project's PITR or daily backup on before real data goes in.
+5. The health endpoint is `/api/health` — point an uptime check at it.
 
 `/api/cron/daily` requires `Authorization: Bearer $CRON_SECRET` in production. If `CRON_SECRET` is
 unset in a production deployment, the endpoint refuses every request rather than running open.
