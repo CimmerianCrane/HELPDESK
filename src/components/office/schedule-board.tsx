@@ -131,14 +131,17 @@ function Cell({
   id,
   children,
   className = '',
+  as: Tag = 'td',
 }: {
   id: string
   children?: React.ReactNode
   className?: string
+  /** `td` inside the board's table; `div` for the drop zone in the side panel. */
+  as?: 'td' | 'div'
 }) {
   const { setNodeRef, isOver } = useDroppable({ id })
   return (
-    <div
+    <Tag
       ref={setNodeRef}
       className={[
         'min-h-20 border-t border-l border-line p-1.5 align-top',
@@ -147,7 +150,7 @@ function Cell({
       ].join(' ')}
     >
       {children}
-    </div>
+    </Tag>
   )
 }
 
@@ -313,7 +316,7 @@ export function ScheduleBoardView({ board, reassign }: Props) {
               </>
             )}
           </div>
-          <Cell id="unassigned|" className="mt-3 rounded border border-dashed border-line">
+          <Cell id="unassigned|" as="div" className="mt-3 rounded border border-dashed border-line">
             <p className="text-xs text-faint">Drop here to take somebody off a job.</p>
           </Cell>
         </section>
