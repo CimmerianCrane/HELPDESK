@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { TemplateSchema } from '@/lib/templates/schema'
 import {
   checklistAnswersSchema,
+  checklistResultForGrade,
   readGrades,
   reportSubmitSchema,
   serviceGradesSchema,
@@ -246,5 +247,17 @@ describe('submitting a report', () => {
 
   it('refuses a report with no technician signature', () => {
     expect(schema.safeParse(submitInput({ technicianSignatureFileId: '' })).success).toBe(false)
+  })
+})
+
+/**
+ * One tap, one answer. A servicing line is graded, and the grade carries the Pass/Fail verdict with
+ * it, so the technician does not answer the same question twice. Only "Fail" fails: a component
+ * marked "repair soon" can still be operated, and the note says the rest.
+ */
+describe('checklistResultForGrade', () => {
+  it('turns a grade into the Pass/Fail answer it implies', () => {
+    expect(checklistResultForGrade(1)).toBe('Fail')
+    for (const grade of [2, 3, 4, 5]) expect(checklistResultForGrade(grade)).toBe('Pass')
   })
 })

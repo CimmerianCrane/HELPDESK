@@ -72,7 +72,14 @@ describe('buildServiceReportContent', () => {
 
   it('refuses a document with no cranes, so an empty report cannot be stored', () => {
     expect(serviceReportContentSchema.safeParse({ cranes: [] }).success).toBe(false)
-    expect(() => buildServiceReportContent([])).toThrow()
+  })
+
+  it('builds an empty document rather than throwing when nothing is graded yet', () => {
+    // A PM job with no submitted checklist renders its empty state; throwing took the job page down.
+    expect(buildServiceReportContent([])).toEqual({ cranes: [] })
+    expect(buildServiceReportContent([crane('c1', 'SC-0041', { BRAKE: { grade: null } })])).toEqual({
+      cranes: [],
+    })
   })
 
   it('refuses a paragraph with no sentence — the office may not blank one out', () => {

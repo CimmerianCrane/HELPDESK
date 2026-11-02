@@ -6,6 +6,8 @@ import { newId } from '@/lib/id'
 import { calibrationWarnings, type TemplateField, type TemplateSection } from '@/lib/templates/schema'
 import {
   SERVICE_GRADE_LABELS,
+  SERVICE_GRADE_SHORT,
+  checklistResultForGrade,
   reportSubmitSchema,
   type ChecklistAnswer,
   type ComponentGrade,
@@ -381,6 +383,21 @@ export function ReportForm({
       setMessage(`Record the serial or batch for ${untraced.partNumber} — it is a traced part.`)
       return
     }
+
+    // On a long servicing checklist "Choose Pass, Fail or N/A" does not say where — name the
+    // section, so a technician is not scrolling 39 lines to find the one they missed.
+    if (job.isServiceReport) {
+      const missing = job.checklist.find((item) => {
+        const answer = draft.checklist[item.code] ?? {}
+        const answered = Boolean(answer.result || answer.measurement !== null || answer.note)
+        // N/A is an answer in itself: a part that is not fitted has no condition to grade.
+        return answered && answer.result !== 'N/A' && draft.grades[item.code]?.grade == null
+      })
+      if (missing) {
+        setMessage(`Give "${missing.label}" a grade — it is in ${missing.section}.`)
+        return
+      }
+    }
     const parsed = reportSubmitSchema(template.schema, job.checklist).safeParse({
       reportId: draft.id,
       jobId: draft.jobId,
@@ -405,8 +422,15 @@ export function ReportForm({
     })
 
     if (!parsed.success) {
+      // A checklist issue names the line's code; the technician knows its wording, not its code.
       const issue = parsed.error.issues[0]
-      setMessage(issue?.message ?? 'The report is not complete yet.')
+      const code = issue?.path[0] === 'checklist' ? String(issue.path[1] ?? '') : ''
+      const line = job.checklist.find((item) => item.code === code)
+      setMessage(
+        line
+          ? `${line.label} — ${issue?.message ?? 'answer this line.'}`
+          : (issue?.message ?? 'The report is not complete yet.'),
+      )
       return
     }
 
@@ -510,6 +534,7 @@ export function ReportForm({
 
   const { draft } = loaded
   const findingsTable = template.schema.sections.find((section) => section.key === 'findings')
+  const gradedCount = job.checklist.filter((item) => draft.grades[item.code]?.grade != null).length
 
   return (
     // Two columns on a tablet: the wide template sections span both, and the pair of short panels
@@ -625,43 +650,44 @@ export function ReportForm({
 
       {job.checklist.length > 0 && (
         <section className="rounded-lg bg-panel p-4 md:col-span-2">
-          <h2 className="text-base font-semibold text-ink">
-            {job.isServiceReport ? 'Servicing checklist' : 'Checklist'}
-          </h2>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-base font-semibold text-ink">
+              {job.isServiceReport ? 'Servicing checklist' : 'Checklist'}
+            </h2>
+            {job.isServiceReport && (
+              <span className="text-sm font-medium text-muted" data-num>
+                {gradedCount} / {job.checklist.length}
+              </span>
+            )}
+          </div>
           {job.isServiceReport && (
             <p className="mt-1 text-sm text-muted">
-              Grade every line 1–5 and note what is damaged or needs replacing. The office turns this
-              form into the Service Report for the visit.
+              One grade each line. <strong className="text-ink">Fail</strong> means it must not be
+              used. A note is only needed if something is wrong.
             </p>
           )}
-          <div className="mt-3 space-y-5">
-            {groupChecklist(job.checklist).map((group) => (
-              <div key={group.name}>
-                <h3 className="text-sm font-medium text-ink">{group.name}</h3>
-                <ul className="mt-2 space-y-3">
-                  {group.items.map((item) => {
-                    const answer = draft.checklist[item.code] ?? {}
-                    const grade = draft.grades[item.code] ?? {}
-                    const choices =
-                      item.resultType === 'PASS_FAIL_NA'
-                        ? ['Pass', 'Fail', 'N/A']
-                        : item.resultType === 'YES_NO'
-                          ? ['Yes', 'No']
-                          : null
-                    return (
-                      <li key={item.code} className="border-t border-rule pt-3 first:border-0 first:pt-0">
-                        <p className="text-ink">
-                          {item.label}
-                          {item.unit && <span className="text-muted"> ({item.unit})</span>}
-                        </p>
-                        {choices ? (
-                          <ChoiceButtons
-                            label={item.label}
-                            options={choices}
-                            value={answer.result ?? null}
-                            onChange={(value) => setChecklist(item.code, { result: value })}
-                          />
-                        ) : item.resultType === 'NUMBER' ? (
+          <div className="mt-3 space-y-2">
+            {groupChecklist(job.checklist).map((group, groupIndex) => {
+              const done = group.items.filter((item) => draft.grades[item.code]?.grade != null).length
+              const rows = group.items.map((item) => {
+                const answer = draft.checklist[item.code] ?? {}
+                const grade = draft.grades[item.code] ?? {}
+                const choices =
+                  item.resultType === 'PASS_FAIL_NA'
+                    ? ['Pass', 'Fail', 'N/A']
+                    : item.resultType === 'YES_NO'
+                      ? ['Yes', 'No']
+                      : null
+                return (
+                  <li key={item.code} className="border-t border-rule pt-3 first:border-0 first:pt-0">
+                    <p className="text-ink">
+                      {item.label}
+                      {item.unit && <span className="text-muted"> ({item.unit})</span>}
+                    </p>
+                    {job.isServiceReport ? (
+                      <>
+                        {/* A measurement line still takes its number; everything else is graded. */}
+                        {item.resultType === 'NUMBER' && (
                           <input
                             type="number"
                             inputMode="decimal"
@@ -676,29 +702,101 @@ export function ReportForm({
                             }
                             className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-lg"
                           />
-                        ) : (
-                          <textarea
-                            aria-label={item.label}
-                            value={answer.note ?? ''}
-                            onChange={(event) => setChecklist(item.code, { note: event.target.value })}
-                            rows={2}
-                            className="mt-1 w-full rounded-lg border border-line px-3 py-2"
-                          />
                         )}
-                        {job.isServiceReport && (
-                          <GradeInput
+                        <GradeRow
+                          label={item.label}
+                          grade={grade.grade ?? null}
+                          comment={grade.comment ?? null}
+                          notApplicable={answer.result === 'N/A'}
+                          onChange={(value) => {
+                            setGrade(item.code, { grade: value })
+                            // Only a Pass/Fail line infers its answer — a YES/NO question ("abnormal
+                            // noise" — No) means the opposite of Pass, and a measurement's answer is
+                            // the number, not a verdict.
+                            if (item.resultType === 'PASS_FAIL_NA') {
+                              setChecklist(item.code, {
+                                result: value === null ? null : checklistResultForGrade(value),
+                              })
+                            }
+                          }}
+                          onNotApplicable={() => {
+                            const off = answer.result === 'N/A'
+                            setChecklist(item.code, { result: off ? null : 'N/A' })
+                            // A part that is not fitted has no condition to grade.
+                            if (!off) setGrade(item.code, { grade: null })
+                          }}
+                          onComment={(comment) => setGrade(item.code, { comment })}
+                        />
+                        {/* A YES/NO line keeps its buttons — grading does not answer the opposite
+                            question ("abnormal noise" — No is not a Pass). */}
+                        {item.resultType === 'YES_NO' && (
+                          <ChoiceButtons
                             label={item.label}
-                            grade={grade.grade ?? null}
-                            comment={grade.comment ?? null}
-                            onChange={(change) => setGrade(item.code, change)}
+                            options={choices ?? ['Yes', 'No']}
+                            value={answer.result ?? null}
+                            onChange={(value) => setChecklist(item.code, { result: value })}
                           />
                         )}
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            ))}
+                      </>
+                    ) : choices ? (
+                      <ChoiceButtons
+                        label={item.label}
+                        options={choices}
+                        value={answer.result ?? null}
+                        onChange={(value) => setChecklist(item.code, { result: value })}
+                      />
+                    ) : item.resultType === 'NUMBER' ? (
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="any"
+                        aria-label={item.label}
+                        value={answer.measurement ?? ''}
+                        onChange={(event) =>
+                          setChecklist(item.code, {
+                            measurement:
+                              event.target.value === '' ? null : Number(event.target.value),
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-lg"
+                      />
+                    ) : (
+                      <textarea
+                        aria-label={item.label}
+                        value={answer.note ?? ''}
+                        onChange={(event) => setChecklist(item.code, { note: event.target.value })}
+                        rows={2}
+                        className="mt-1 w-full rounded-lg border border-line px-3 py-2"
+                      />
+                    )}
+                  </li>
+                )
+              })
+
+              // A servicing checklist is long; sections fold so the tablet shows one screenful at a
+              // time. The first opens on mount; after that the browser owns the toggle — this prop
+              // never changes, so React does not reset a section the technician opened.
+              return job.isServiceReport ? (
+                <details
+                  key={group.name}
+                  open={groupIndex === 0}
+                  className="rounded-lg border border-line bg-field"
+                >
+                  <summary className="flex cursor-pointer items-center justify-between gap-3 px-3 py-3">
+                    <span className="font-medium text-ink">{group.name}</span>
+                    <span className="text-sm text-muted" data-num>
+                      {done} / {group.items.length}
+                    </span>
+                  </summary>
+                  <ul className="space-y-3 px-3 pb-3">{rows}</ul>
+                </details>
+              ) : (
+                <div key={group.name}>
+                  <h3 className="text-sm font-medium text-ink">{group.name}</h3>
+                  <ul className="mt-2 space-y-3">{rows}</ul>
+                </div>
+              )
+            })}
           </div>
         </section>
       )}
@@ -819,9 +917,12 @@ export function ReportForm({
         <QrScanner onScan={verifyLabel} onCancel={() => setVerifying(false)} />
       )}
 
-      {/* Sits above the layout's bottom nav rather than under it, so the button is never covered.
-          Measured off the nav's own safe-area padding so the two never overlap on a notched tablet. */}
-      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t border-line bg-field p-3">
+      {/* Sits above the layout's bottom bar rather than under it, so the button is never covered.
+          Measured off the bar's own safe-area padding so the two never overlap on a notched tablet.
+          Above `lg` the bar is gone; the rail is a flex sibling, so a window-fixed bar would have to
+          guess its width (and the rail can be collapsed). It sticks to the foot of the form instead,
+          which follows the rail with no arithmetic. */}
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t border-line bg-field p-3 lg:sticky lg:inset-auto lg:bottom-0 lg:col-span-2 lg:mx-0 lg:rounded-t-xl">
         <div className="mx-auto max-w-lg md:max-w-4xl lg:max-w-6xl">
           <button
             type="button"
@@ -977,46 +1078,115 @@ function ChoiceButtons({
   )
 }
 
-function GradeInput({
+/**
+ * One servicing line's grade: five buttons, the chosen word beside them, and a comment only when
+ * there is something to say.
+ *
+ * The scale reads left to right as good → failed, because that is how the eye scans a row. The
+ * comment box is hidden until asked for: a technician who has nothing to report should not have to
+ * scroll past one on every line.
+ */
+function GradeRow({
   label,
   grade,
   comment,
+  notApplicable,
   onChange,
+  onNotApplicable,
+  onComment,
 }: {
   label: string
   grade: number | null
   comment: string | null
-  onChange: (change: Partial<ComponentGrade>) => void
+  /** A servicing line that does not exist on this crane ("if fitted") still has to be answered. */
+  notApplicable: boolean
+  onChange: (grade: number | null) => void
+  onNotApplicable: () => void
+  onComment: (comment: string | null) => void
 }) {
+  const [writing, setWriting] = useState(Boolean(comment))
+
   return (
-    <div className="mt-2 rounded-lg border border-line p-2">
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Condition grade: ${label}`}>
+    <div className="mt-2">
+      {/* The five grades get the full width: at 390px five words plus two utility buttons in one row
+          is a 47px tap target, and a technician works this with gloves on. */}
+      <div className="flex gap-1" role="group" aria-label={`Condition grade: ${label}`}>
         {[5, 4, 3, 2, 1].map((value) => (
           <button
             key={value}
             type="button"
             aria-pressed={grade === value}
             aria-label={`${value} — ${SERVICE_GRADE_LABELS[value]}`}
-            onClick={() => onChange({ grade: grade === value ? null : value })}
-            className={`min-w-11 rounded-lg border px-3 py-2 text-lg font-semibold ${
-              grade === value ? 'border-ink bg-accent text-white' : 'border-line bg-field text-ink'
+            onClick={() => onChange(grade === value ? null : value)}
+            className={`flex-1 rounded-lg border px-1 py-3 text-sm font-semibold ${
+              grade === value && !notApplicable
+                ? value === 1
+                  ? 'border-neg bg-neg text-white'
+                  : 'border-ink bg-accent text-white'
+                : 'border-line bg-field text-ink'
             }`}
           >
-            {value}
+            {SERVICE_GRADE_SHORT[value]}
           </button>
         ))}
       </div>
-      <p className="mt-1 text-sm text-muted">
-        {grade ? SERVICE_GRADE_LABELS[grade] : 'Not graded yet'}
-      </p>
-      <textarea
-        aria-label={`Comment: ${label}`}
-        value={comment ?? ''}
-        onChange={(event) => onChange({ comment: event.target.value || null })}
-        rows={2}
-        placeholder="What needs replacing or what is damaged…"
-        className="mt-1 w-full rounded-lg border border-line px-3 py-2"
-      />
+      <div className="mt-1 flex gap-1">
+        <button
+          type="button"
+          aria-pressed={notApplicable}
+          onClick={onNotApplicable}
+          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
+            notApplicable
+              ? 'border-ink bg-accent text-white'
+              : 'border-line bg-field text-muted active:bg-raised'
+          }`}
+        >
+          Not fitted
+        </button>
+        {!writing && (
+          <button
+            type="button"
+            onClick={() => setWriting(true)}
+            className="flex-1 rounded-lg border border-line px-3 py-2 text-sm font-medium text-muted active:bg-raised"
+          >
+            Note
+          </button>
+        )}
+      </div>
+      {grade === 1 && !notApplicable && (
+        <p className="mt-1 text-sm font-medium text-neg">Failed — this line will read Fail.</p>
+      )}
+      {/* The buttons say what to tap; this says what was tapped, in the words that print. */}
+      {grade !== null && grade > 1 && !notApplicable && (
+        <p className="mt-1 text-sm text-muted">
+          {SERVICE_GRADE_LABELS[grade]} · grade {grade} of 5
+        </p>
+      )}
+      {notApplicable && (
+        <p className="mt-1 text-sm text-muted">Marked not fitted on this crane.</p>
+      )}
+      {writing && (
+        <div className="mt-2">
+          <textarea
+            aria-label={`Comment: ${label}`}
+            value={comment ?? ''}
+            onChange={(event) => onComment(event.target.value || null)}
+            rows={2}
+            autoFocus={!comment}
+            placeholder="What is damaged or needs replacing…"
+            className="w-full rounded-lg border border-line px-3 py-2"
+          />
+          {!comment && (
+            <button
+              type="button"
+              onClick={() => setWriting(false)}
+              className="mt-1 text-sm text-muted underline"
+            >
+              Hide
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

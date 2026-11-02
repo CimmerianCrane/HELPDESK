@@ -114,12 +114,17 @@ export async function applyReport(
   const input = parseInput(reportSubmitSchema(template.data, checklistItems), raw)
 
   // Grading a Service Report is the point of it: every checklist line the technician answered must
-  // carry a 1–5 rating, or the sheet says nothing the paper form did not. A job type that is not a
-  // Service Report may not submit grades at all — it would be a second, unsanctioned rating scheme.
+  // carry a 1–5 rating, or the sheet says nothing the paper form did not. A line marked N/A is not
+  // an answer to grade — the part is not on the crane. A job type that is not a Service Report may
+  // not submit grades at all — it would be a second, unsanctioned rating scheme.
   if (job.jobType.isServiceReport) {
     const answered = Object.keys(input.checklist).filter((code) => {
       const answer = input.checklist[code]
-      return Boolean(answer?.result || answer?.measurement !== null || answer?.note)
+      // N/A is an answer in itself: a part that is not fitted has no condition to grade.
+      return (
+        answer?.result !== 'N/A' &&
+        Boolean(answer?.result || answer?.measurement !== null || answer?.note)
+      )
     })
     const ungraded = answered.filter((code) => input.grades?.[code]?.grade == null)
     if (ungraded.length > 0) {

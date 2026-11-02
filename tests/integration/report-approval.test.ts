@@ -460,4 +460,99 @@ describe('service reports', () => {
       expect(data.grades.BRAKE.label).toBe('Brake holds')
     })
   })
+
+  it('accepts a line marked N/A without a grade — the part is not on the crane', async () => {
+    await inRolledBackTx(async (tx) => {
+      const base = await craneFixtures(tx)
+      const { user: techUser, technician } = await technicianFixture(tx)
+      const techContext = contextFor(techUser, technician.id)
+
+      const checklist = await tx.checklistTemplate.create({
+        data: {
+          code: `CHK-NA-${base.suffix}`,
+          name: 'Service checklist',
+          version: 1,
+          items: {
+            create: {
+              section: 'Safety',
+              code: 'OVERLOAD',
+              label: 'Overload protection operates (if fitted)',
+              resultType: 'PASS_FAIL_NA',
+              sortOrder: 1,
+            },
+          },
+        },
+      })
+      const template = await tx.reportTemplate.create({
+        data: {
+          code: `RPT-NA-${base.suffix}`,
+          name: 'Service report',
+          version: 1,
+          bodyHtml: '<p>template</p>',
+          schema: TEMPLATE_V1,
+        },
+      })
+      await tx.jobType.update({
+        where: { id: base.jobType.id },
+        data: {
+          isServiceReport: true,
+          defaultChecklistTemplateId: checklist.id,
+          defaultReportTemplateId: template.id,
+        },
+      })
+
+      const job = await tx.job.create({
+        data: {
+          number: `JOB-NA-${base.suffix}`,
+          jobTypeId: base.jobType.id,
+          customerId: base.customer.id,
+          siteId: base.site.id,
+          status: 'COMPLETED',
+          priority: 'P2',
+          cranes: { create: { craneId: base.crane.id } },
+          technicians: { create: { technicianId: technician.id } },
+        },
+      })
+
+      const signatureId = crypto.randomUUID()
+      await tx.file.create({
+        data: {
+          id: signatureId,
+          entity: 'Job',
+          entityId: job.id,
+          kind: 'SIGNATURE',
+          filename: `${signatureId}.png`,
+          mimeType: 'image/png',
+          sizeBytes: 512,
+          storageKey: `jobs/${job.id}/${signatureId}.png`,
+          uploadedById: techUser.id,
+          jobId: job.id,
+        },
+      })
+
+      // No grade at all on an N/A line: a component that is not fitted has no condition to rate.
+      const submitted = await submitReport(
+        techContext,
+        {
+          reportId: crypto.randomUUID(),
+          jobId: job.id,
+          craneId: base.crane.id,
+          templateId: template.id,
+          templateVersion: 1,
+          data: { workDone: 'Checked the machine', safeToOperate: 'Yes' },
+          checklist: { OVERLOAD: { result: 'N/A' } },
+          parts: [],
+          photoFileIds: [],
+          technicianSignerName: 'Ahmad',
+          technicianSignatureFileId: signatureId,
+          customerSignerName: 'Mei Ling',
+          customerSignerDesignation: 'Supervisor',
+          customerSignatureFileId: signatureId,
+          customerDeclinedReason: null,
+        },
+        tx,
+      )
+      expect(submitted.reportId).toBeTruthy()
+    })
+  })
 })

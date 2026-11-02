@@ -181,6 +181,26 @@ export const SERVICE_GRADE_LABELS: Record<number, string> = {
   1: 'Failed',
 }
 
+/**
+ * The button caption on the phone: one common word, read at arm's length by a technician whose
+ * English is not always strong. The full label above is what prints on the Service Report.
+ */
+export const SERVICE_GRADE_SHORT: Record<number, string> = {
+  5: 'New',
+  4: 'Good',
+  3: 'OK',
+  2: 'Repair',
+  1: 'Fail',
+}
+
+/**
+ * The checklist answer a grade implies, so a servicing line is one tap instead of two. Only a failed
+ * component fails: "repair soon" is still operable, and the grade plus note says the rest.
+ */
+export function checklistResultForGrade(grade: number): 'Pass' | 'Fail' {
+  return grade <= 1 ? 'Fail' : 'Pass'
+}
+
 export interface ComponentGrade {
   grade: number | null
   comment: string | null

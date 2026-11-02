@@ -53,6 +53,18 @@ record behind it is split into the files below so no single one is a wall of tex
 > `npm run build` pass; field, auth, inbox and smoke e2e are green against both the dev server and
 > `npm start`. Details in `docs/PLAN-TABLET-APP.md` ("Field navigation").
 >
+> **Servicing is one tap per line (2 Nov 2026)** — a servicing line used to be answered twice: once
+> Pass/Fail/N/A and again 1–5. Now the grade *is* the answer: five one-word buttons (New · Good · OK ·
+> Repair · Fail) set the checklist result through `checklistResultForGrade`, and only **Fail** fails a
+> line — "repair soon" is still operable. A **Not fitted** button marks N/A and clears the grade,
+> which `applyReport` now accepts instead of demanding a grade for every answer. Sections fold with
+> a done count, the header shows n / total, and a missing grade is named by line and section rather
+> than by its code. `buildServiceReportContent` returns an empty document for a job with nothing
+> graded — the empty state the screen already had — instead of throwing and taking the job page down.
+> The report form's submit bar is `sticky` above `lg` so it follows a collapsed rail. Gate:
+> `npm run verify` (506 unit, incl. the new `checklistResultForGrade` case; integration `report-approval`
+> covers the N/A path) and `npm run build` pass. No schema change, no new dependency.
+>
 > **Slice 45 is built (31 Oct 2026)** — the app-side half of a Play Store listing. Digital Asset
 > Links are served at `/.well-known/assetlinks.json` (a `rewrites()` entry to `/api/assetlinks`, since
 > a dotted directory breaks the App Router) from `ANDROID_PACKAGE_NAME` and

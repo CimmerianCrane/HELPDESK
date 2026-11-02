@@ -74,9 +74,8 @@ export interface GradedChecklist {
  * looked at. The caller decides whether "no graded cranes" is an error.
  */
 export function buildServiceReportContent(cranes: GradedChecklist[]): ServiceReportContent {
-  return serviceReportContentSchema.parse({
-    cranes: cranes
-      .map((crane) => ({
+  const built = cranes
+    .map((crane) => ({
         craneId: crane.craneId,
         assetTag: crane.assetTag,
         type: crane.type,
@@ -95,8 +94,13 @@ export function buildServiceReportContent(cranes: GradedChecklist[]): ServiceRep
       }))
       .filter((crane) => crane.paragraphs.length > 0)
       // Worst crane first, by its worst part — the paragraphs are already sorted, so [0] is it.
-      .sort((a, b) => (a.paragraphs[0]!.grade ?? 6) - (b.paragraphs[0]!.grade ?? 6)),
-  })
+      .sort((a, b) => (a.paragraphs[0]!.grade ?? 6) - (b.paragraphs[0]!.grade ?? 6))
+
+  // Nothing graded is a real state on a PM job — no checklist submitted yet, or a job whose cranes
+  // have all been removed — and the screen has an empty state for it. The `.min(1)` guard belongs to
+  // the stored document, applied by the callers that would write one, not to the read path.
+  if (built.length === 0) return { cranes: [] }
+  return serviceReportContentSchema.parse({ cranes: built })
 }
 
 /** The office's edit: the sentences it may change, and nothing else. */
