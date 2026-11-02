@@ -1,0 +1,355 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { ConvertTicketForm } from '@/components/office/job-forms'
+import { JobStatusBadge } from '@/components/office/job-badges'
+import {
+  CloseTicketForm,
+  EditTicketForm,
+  TriageTicketForm,
+} from '@/components/office/ticket-forms'
+import { PriorityBadge, TicketStatusBadge } from '@/components/office/ticket-badges'
+import { cardClass } from '@/components/office/ui'
+import { formatDateTime, formatDuration } from '@/lib/format'
+import { requireAuth } from '@/server/auth/context'
+import { NotFoundError } from '@/server/auth/errors'
+import { can } from '@/server/auth/permissions'
+import { listJobFormOptions, listJobs } from '@/server/jobs/jobs'
+import { getSettings } from '@/server/settings/settings'
+import { SLA_STATE_LABELS, TICKET_SOURCE_LABELS, TICKET_STATUS_DESCRIPTIONS } from '@/server/tickets/labels'
+import { getTicket } from '@/server/tickets/tickets'
+import type { SlaResult } from '@/server/sla/sla'
+import { convertTicketAction } from '../../jobs/actions'
+import { closeTicketAction, reopenTicketAction, triageTicketAction, updateTicketAction } from '../actions'
+
+export const dynamic = 'force-dynamic'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const context = await requireAuth()
+  try {
+    const ticket = await getTicket(context, id)
+    return { title: `${ticket.number} — Cimmerian Crane Services` }
+  } catch (error) {
+    if (error instanceof NotFoundError) return { title: 'Ticket — Cimmerian Crane Services' }
+    throw error
+  }
+}
+
+/**
+ * The ticket. Everything the office needs to decide what happens next is on this one screen, and
+ * everything it has decided so far is visible without opening the audit log.
+ *
+ * The SLA panel is the point of the screen: a P1 whose response target passed an hour before anyone
+ * looked at it should be impossible to miss, whatever else is on the page.
+ */
+export default async function TicketPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const context = await requireAuth()
+
+  // The ticket, the timezone, and the office-only lists beneath it are all independent reads: one
+  // round trip to the database's region, not three in series.
+  const [ticket, settings, related] = await Promise.all([
+    getTicket(context, id).catch((error: unknown) => {
+      if (error instanceof NotFoundError) notFound()
+      throw error
+    }),
+    getSettings(),
+    can(context.role, 'job.create')
+      ? Promise.all([listJobFormOptions(context), listJobs(context, { ticketId: id })])
+      : Promise.resolve(null),
+  ])
+
+  const mayTriage = can(context.role, 'ticket.triage')
+  const mayCreateJob = can(context.role, 'job.create')
+  const isOpen = ticket.status === 'NEW' || ticket.status === 'TRIAGED'
+  const isFinished = ticket.status === 'CLOSED' || ticket.status === 'CANCELLED'
+
+  // The jobs this call became, and the form to make more. Both are office-only: a technician who
+  // raised the ticket can see what happened without being able to dispatch work.
+  const [jobOptions, jobs] = related ?? [null, []]
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <Link href="/tickets" className="text-sm text-muted underline hover:text-ink">
+          ← Tickets
+        </Link>
+
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-title font-semibold text-ink">{ticket.number}</h1>
+              <PriorityBadge priority={ticket.priority} />
+              <TicketStatusBadge status={ticket.status} />
+            </div>
+            <p className="mt-1 text-muted">
+              <Link href={`/customers/${ticket.customer.id}`} className="underline hover:text-ink">
+                {ticket.customer.legalName}
+              </Link>
+              {ticket.site ? (
+                <>
+                  {' · '}
+                  <Link href={`/sites/${ticket.site.id}`} className="underline hover:text-ink">
+                    {ticket.site.name}
+                  </Link>
+                </>
+              ) : null}
+              {ticket.crane ? (
+                <>
+                  {' · '}
+                  <Link href={`/cranes/${ticket.crane.id}`} className="underline hover:text-ink">
+                    {ticket.crane.assetTag}
+                  </Link>
+                </>
+              ) : null}
+            </p>
+          </div>
+
+          <p className="text-sm text-muted">
+            Reported {formatDateTime(ticket.reportedAt, settings.timezone)} by{' '}
+            {TICKET_SOURCE_LABELS[ticket.source as keyof typeof TICKET_SOURCE_LABELS] ?? ticket.source}
+          </p>
+        </div>
+      </div>
+
+      <section className={cardClass}>
+        <h2 className="font-semibold text-ink">Service level</h2>
+        <p className="mt-1 text-sm text-muted">
+          Both clocks start when the ticket was reported, not when it was triaged. Minutes are
+          calendar minutes, so a call at 23:50 has the full target overnight.
+        </p>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <SlaPanel
+            label="Response"
+            targetMinutes={ticket.sla.targets.responseMinutes}
+            sla={ticket.sla.response}
+            metAt={ticket.respondedAt}
+            timeZone={settings.timezone}
+            explanation="Time to the office deciding what to do about it."
+          />
+          <SlaPanel
+            label="Resolution"
+            targetMinutes={ticket.sla.targets.resolutionMinutes}
+            sla={ticket.sla.resolution}
+            metAt={ticket.closedAt}
+            timeZone={settings.timezone}
+            explanation="Time to the ticket being finished — jobs carry the work after that."
+          />
+        </div>
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className={`${cardClass} lg:col-span-2`}>
+          <h2 className="font-semibold text-ink">What was reported</h2>
+          <p className="mt-3 whitespace-pre-wrap text-ink">{ticket.description}</p>
+
+          <h3 className="mt-6 text-xs font-medium text-muted">
+            Triage notes
+          </h3>
+          <p className="mt-1 whitespace-pre-wrap text-ink">
+            {ticket.triageNotes ?? 'Nothing written yet.'}
+          </p>
+
+          <p className="mt-4 text-sm text-muted">{TICKET_STATUS_DESCRIPTIONS[ticket.status]}</p>
+        </section>
+
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">History</h2>
+          <dl className="mt-4 space-y-3 text-sm">
+            <div>
+              <dt className="text-xs font-medium text-muted">Reported</dt>
+              <dd className="text-ink">{formatDateTime(ticket.reportedAt, settings.timezone)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-muted">Triaged</dt>
+              <dd className="text-ink">
+                {ticket.respondedAt
+                  ? formatDateTime(ticket.respondedAt, settings.timezone)
+                  : 'Not yet'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-muted">Finished</dt>
+              <dd className="text-ink">
+                {ticket.closedAt ? formatDateTime(ticket.closedAt, settings.timezone) : 'Not yet'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-muted">Jobs</dt>
+              <dd className="text-ink">
+                {ticket.jobCount === 0
+                  ? 'None raised yet'
+                  : `${ticket.jobCount} ${ticket.jobCount === 1 ? 'job' : 'jobs'}`}
+              </dd>
+            </div>
+          </dl>
+        </section>
+      </div>
+
+      {mayCreateJob && jobs.length > 0 ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Jobs from this call</h2>
+          <ul className="mt-4 divide-y divide-rule">
+            {jobs.map((job) => (
+              <li key={job.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <div>
+                  <Link href={`/jobs/${job.id}`} className="font-medium text-ink underline">
+                    {job.number}
+                  </Link>
+                  <span className="ml-2 text-sm text-muted">{job.jobType.name}</span>
+                </div>
+                <JobStatusBadge status={job.status} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {mayCreateJob && isOpen && jobOptions ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Turn this into jobs</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
+            One job per visit. The customer, site and crane come from the ticket. Once converted, the
+            ticket is the record of the call and the jobs carry the work.
+          </p>
+          {ticket.crane || ticket.site ? (
+            <ConvertTicketForm
+              action={convertTicketAction.bind(null, ticket.id)}
+              jobTypes={jobOptions.jobTypes}
+              defaultPriority={ticket.priority}
+            />
+          ) : (
+            <p className="text-sm text-muted">
+              This ticket names no site or crane. Add one under “Correct the record” first — a job
+              needs an address to send somebody to.
+            </p>
+          )}
+        </section>
+      ) : null}
+
+      {mayTriage && isOpen ? (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section className={cardClass}>
+            <h2 className="font-semibold text-ink">Triage</h2>
+            <p className="mt-1 mb-5 text-sm text-muted">
+              Set the priority and write down what happens next. Saving the first triage stamps the
+              response time.
+            </p>
+            <TriageTicketForm
+              action={triageTicketAction.bind(null, ticket.id)}
+              priority={ticket.priority}
+              status={ticket.status}
+              triageNotes={ticket.triageNotes}
+            />
+          </section>
+
+          <section className={cardClass}>
+            <h2 className="font-semibold text-ink">Finish it</h2>
+            <p className="mt-1 mb-5 text-sm text-muted">
+              For a call that needs no visit, or one that is not going ahead. Work that needs a
+              technician becomes a job instead.
+            </p>
+            <CloseTicketForm action={closeTicketAction.bind(null, ticket.id)} />
+          </section>
+        </div>
+      ) : null}
+
+      {mayTriage ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Correct the record</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
+            Fix what was written down. Priority is changed through triage, and every edit is in the
+            audit log.
+          </p>
+          <EditTicketForm
+            action={updateTicketAction.bind(null, ticket.id)}
+            description={ticket.description}
+            triageNotes={ticket.triageNotes}
+            siteId={ticket.site?.id ?? null}
+            craneId={ticket.crane?.id ?? null}
+          />
+        </section>
+      ) : null}
+
+      {mayTriage && isFinished ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Reopen</h2>
+          <p className="mt-1 mb-4 text-sm text-muted">
+            If the fault turned out to be real after all, reopen this ticket rather than raising a
+            duplicate — the history stays in one place.
+          </p>
+          <form action={reopenTicketAction.bind(null, ticket.id)}>
+            <button
+              type="submit"
+              className="rounded-md border border-line bg-field px-4 py-2 font-medium text-ink hover:bg-raised"
+            >
+              Reopen ticket
+            </button>
+          </form>
+        </section>
+      ) : null}
+    </div>
+  )
+}
+
+function SlaPanel({
+  label,
+  targetMinutes,
+  sla,
+  metAt,
+  timeZone,
+  explanation,
+}: {
+  label: string
+  targetMinutes: number
+  sla: SlaResult
+  metAt: Date | null
+  timeZone: string
+  explanation: string
+}) {
+  const overdueMs =
+    sla.state === 'breached' && sla.elapsedMs !== null && sla.elapsedMs < 0 ? -sla.elapsedMs : 0
+
+  return (
+    <div className="rounded-md border border-line bg-sheet p-4">
+      <p className="text-xs font-medium text-muted">{label}</p>
+      <p
+        className={
+          sla.state === 'breached'
+            ? 'mt-1 text-lg font-semibold text-neg'
+            : sla.state === 'at-risk'
+              ? 'mt-1 text-lg font-semibold text-warn'
+              : 'mt-1 text-lg font-semibold text-ink'
+        }
+      >
+        {SLA_STATE_LABELS[sla.state]}
+      </p>
+      <p className="mt-1 text-sm text-muted">
+        Target {formatDuration(targetMinutes * 60_000)}
+        {sla.dueAt ? <> · due {formatDateTime(sla.dueAt, timeZone)}</> : null}
+      </p>
+      <p className="mt-1 text-sm text-muted">
+        {sla.state === 'met' && metAt ? (
+          <>Answered {formatDateTime(metAt, timeZone)}</>
+        ) : sla.state === 'breached' ? (
+          overdueMs > 0 ? (
+            <>Overdue by {formatDuration(overdueMs)}</>
+          ) : (
+            <>The target has passed and nothing has been recorded.</>
+          )
+        ) : sla.remainingMs !== null ? (
+          <>{formatDuration(sla.remainingMs)} left</>
+        ) : (
+          'No clock running.'
+        )}
+      </p>
+      <p className="mt-2 text-xs text-muted">{explanation}</p>
+    </div>
+  )
+}

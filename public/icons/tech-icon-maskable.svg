@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Cimmerian Crane">
+  <!-- Maskable variants must keep the mark inside the centre 80%: launchers crop to a circle. -->
+  <rect width="512" height="512" fill="#0f172a"/>
+  <g transform="translate(256 256) scale(0.78) translate(-256 -256)">
+    <path d="M150 396V150h34v246z" fill="#f8fafc"/>
+    <path d="M150 150h212l-28 34H178z" fill="#f8fafc"/>
+    <path d="M196 212h22v64h-22z" fill="#f8fafc"/>
+    <path d="M167 300a40 40 0 1 0 0 80h58v-34h-58a6 6 0 0 1 0-12h58v-34z" fill="#f8fafc"/>
+    <circle cx="348" cy="212" r="14" fill="#38bdf8"/>
+  </g>
+</svg>

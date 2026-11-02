@@ -1,0 +1,1112 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { EditJobForm, TransitionJobForm } from '@/components/office/job-forms'
+import { AuditTrailLink, AuditTrailPanel } from '@/components/office/audit-trail'
+import { JobStatusBadge, OnHoldBadge } from '@/components/office/job-badges'
+import {
+  AssignTechnicianForm,
+  BumpJobForm,
+  BookResourceForm,
+  RescheduleJobForm,
+  UnassignTechnicianForm,
+} from '@/components/office/schedule-forms'
+import { PriorityBadge } from '@/components/office/ticket-badges'
+import { cardClass } from '@/components/office/ui'
+import {
+  CreateDeliveryOrderForm,
+  ReceiveDeliveryOrderForm,
+  ReturnDeliveryOrderForm,
+} from '@/components/office/delivery-order-forms'
+import { QuoteForm } from '@/components/office/quote-forms'
+import { QuoteStatusBadge } from '@/components/office/quote-badges'
+import { InvoiceForm } from '@/components/office/invoice-forms'
+import { InvoiceStatusBadge, OverdueBadge } from '@/components/office/invoice-badges'
+import { openFindingsForJob } from '@/server/findings/findings'
+import { partOptions } from '@/server/inventory/parts'
+import { backOrdersForPart } from '@/server/inventory/purchase-orders'
+import { expectedDateLabel } from '@/lib/validation/purchase-orders'
+import { quotesForJob } from '@/server/quotes/quotes'
+import { invoicesForJob, jobCosting } from '@/server/invoices/invoices'
+import { createQuoteAction } from '../../quotes/actions'
+import { createInvoiceAction } from '../../invoices/actions'
+import {
+  deliveryOrdersForJob,
+  issuedPartsForJob,
+} from '@/server/delivery-orders/delivery-orders'
+import { DELIVERY_STATUS_LABELS } from '@/lib/validation/delivery-orders'
+import { formatDate, formatDateTime, formatDuration, formatMoney } from '@/lib/format'
+import { utcToLocalInput } from '@/lib/time'
+import { auditTrail } from '@/server/audit/audit'
+import { requireAuth } from '@/server/auth/context'
+import { NotFoundError } from '@/server/auth/errors'
+import { can } from '@/server/auth/permissions'
+import { JOB_STATUS_DESCRIPTIONS, JOB_STATUS_LABELS, ON_HOLD_REASON_LABELS } from '@/server/jobs/labels'
+import { getJob, listJobs, metadataForJob } from '@/server/jobs/jobs'
+import { REPORT_STATUS_LABELS } from '@/server/reports/labels'
+import { reportsForJob } from '@/server/reports/reports'
+import { ServiceReportForm } from '@/components/office/service-report-form'
+import {
+  approveServiceReportAction,
+  saveServiceReportAction,
+} from './service-report/actions'
+import { serviceReportForJob } from '@/server/service-reports/service-reports'
+import { isTerminal, nextStatuses } from '@/server/jobs/status'
+import { dispatchPack } from '@/server/schedule/dispatch'
+import { listResources, listTechnicians } from '@/server/schedule/roster'
+import { jobStaffing } from '@/server/schedule/scheduling'
+import { dueLabelFor, schedulesForJobCranes } from '@/server/schedules/schedules'
+import { SCHEDULE_TYPE_LABELS } from '@/lib/validation/schedules'
+import { getSettings } from '@/server/settings/settings'
+import type { SlaResult } from '@/server/sla/sla'
+import { updateJobAction, transitionJobAction } from '../actions'
+import {
+  createDeliveryOrderAction,
+  receiveDeliveryOrderAction,
+  returnDeliveryOrderAction,
+} from './delivery-orders/actions'
+import {
+  assignTechnicianAction,
+  bookResourceAction,
+  bumpJobAction,
+  dispatchJobFormAction,
+  releaseResourceAction,
+  rescheduleJobAction,
+  unassignTechnicianAction,
+} from '../../schedule/actions'
+
+export const dynamic = 'force-dynamic'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const context = await requireAuth()
+  try {
+    const [job] = await metadataForJob(context, id)
+    return { title: `${job.number} — Cimmerian Crane Services` }
+  } catch (error) {
+    if (error instanceof NotFoundError) return { title: 'Job — Cimmerian Crane Services' }
+    throw error
+  }
+}
+
+/**
+ * One job. The page answers four questions in reading order: what is it, where is it up to, is it on
+ * time, and what has happened to it. The transition form is the only way the status changes, so the
+ * history below it is always the reason for the state above it.
+ */
+export default async function JobPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const context = await requireAuth()
+
+  // Read from the permission map, not the database, so these cost nothing and can gate the batch below.
+  const mayMove = can(context.role, 'job.transition')
+  const mayEdit = can(context.role, 'job.create')
+  const maySchedule = can(context.role, 'job.schedule')
+  const mayAssign = can(context.role, 'job.assign')
+  const mayDispatch = can(context.role, 'job.dispatch')
+  const mayDeliver = can(context.role, 'deliveryorder.write')
+  const mayQuote = can(context.role, 'quote.read')
+  const mayWriteQuote = can(context.role, 'quote.write')
+  const mayInvoice = can(context.role, 'invoice.read')
+  const mayWriteInvoice = can(context.role, 'invoice.write')
+  const mayApproveReport = can(context.role, 'report.approve')
+
+  const [
+    jobResult,
+    settings,
+    staffing,
+    technicians,
+    resources,
+    dispatch,
+    allJobs,
+    reports,
+    trail,
+    completionSchedules,
+    deliveries,
+    deliverableParts,
+    quotes,
+    quotableFindings,
+    invoices,
+    costing,
+    catalogue,
+    serviceReport,
+  ] = await Promise.all([
+      getJob(context, id).then(
+        (job) => ({ job }),
+        (error: unknown) => {
+          if (error instanceof NotFoundError) notFound()
+          throw error
+        },
+      ),
+      getSettings(),
+      // Everything below keys off the id in the URL, not off the job row, so it runs alongside the
+      // job read rather than waiting a full round trip for it.
+      jobStaffing(context, id),
+      mayAssign ? listTechnicians(context) : Promise.resolve([]),
+      maySchedule && can(context.role, 'resource.read')
+        ? listResources(context)
+        : Promise.resolve([]),
+      mayDispatch
+        ? dispatchPack(context, id).catch((error) => {
+            if (error instanceof NotFoundError) return null
+            throw error
+          })
+        : Promise.resolve(null),
+      can(context.role, 'job.bump') ? listJobs(context, {}) : Promise.resolve([]),
+      reportsForJob(context, id),
+      can(context.role, 'audit.read') ? auditTrail(context, 'Job', id, 20) : Promise.resolve([]),
+      // The schedules this visit could complete (slice 12). Keyed off the id in the URL like the
+      // rest, so it joins the same batch; the job row decides below whether they are offered.
+      mayMove && can(context.role, 'schedule.manage')
+        ? schedulesForJobCranes(context, id)
+        : Promise.resolve([]),
+      // Delivery orders (slice 18). Reading them follows the job, so anybody who can read it sees
+      // the paperwork; only `deliveryorder.write` raises or receipts one.
+      can(context.role, 'part.read') ? deliveryOrdersForJob(context, id) : Promise.resolve([]),
+      mayDeliver && can(context.role, 'part.read')
+        ? issuedPartsForJob(context, id)
+        : Promise.resolve([]),
+      // Quotes (slice 19). Whoever may read a quote sees the job's; the raise form offers the job's
+      // open findings as prefilled lines, which needs the report capability as well.
+      mayQuote ? quotesForJob(context, id) : Promise.resolve([]),
+      mayWriteQuote && can(context.role, 'report.read.all')
+        ? openFindingsForJob(context, id).catch((error: unknown) => {
+            if (error instanceof NotFoundError) return []
+            throw error
+          })
+        : Promise.resolve([]),
+      // Invoices (slice 20). The book for this job, and the parts it could be costed from — the
+      // same ISSUE movements the delivery order prints, priced at their sell price.
+      mayInvoice ? invoicesForJob(context, id) : Promise.resolve([]),
+      mayWriteInvoice
+        ? jobCosting(context, id).catch((error: unknown) => {
+            if (error instanceof NotFoundError) return { parts: [], partsCost: 0 }
+            throw error
+          })
+        : Promise.resolve({ parts: [], partsCost: 0 }),
+      // The part an "awaiting parts" hold names (slice 28). Only the move form offers it.
+      mayMove && can(context.role, 'part.read') ? partOptions(context) : Promise.resolve([]),
+      // The Service Report (slice 39). Only a job type that issues one has a row; the caller's own
+      // capability decides whether the panel is offered at all.
+      mayApproveReport ? serviceReportForJob(context, id) : Promise.resolve(null),
+    ])
+  const job = jobResult.job
+
+  // Which open orders still owe the part this job waits for. Outside the batch because it needs the
+  // job row, and it only runs for the one hold that names a part.
+  const waitingOn =
+    job.onHoldPart && can(context.role, 'part.read')
+      ? await backOrdersForPart(context, job.onHoldPart.id)
+      : []
+  const holdPart = job.onHoldPart
+
+  // Only the bump candidates need the job row (to exclude itself), so the filter stays here.
+  const unplaced = allJobs.filter(
+    (row) => row.id !== job.id && (!row.scheduledStart || row.priority === 'P1'),
+  )
+
+  const moves = nextStatuses(job.status)
+  const finished = isTerminal(job.status)
+
+  const rescheduleDefaultStart = staffing.scheduledStart
+    ? utcToLocalInput(staffing.scheduledStart, settings.timezone)
+    : ''
+  const rescheduleDefaultEnd = staffing.scheduledEnd
+    ? utcToLocalInput(staffing.scheduledEnd, settings.timezone)
+    : ''
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <Link href="/jobs" className="text-sm text-muted underline hover:text-ink">
+          ← Jobs
+        </Link>
+
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-title font-semibold text-ink">{job.number}</h1>
+              <PriorityBadge priority={job.priority} />
+              <JobStatusBadge status={job.status} />
+              {job.onHoldReason ? (
+                <OnHoldBadge reason={job.onHoldReason} note={job.onHoldNote} />
+              ) : null}
+            </div>
+            <p className="mt-1 text-muted">
+              {job.jobType.name}
+              {' · '}
+              <Link href={`/customers/${job.customer.id}`} className="underline hover:text-ink">
+                {job.customer.legalName}
+              </Link>
+              {job.site ? (
+                <>
+                  {' · '}
+                  <Link href={`/sites/${job.site.id}`} className="underline hover:text-ink">
+                    {job.site.name}
+                  </Link>
+                </>
+              ) : null}
+              {job.cranes.length > 0 ? (
+                <>
+                  {' · '}
+                  {job.cranes.map((crane, index) => (
+                    <span key={crane.id}>
+                      {index > 0 ? ', ' : ''}
+                      <Link href={`/cranes/${crane.id}`} className="underline hover:text-ink">
+                        {crane.assetTag}
+                      </Link>
+                    </span>
+                  ))}
+                </>
+              ) : null}
+            </p>
+            {job.ticket ? (
+              <p className="mt-1 text-sm text-muted">
+                Raised from{' '}
+                <Link href={`/tickets/${job.ticket.id}`} className="underline hover:text-ink">
+                  {job.ticket.number}
+                </Link>
+              </p>
+            ) : null}
+          </div>
+
+          <p className="text-sm text-muted">
+            {job.reportedAt ? `Raised ${formatDateTime(job.reportedAt, settings.timezone)}` : 'No reported date'}
+          </p>
+        </div>
+      </div>
+
+      {job.onHoldReason ? (
+        <div className="rounded-lg border border-warn/40 bg-warn/10 p-4">
+          <p className="font-medium text-warn">
+            On hold — {ON_HOLD_REASON_LABELS[job.onHoldReason]}
+          </p>
+          <p className="mt-1 text-sm text-warn">
+            {job.onHoldNote ?? 'No further detail was recorded.'}
+          </p>
+
+          {holdPart ? (
+            <div className="mt-3 border-t border-warn/40 pt-3">
+              <p className="text-sm text-warn">
+                Waiting for{' '}
+                <Link
+                  href={`/parts/${holdPart.id}`}
+                  className="font-medium underline hover:text-ink"
+                >
+                  {holdPart.partNumber}
+                </Link>{' '}
+                — {holdPart.description}
+              </p>
+              {waitingOn.length === 0 ? (
+                <p className="mt-1 text-sm text-warn">
+                  Nothing on order for it. Raise one from the{' '}
+                  <Link href="/parts/reorder" className="underline hover:text-ink">
+                    reorder list
+                  </Link>
+                  .
+                </p>
+              ) : (
+                <ul className="mt-1 space-y-1 text-sm text-warn">
+                  {waitingOn.map((order) => {
+                    const when = expectedDateLabel(
+                      order.status,
+                      order.expectedAt,
+                      new Date(),
+                      settings.timezone,
+                    )
+                    return (
+                      <li key={order.purchaseOrderId}>
+                        {order.remaining} {holdPart.uom} on {order.number} from {order.supplierName} —{' '}
+                        <span className={when.late ? 'font-medium text-neg' : ''}>
+                          {when.text}
+                        </span>
+                        {order.expectedAt
+                          ? ` (${formatDate(order.expectedAt, settings.timezone)})`
+                          : ''}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      <section className={cardClass}>
+        <h2 className="font-semibold text-ink">Service level</h2>
+        <p className="mt-1 text-sm text-muted">
+          Targets were fixed when the job was raised from the policy in force at that moment. Minutes
+          are calendar minutes.
+        </p>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <SlaPanel
+            label="Response"
+            sla={job.sla.response}
+            metAt={job.respondedAt}
+            timeZone={settings.timezone}
+            explanation="Time to somebody being on the way — dispatch or arrival, whichever happens first."
+          />
+          <SlaPanel
+            label="Resolution"
+            sla={job.sla.resolution}
+            metAt={job.completedAt ?? job.closedAt}
+            timeZone={settings.timezone}
+            explanation="Time to the work being finished and the report submitted."
+          />
+        </div>
+      </section>
+
+      {maySchedule || mayAssign || mayDispatch ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Who is going</h2>
+          <p className="mt-1 text-sm text-muted">
+            The visit, the crew and the kit. The board is the fast way to move things; this is the
+            precise way.
+          </p>
+
+          <div className="mt-4 grid gap-6 lg:grid-cols-2">
+            <div>
+              <h3 className="text-xs font-medium text-muted">Visit</h3>
+              <p className="mt-1 text-sm text-ink">
+                {staffing.scheduledStart
+                  ? `${formatDateTime(staffing.scheduledStart, settings.timezone)}${
+                      staffing.scheduledEnd
+                        ? ` – ${formatDateTime(staffing.scheduledEnd, settings.timezone)}`
+                        : ''
+                    }`
+                  : 'Not scheduled yet.'}
+              </p>
+
+              {maySchedule && !finished ? (
+                <div className="mt-4">
+                  <RescheduleJobForm
+                    action={rescheduleJobAction.bind(null, job.id)}
+                    timezone={settings.timezone}
+                    defaultStart={rescheduleDefaultStart}
+                    defaultEnd={rescheduleDefaultEnd}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            <div>
+              <h3 className="text-xs font-medium text-muted">Crew</h3>
+              {staffing.technicians.length === 0 ? (
+                <p className="mt-1 text-sm text-muted">Nobody assigned.</p>
+              ) : (
+                <ul className="mt-2 space-y-2">
+                  {staffing.technicians.map((entry) => (
+                    <li key={entry.technicianId} className="rounded-md border border-line p-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: entry.colour ?? '#94a3b8' }}
+                        />
+                        <span className="text-sm font-medium text-ink">{entry.name}</span>
+                        {entry.isLead ? (
+                          <span className="rounded border border-line px-1.5 py-0.5 text-xs text-muted">
+                            lead
+                          </span>
+                        ) : null}
+                      </div>
+                      {entry.competency.missing.length > 0 || entry.competency.expired.length > 0 ? (
+                        <p className="mt-1 text-xs text-warn">
+                          {entry.competency.missing.length > 0
+                            ? `Missing: ${entry.competency.missing.join(', ')}. `
+                            : ''}
+                          {entry.competency.expired.length > 0
+                            ? `Expired: ${entry.competency.expired.join(', ')}.`
+                            : ''}
+                        </p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {mayAssign && !finished ? (
+                <div className="mt-4 space-y-4">
+                  <AssignTechnicianForm
+                    action={assignTechnicianAction.bind(null, job.id)}
+                    technicians={technicians}
+                  />
+                  <UnassignTechnicianForm
+                    action={unassignTechnicianAction.bind(null, job.id)}
+                    technicians={staffing.technicians.map((entry) => ({
+                      technicianId: entry.technicianId,
+                      name: entry.name,
+                      isLead: entry.isLead,
+                    }))}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {maySchedule && resources.length > 0 && !finished ? (
+            <div className="mt-6 border-t border-line pt-4">
+              <h3 className="text-xs font-medium text-muted">
+                Booked out
+              </h3>
+              {staffing.resources.length === 0 ? (
+                <p className="mt-1 text-sm text-muted">Nothing booked yet.</p>
+              ) : (
+                <ul className="mt-2 space-y-1">
+                  {staffing.resources.map((resource) => (
+                    <li
+                      key={resource.resourceId}
+                      className="flex items-center justify-between gap-3 text-sm"
+                    >
+                      <span className="text-ink">{resource.name}</span>
+                      <form action={async () => releaseResourceAction(job.id, resource.resourceId)}>
+                        <button type="submit" className="text-muted underline hover:text-neg">
+                          Release
+                        </button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-4 max-w-md">
+                <BookResourceForm
+                  action={bookResourceAction.bind(null, job.id)}
+                  resources={resources}
+                />
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {mayDispatch && dispatch ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Dispatch</h2>
+          <p className="mt-1 text-sm text-muted">
+            Sends the technicians what they need on the road — where to go, who to ask for, what the
+            machine has had done to it — and moves the job to Dispatched.
+          </p>
+
+          {dispatch.warnings.length > 0 ? (
+            <ul className="mt-3 space-y-1 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">
+              {dispatch.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : null}
+
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-xs font-medium text-muted">Site</dt>
+              <dd className="text-ink">
+                {dispatch.siteName}
+                {dispatch.address ? `, ${dispatch.address}` : ''}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-muted">
+                Ask for
+              </dt>
+              <dd className="text-ink">
+                {dispatch.contact
+                  ? `${dispatch.contact.name}${dispatch.contact.phone ? ` — ${dispatch.contact.phone}` : ''}`
+                  : 'Nobody recorded.'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-muted">Access</dt>
+              <dd className="text-ink">{dispatch.accessNotes ?? 'Not recorded.'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-muted">
+                Checklist
+              </dt>
+              <dd className="text-ink">
+                {dispatch.checklist.length > 0
+                  ? `${dispatch.checklist.length} items`
+                  : 'None for this kind of work.'}
+              </dd>
+            </div>
+          </dl>
+
+          <div className="mt-4">
+            <form action={dispatchJobFormAction.bind(null, job.id)}>
+              <button
+                type="submit"
+                disabled={staffing.technicians.length === 0}
+                className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft disabled:opacity-60"
+              >
+                {staffing.technicians.length === 0
+                  ? 'Nobody to dispatch to'
+                  : job.status === 'DISPATCHED'
+                    ? 'Send the details again'
+                    : 'Dispatch to the crew'}
+              </button>
+            </form>
+          </div>
+        </section>
+      ) : null}
+
+      {job.parentJob || job.followUps.length > 0 ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Follow-ups</h2>
+          <p className="mt-1 text-sm text-muted">
+            A job raised from a finding is linked to the job that reported it, so the crane&rsquo;s
+            history reads as one chain rather than two unrelated visits.
+          </p>
+          {job.parentJob ? (
+            <p className="mt-3 text-sm text-ink">
+              Raised from a finding on{' '}
+              <Link href={`/jobs/${job.parentJob.id}`} className="underline hover:text-ink">
+                {job.parentJob.number}
+              </Link>
+              .
+            </p>
+          ) : null}
+          {job.followUps.length > 0 ? (
+            <ul className="mt-3 space-y-1 text-sm">
+              {job.followUps.map((entry) => (
+                <li key={entry.id} className="text-ink">
+                  <Link href={`/jobs/${entry.id}`} className="underline hover:text-ink">
+                    {entry.number}
+                  </Link>{' '}
+                  <JobStatusBadge status={entry.status} />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
+
+      <section className={cardClass}>
+        <h2 className="font-semibold text-ink">Reports</h2>
+        {reports.length === 0 ? (
+          <p className="mt-2 text-sm text-muted">
+            No report yet. The technician fills one in per crane on the phone.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2 text-sm">
+            {reports.map((report) => (
+              <li
+                key={report.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 border-b border-rule pb-2 last:border-0"
+              >
+                <span>
+                  <Link
+                    href={`/reports/${report.id}`}
+                    className="font-medium text-ink underline"
+                  >
+                    {report.documentNumber ?? `Report for ${report.craneTag}`}
+                  </Link>{' '}
+                  <span className="text-muted">{REPORT_STATUS_LABELS[report.status]}</span>
+                </span>
+                <span className="text-muted">
+                  {report.craneTag} · {formatDateTime(report.submittedAt, settings.timezone)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {serviceReport ? (
+        <section className={`${cardClass} lg:col-span-2`}>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-semibold text-ink">Service Report</h2>
+            {serviceReport.documentNumber ? (
+              <a
+                href={`/api/jobs/${job.id}/service-report/pdf`}
+                className="text-sm text-ink underline"
+              >
+                {serviceReport.documentNumber} — download the issued PDF
+              </a>
+            ) : (
+              <span className="text-sm text-muted">
+                Draft — the wording is generated from the graded checklists below and is yours to
+                edit before it is issued.
+              </span>
+            )}
+          </div>
+
+          {serviceReport.missingCranes.length > 0 && serviceReport.status !== 'APPROVED' ? (
+            <p className="mt-2 text-sm text-warn">
+              Waiting on a graded checklist for{' '}
+              {serviceReport.missingCranes.map((crane) => crane.assetTag).join(', ')}.
+            </p>
+          ) : null}
+
+          {serviceReport.cranes.length === 0 ? (
+            <p className="mt-2 text-sm text-muted">
+              Nothing graded yet. The Service Report is built from the servicing checklist forms the
+              technicians submit.
+            </p>
+          ) : (
+            <div className="mt-4">
+              <ServiceReportForm
+                saveAction={saveServiceReportAction.bind(null, job.id)}
+                approveAction={approveServiceReportAction.bind(null, job.id)}
+                editable={serviceReport.status !== 'APPROVED'}
+                cranes={serviceReport.cranes.map((crane) => ({
+                  craneId: crane.craneId,
+                  assetTag: crane.assetTag,
+                  type: crane.type,
+                  paragraphs: crane.paragraphs.map((paragraph) => ({
+                    component: paragraph.component,
+                    grade: paragraph.grade,
+                    text: paragraph.text,
+                  })),
+                }))}
+              />
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {can(context.role, 'part.read') ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Delivery orders</h2>
+          <p className="mt-1 text-sm text-muted">
+            Paperwork for the parts issued on this job. Lines come from the stock movements the
+            technician recorded, so the delivery and the store ledger are the same rows. Loan kit is
+            booked back here.
+          </p>
+
+          {deliveries.length > 0 ? (
+            <ul className="mt-4 space-y-4">
+              {deliveries.map((order) => (
+                <li key={order.id} className="rounded-md border border-line p-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-medium text-ink">{order.number}</span>
+                    <span className="text-xs text-muted">
+                      {DELIVERY_STATUS_LABELS[order.status]}
+                      {order.issuedAt
+                        ? ` · issued ${formatDateTime(order.issuedAt, settings.timezone)}`
+                        : ''}
+                      {order.receiverName ? ` · signed by ${order.receiverName}` : ''}
+                    </span>
+                  </div>
+
+                  {order.deliveryAddress.length > 0 ? (
+                    <p className="mt-1 text-xs text-muted">
+                      Deliver to {order.deliveryAddress.join(', ')}
+                    </p>
+                  ) : null}
+
+                  <table className="mt-2 w-full text-left text-sm">
+                    <thead>
+                      <tr className="text-xs text-muted">
+                        <th className="py-1 font-medium">Part</th>
+                        <th className="py-1 font-medium">Ordered</th>
+                        <th className="py-1 font-medium">Received</th>
+                        <th className="py-1 font-medium">Terms</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {order.lines.map((line) => (
+                        <tr key={line.id} className="border-t border-rule">
+                          <td className="py-1 text-ink">
+                            {line.description}
+                            {line.serialOrBatch ? (
+                              <span className="text-muted"> · {line.serialOrBatch}</span>
+                            ) : null}
+                          </td>
+                          <td className="py-1 text-ink">{line.quantity}</td>
+                          <td
+                            className={
+                              line.receivedQuantity >= line.quantity
+                                ? 'py-1 text-ink'
+                                : 'py-1 text-warn'
+                            }
+                          >
+                            {line.receivedQuantity}
+                          </td>
+                          <td className="py-1 text-ink">
+                            {line.chargeType === 'LOAN'
+                              ? line.outstanding
+                                ? `Loan · ${line.returnedQuantity} of ${line.quantity} back`
+                                : 'Loan · returned'
+                              : line.chargeType === 'WARRANTY'
+                                ? 'Warranty'
+                                : 'Chargeable'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <a
+                    href={`/api/delivery-orders/${order.id}/pdf`}
+                    className="mt-2 inline-block text-sm text-muted underline hover:text-ink"
+                  >
+                    Download the delivery order PDF
+                  </a>
+
+                  {mayDeliver && order.status !== 'RETURNED' ? (
+                    <div className="mt-3 space-y-3">
+                      <details>
+                        <summary className="cursor-pointer text-sm font-medium text-ink">
+                          Record who took the parts
+                        </summary>
+                        <ReceiveDeliveryOrderForm
+                          action={receiveDeliveryOrderAction.bind(null, order.id, job.id)}
+                          deliveryOrderId={order.id}
+                          lines={order.lines}
+                        />
+                      </details>
+                      {order.lines.some((line) => line.chargeType === 'LOAN') ? (
+                        <details>
+                          <summary className="cursor-pointer text-sm font-medium text-ink">
+                            Book loan kit back
+                          </summary>
+                          <ReturnDeliveryOrderForm
+                            action={returnDeliveryOrderAction.bind(null, order.id, job.id)}
+                            deliveryOrderId={order.id}
+                            lines={order.lines}
+                          />
+                        </details>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-muted">
+              None yet. A delivery order is raised from the parts a technician issues.
+            </p>
+          )}
+
+          {mayDeliver ? (
+            <div className="mt-4 border-t border-line pt-4">
+              <h3 className="text-xs font-medium text-muted">
+                Raise one from the parts issued
+              </h3>
+              <div className="mt-2">
+                <CreateDeliveryOrderForm
+                  action={createDeliveryOrderAction.bind(null, job.id)}
+                  parts={deliverableParts.map((part) => ({
+                    ...part,
+                    issuedAt: part.issuedAt.toISOString(),
+                  }))}
+                  timezone={settings.timezone}
+                />
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {mayQuote ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Quotes</h2>
+          <p className="mt-1 text-sm text-muted">
+            What the customer has been offered for this job, including variations. Accepting a quote
+            moves the job to Approved.
+          </p>
+
+          {quotes.length > 0 ? (
+            <ul className="mt-3 space-y-2 text-sm">
+              {quotes.map((quote) => (
+                <li
+                  key={quote.id}
+                  className="flex flex-wrap items-baseline justify-between gap-2 border-b border-rule pb-2 last:border-0"
+                >
+                  <span>
+                    <Link
+                      href={`/quotes/${quote.id}`}
+                      className="font-medium text-ink underline"
+                    >
+                      {quote.number}
+                    </Link>{' '}
+                    <QuoteStatusBadge status={quote.status} />
+                  </span>
+                  <span className="text-muted">
+                    {formatMoney(quote.total, settings.currency)}
+                    {quote.validUntil
+                      ? ` · valid until ${formatDate(quote.validUntil, settings.timezone)}`
+                      : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-muted">
+              None yet. Raise one below, or record a finding on the report first.
+            </p>
+          )}
+
+          {mayWriteQuote ? (
+            <div className="mt-4 border-t border-line pt-4">
+              <details>
+                <summary className="cursor-pointer text-sm font-medium text-ink">
+                  Raise a quote
+                </summary>
+                <div className="mt-3">
+                  <QuoteForm
+                    action={createQuoteAction.bind(null, job.id)}
+                    findings={quotableFindings.map((finding) => ({
+                      id: finding.id,
+                      component: finding.component,
+                      description: finding.description,
+                      recommendation: finding.recommendation,
+                    }))}
+                  />
+                </div>
+              </details>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {mayInvoice ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Invoices</h2>
+          <p className="mt-1 text-sm text-muted">
+            What this job has been billed. An invoice is raised once the job has been reviewed;
+            issuing it moves the job to Invoiced and gives it a due date from the customer&rsquo;s
+            payment terms.
+          </p>
+
+          {invoices.length > 0 ? (
+            <ul className="mt-3 space-y-2 text-sm">
+              {invoices.map((invoice) => (
+                <li
+                  key={invoice.id}
+                  className="flex flex-wrap items-baseline justify-between gap-2 border-b border-rule pb-2 last:border-0"
+                >
+                  <span className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/invoices/${invoice.id}`}
+                      className="font-medium text-ink underline"
+                    >
+                      {invoice.number}
+                    </Link>
+                    <InvoiceStatusBadge status={invoice.status} />
+                    {invoice.overdue ? <OverdueBadge /> : null}
+                  </span>
+                  <span className="text-muted">
+                    {formatMoney(invoice.total, settings.currency)}
+                    {invoice.balance > 0
+                      ? ` · ${formatMoney(invoice.balance, settings.currency)} owing`
+                      : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-muted">
+              None yet. {job.status === 'REVIEWED' ? 'The job is reviewed — raise one below.' : 'The job must be reviewed before it can be invoiced.'}
+            </p>
+          )}
+
+          {mayWriteInvoice && job.status === 'REVIEWED' ? (
+            <div className="mt-4 border-t border-line pt-4">
+              <details>
+                <summary className="cursor-pointer text-sm font-medium text-ink">
+                  Raise an invoice
+                </summary>
+                <div className="mt-3">
+                  <InvoiceForm
+                    action={createInvoiceAction.bind(null, job.id)}
+                    suggested={costing.parts}
+                  />
+                </div>
+              </details>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className={`${cardClass} lg:col-span-2`}>
+          <h2 className="font-semibold text-ink">What needs doing</h2>
+          <p className="mt-3 whitespace-pre-wrap text-ink">
+            {job.description ?? 'Nothing written down yet.'}
+          </p>
+
+          <h3 className="mt-6 text-xs font-medium text-muted">
+            Internal notes
+          </h3>
+          <p className="mt-1 whitespace-pre-wrap text-ink">
+            {job.internalNotes ?? 'None.'}
+          </p>
+
+          <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-xs font-medium text-muted">
+                Customer PO / reference
+              </dt>
+              <dd className="text-ink">{job.customerPoRef ?? '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-muted">Schedule</dt>
+              <dd className="text-ink">
+                {job.scheduledStart
+                  ? `${formatDateTime(job.scheduledStart, settings.timezone)}${job.scheduledEnd ? ` – ${formatDateTime(job.scheduledEnd, settings.timezone)}` : ''}`
+                  : 'Not scheduled yet'}
+              </dd>
+            </div>
+          </dl>
+
+          <p className="mt-4 text-sm text-muted">{JOB_STATUS_DESCRIPTIONS[job.status]}</p>
+        </section>
+
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">History</h2>
+          <ol className="mt-4 space-y-3 text-sm">
+            {job.history.map((entry) => (
+              <li key={entry.id} className="border-l-2 border-line pl-3">
+                <p className="font-medium text-ink">
+                  {entry.fromStatus
+                    ? `${JOB_STATUS_LABELS[entry.fromStatus]} → ${JOB_STATUS_LABELS[entry.toStatus]}`
+                    : JOB_STATUS_LABELS[entry.toStatus]}
+                </p>
+                <p className="text-xs text-muted">
+                  {formatDateTime(entry.changedAt, settings.timezone)}
+                  {entry.changedByName ? ` · ${entry.changedByName}` : null}
+                </p>
+                {entry.onHoldReason ? (
+                  <p className="mt-1 text-xs text-warn">
+                    {ON_HOLD_REASON_LABELS[entry.onHoldReason]}
+                  </p>
+                ) : null}
+                {entry.reason ? <p className="mt-1 text-ink">{entry.reason}</p> : null}
+              </li>
+            ))}
+          </ol>
+        </section>
+      </div>
+
+      {trail.length > 0 ? (
+        <div className="space-y-2">
+          <AuditTrailPanel entries={trail} timeZone={settings.timezone} />
+          <AuditTrailLink href={`/admin/audit?entity=Job&entityId=${job.id}`} />
+        </div>
+      ) : null}
+
+      {mayMove && !finished && moves.length > 0 ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Move this job on</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
+            Every move is timestamped, attributed and kept on the history above. On hold always
+            records why.
+          </p>
+          <TransitionJobForm
+            action={transitionJobAction.bind(null, job.id)}
+            status={job.status}
+            nextStatuses={moves}
+            parts={catalogue}
+            completionSchedules={completionSchedules.map((schedule) => ({
+              id: schedule.id,
+              label: `${schedule.crane.assetTag} — ${SCHEDULE_TYPE_LABELS[schedule.scheduleType]}`,
+              dueLabel: dueLabelFor(schedule, settings.timezone),
+              overdue: schedule.overdue,
+            }))}
+          />
+        </section>
+      ) : null}
+
+      {can(context.role, 'job.bump') &&
+      staffing.scheduledStart &&
+      !finished &&
+      unplaced.length > 0 ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Something more urgent needs this slot</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
+            Displacing this visit sends it back to Approved with its dates cleared, and records who
+            decided, what took the slot and why. The job taking the slot is not placed automatically.
+          </p>
+          <div className="max-w-md">
+            <BumpJobForm
+              action={bumpJobAction.bind(null, job.id)}
+              candidates={unplaced.slice(0, 50).map((row) => ({
+                id: row.id,
+                number: row.number,
+                priority: row.priority,
+                customerName: row.customer.tradingName ?? row.customer.legalName,
+              }))}
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {mayEdit ? (
+        <section className={cardClass}>
+          <h2 className="font-semibold text-ink">Correct the paperwork</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
+            Status is changed above, not here. Every edit is in the audit log.
+          </p>
+          <EditJobForm
+            action={updateJobAction.bind(null, job.id)}
+            description={job.description}
+            internalNotes={job.internalNotes}
+            customerPoRef={job.customerPoRef}
+          />
+        </section>
+      ) : null}
+    </div>
+  )
+}
+
+function SlaPanel({
+  label,
+  sla,
+  metAt,
+  timeZone,
+  explanation,
+}: {
+  label: string
+  sla: SlaResult
+  metAt: Date | null
+  timeZone: string
+  explanation: string
+}) {
+  const overdueMs =
+    sla.state === 'breached' && sla.elapsedMs !== null && sla.elapsedMs < 0 ? -sla.elapsedMs : 0
+
+  return (
+    <div className="rounded-md border border-line bg-sheet p-4">
+      <p className="text-xs font-medium text-muted">{label}</p>
+      <p
+        className={
+          sla.state === 'breached'
+            ? 'mt-1 text-lg font-semibold text-neg'
+            : sla.state === 'at-risk'
+              ? 'mt-1 text-lg font-semibold text-warn'
+              : 'mt-1 text-lg font-semibold text-ink'
+        }
+      >
+        {sla.state === 'met'
+          ? 'Met'
+          : sla.state === 'breached'
+            ? 'Breached'
+            : sla.state === 'at-risk'
+              ? 'At risk'
+              : 'On time'}
+      </p>
+      <p className="mt-1 text-sm text-muted">
+        {sla.dueAt ? <>Due {formatDateTime(sla.dueAt, timeZone)}</> : 'No clock running.'}
+      </p>
+      <p className="mt-1 text-sm text-muted">
+        {sla.state === 'met' && metAt ? (
+          <>Recorded {formatDateTime(metAt, timeZone)}</>
+        ) : sla.state === 'breached' ? (
+          overdueMs > 0 ? (
+            <>Overdue by {formatDuration(overdueMs)}</>
+          ) : (
+            <>The target has passed and nothing has been recorded.</>
+          )
+        ) : sla.remainingMs !== null ? (
+          <>{formatDuration(sla.remainingMs)} left</>
+        ) : null}
+      </p>
+      <p className="mt-2 text-xs text-muted">{explanation}</p>
+    </div>
+  )
+}

@@ -1,0 +1,141 @@
+@import 'tailwindcss';
+
+/*
+ * Cimmerian Crane — Hi-Vis Industrial.
+ *
+ * Safety signage, not SaaS. The chrome is the charcoal of a machine housing, the work sits on an
+ * off-white sheet, and the one saturated colour is Hi-Vis yellow — the colour of every barriered
+ * edge on a site. Yellow is a *signal*, so it is spent on the current navigation item, the primary
+ * action and the classification mark; running text never sits on it (white on yellow is 1.6:1), it
+ * takes charcoal at 9.8:1. Status colour stays real red / amber / green — a FAIL is never softened.
+ *
+ * Surfaces separate by tone, not by a line or a shadow: frame → sheet → panel → raised. `line` is
+ * only for what the eye must find (a field's edge, a table's edge).
+ *
+ * Contrast (WCAG, worst surface each text can land on): ink 14.6:1, muted 7.0:1, faint 4.7:1 on a
+ * raised panel; neg 6.5:1, warn 5.9:1, pos 5.3:1, info 7.3:1 on white; white on accent 15.8:1;
+ * charcoal on hi-vis 9.8:1; on-anchor 14.6:1 on charcoal. Tone steps: white→sheet 1.08,
+ * white→panel 1.15, white→raised 1.19.
+ */
+@theme {
+  /* The chrome. Safety-hazard yellow diagonals run over this band. */
+  --color-anchor: #1f2328;
+  --color-anchor-soft: #2b3037;
+  --color-on-anchor: #f5f6f7;
+  --color-on-anchor-muted: #a8b0b8;
+
+  /* The work. */
+  --color-sheet: #f5f6f7;
+  --color-panel: #edeff1;
+  --color-raised: #e4e7ea;
+  --color-field: #ffffff;
+
+  --color-line: #c9ced4;
+  --color-rule: #e3e6e9;
+
+  --color-ink: #1f2328;
+  --color-muted: #4a5560;
+  --color-faint: #616c77;
+
+  /* The one signal, and the neutral that carries an action when the signal is already spent. */
+  --color-hivis: #ffc20e;
+  --color-hivis-pale: #fff4cc;
+  --color-accent: #1f2328;
+  --color-accent-fg: #ffffff;
+
+  --color-neg: #b3261e;
+  --color-warn: #8a5a00;
+  --color-pos: #1f7a4c;
+  --color-info: #1e5a8a;
+
+  /* Barlow Condensed carries headings, Inter the running text, JetBrains Mono the identifiers. */
+  --font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: var(--font-barlow), 'Arial Narrow', system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, 'Cascadia Mono', monospace;
+
+  --text-title: 30px;
+  --text-title--line-height: 1.1;
+  --text-section: 19px;
+  --text-section--line-height: 1.25;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--color-anchor);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every heading is set in the condensed display face — the same authority as a sign on a machine. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Figures line up wherever they are compared. */
+table,
+[data-num] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Document numbers, asset tags and codes: the identifier face, so a JOB-0001 reads as one string. */
+[data-code] {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * The hazard band: 45° stripes of Hi-Vis yellow on the charcoal chrome. It is the product's own
+ * device — every crane on our sites wears it on a barrier — and it is used exactly twice: at the top
+ * of the window's chrome and along the foot of a primary action bar. Never on content.
+ *
+ * A `repeating-linear-gradient` with two hard stops is a flat stripe pattern, not a decorative
+ * blend, which is why each one below carries the lint's exemption.
+ */
+.hazard-band {
+  /* Two hard stops are a stripe, not a fade — the product's signature mark. */
+  background-image: repeating-linear-gradient( /* taste-skill-ignore gradient */
+    -45deg,
+    var(--color-hivis) 0 14px,
+    var(--color-anchor) 14px 28px
+  );
+}
+
+/* A 3px hazard edge down the left of anything flagged Do Not Operate, whatever the surface. */
+.hazard-edge {
+  /* The same two-stop stripe at a finer pitch. */
+  background-image: repeating-linear-gradient( /* taste-skill-ignore gradient */
+    -45deg,
+    var(--color-hivis) 0 6px,
+    var(--color-anchor) 6px 12px
+  );
+}
+
+/*
+ * The field app's bottom bar is fixed, so the page has to pay its height. Both halves — hiding the
+ * bar and paying for it — key off one condition, written once: the bar is drawn unless the window is
+ * a browser tab at `lg`. The installed app keeps it at every width (it is scoped to `/m/`, so a rail
+ * link would leave the app for Chrome). Split across Tailwind utilities, the pair would depend on
+ * which one the cascade happened to sort last.
+ */
+.field-bottom-pad {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 64rem) and (display-mode: browser) {
+  .field-bottom-pad {
+    padding-bottom: 1rem;
+  }
+
+  .field-bar {
+    display: none;
+  }
+}

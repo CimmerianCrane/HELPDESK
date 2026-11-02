@@ -1,0 +1,25 @@
+# Local Postgres for developers who do not want to use a hosted database.
+# If you use Supabase (or any hosted Postgres), skip `npm run db:up` entirely and put the
+# Supabase URLs in .env instead. Nothing else in the app knows or cares which one you use.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cimmerian
+      POSTGRES_PASSWORD: cimmerian
+      POSTGRES_DB: cimmerian
+    ports:
+      # Loopback only: a development database with a password of `cimmerian` must not be reachable
+      # from the rest of the office wifi.
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cimmerian -d cimmerian']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
