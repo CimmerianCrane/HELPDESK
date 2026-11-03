@@ -98,7 +98,7 @@ export default async function RosterPage({
                     {shift.notes ? ` · ${shift.notes}` : ''}
                   </p>
                 </div>
-                <form action={async () => deleteOnCallAction(shift.id)}>
+                <form action={deleteOnCallAction.bind(null, shift.id)}>
                   <button type="submit" className="text-sm text-muted underline hover:text-neg">
                     Remove
                   </button>
@@ -136,7 +136,7 @@ export default async function RosterPage({
                     {entry.reason ? ` · ${entry.reason}` : ''}
                   </p>
                 </div>
-                <form action={async () => deleteLeaveAction(entry.id)}>
+                <form action={deleteLeaveAction.bind(null, entry.id)}>
                   <button type="submit" className="text-sm text-muted underline hover:text-neg">
                     Remove
                   </button>
