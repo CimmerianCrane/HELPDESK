@@ -250,11 +250,17 @@ export async function listJobs(
   // silently replace the first.
   const conditions: Prisma.JobWhereInput[] = []
   if (range) {
+    // Only the bounds that were given become a clause — an open end is absence, not a max-Date
+    // sentinel, whose ISO form Prisma 6 refuses to convert.
+    const bounds = {
+      ...(range.from ? { gte: range.from } : {}),
+      ...(range.to ? { lt: range.to } : {}),
+    }
     conditions.push({
       OR: [
-        { scheduledStart: { gte: range.from, lt: range.to } },
+        { scheduledStart: bounds },
         // Not scheduled yet: the date it was raised is the only date it has.
-        { scheduledStart: null, reportedAt: { gte: range.from, lt: range.to } },
+        { scheduledStart: null, reportedAt: bounds },
       ],
     })
   }
@@ -315,13 +321,14 @@ const JOB_ORDER: Record<JobSort, Prisma.JobOrderByWithRelationInput[]> = {
  * The `from`/`to` wall dates as an instant range, or null when neither was given.
  *
  * A range with only one end is halved rather than refused: somebody filtering "from the 1st" means
- * "since then", and telling them to re-enter a second date would be pedantry.
+ * "since then", and telling them to re-enter a second date would be pedantry. The missing side is
+ * `null`, never a stand-in date.
  */
 async function jobDateRange(
   filters: JobFilter,
   client: Tx,
   timezone: string | null,
-): Promise<{ from: Date; to: Date } | null> {
+): Promise<{ from: Date | null; to: Date | null } | null> {
   if (!filters.from && !filters.to) return null
   const tz = timezone ?? (await getSettings(client)).timezone
 
@@ -329,9 +336,9 @@ async function jobDateRange(
   const end = filters.to ? isoDayStart(filters.to, tz) : null
 
   return {
-    from: start ?? new Date(0),
+    from: start,
     // The range includes the `to` day in full, so the bound is the start of the day after it.
-    to: end ? addDays(end, 1) : new Date(8.64e15),
+    to: end ? addDays(end, 1) : null,
   }
 }
 
