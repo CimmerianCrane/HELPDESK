@@ -6,9 +6,8 @@ import { ROLES } from '@/lib/validation/users'
 import { requireAuth } from '@/server/auth/context'
 import { getSettings } from '@/server/settings/settings'
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/server/users/labels'
-import { listCustomers } from '@/server/customers/customers'
 import { listUsers } from '@/server/users/users'
-import { UserCreateForm, type CustomerOption, type RoleOption } from './user-create-form'
+import { UserCreateForm, type RoleOption } from './user-create-form'
 
 export const metadata: Metadata = { title: 'Users — Cimmerian Crane Services' }
 export const dynamic = 'force-dynamic'
@@ -21,18 +20,7 @@ const roleOptions: RoleOption[] = ROLES.map((role) => ({
 
 export default async function UsersPage() {
   const context = await requireAuth()
-  const [users, settings, customers] = await Promise.all([
-    listUsers(context),
-    getSettings(),
-    // Offered to the form for a portal login's customer picker (slice 31). Admin holds
-    // `customer.read`, so this is the same list the customers screen shows.
-    listCustomers(context),
-  ])
-
-  const customerOptions: CustomerOption[] = customers.map((customer) => ({
-    id: customer.id,
-    name: customer.tradingName ?? customer.legalName,
-  }))
+  const [users, settings] = await Promise.all([listUsers(context), getSettings()])
 
   const activeCount = users.filter((user) => user.isActive).length
 
@@ -78,12 +66,7 @@ export default async function UsersPage() {
                       <span className="block text-xs text-muted">#{user.employeeNo}</span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3">
-                    {ROLE_LABELS[user.role]}
-                    {user.customerName ? (
-                      <span className="block text-xs text-muted">{user.customerName}</span>
-                    ) : null}
-                  </td>
+                  <td className="px-4 py-3">{ROLE_LABELS[user.role]}</td>
                   <td className="px-4 py-3">
                     <span className="block">{user.email}</span>
                     {user.phone ? (
@@ -119,10 +102,9 @@ export default async function UsersPage() {
         <h2 className="font-semibold text-ink">Add a user</h2>
         <p className="mt-1 mb-5 text-sm text-muted">
           Creating a technician also creates their technician record, which is what scopes jobs and
-          reports to them. A Customer login is scoped to the one customer chosen here, and sees only
-          that account in the portal.
+          reports to them.
         </p>
-        <UserCreateForm roles={roleOptions} customers={customerOptions} />
+        <UserCreateForm roles={roleOptions} />
       </section>
     </div>
   )

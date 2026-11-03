@@ -113,7 +113,6 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
                  'supplier.write', 'crane.read', 'job.read.all', 'report.read.all' ],
   FINANCE:     [ 'job.read.all', 'report.read.all', 'invoice.read', 'invoice.write',
                  'pricing.approve', 'writeoff.approve', 'report.financial', 'customer.read', 'dashboard.office' ],
-  CUSTOMER:    [ /* Phase 4: own-tenant read-only, scoped by customerId claim */ ],
 }
 ```
 
@@ -121,11 +120,11 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
 
 1. **Capability check** — does this role hold the capability at all?
 2. **Row-level scope** — a `job.read.own` user additionally gets a `WHERE` clause restricting to jobs they are
-   assigned to; a `CUSTOMER` user is restricted to their own `customerId`. This lives in the service as a mandatory
+   assigned to. This lives in the service as a mandatory
    scope filter, not as an optional argument — services take a `scope` derived from `Context` and never accept a
    caller-supplied scope.
 
-The tests the brief demands (technician cannot read another technician's job; cannot read another customer's data) are
+The test the brief demands (a technician cannot read another technician's job) is
 written once against the service layer and reused: `tests/unit/permissions.test.ts` plus one integration test per
 service that reads tenant data. This is the highest-value test in the codebase — it runs on every slice that touches
 job, crane, report or customer reads.
@@ -159,7 +158,8 @@ job, crane, report or customer reads.
 - Parts issue, photo capture, check-in/out (GPS optional), QR/barcode scan
 - On-device customer summary (offline-viewable before sync)
 
-*Customer (Phase 4)* — portal: own cranes, reports, certificates, due dates, raise ticket.
+*Customer (Phase 4)* — ~~portal: own cranes, reports, certificates, due dates, raise ticket.~~
+Removed 3 Nov 2026: documents reach customers by email; no customer logins.
 
 ---
 
@@ -808,14 +808,14 @@ stored link, the refusal of an unknown part, the clearing on resume, and what co
 
 Phase 4 is where the app stops only *running* the business and starts telling it something: the customer gets a door,
 the contracts the SLA numbers were always meant to come from get a screen, and the money and hours already recorded
-become reports. The schema was designed up front (§3) and the `CUSTOMER` role and `Contract`/`SlaPolicy` tables have
+become reports. The schema was designed up front (§3) and the `Contract`/`SlaPolicy` tables have
 been migrated since Phase 1 — **no migration is expected for the first slices.**
 
 | # | Slice | Delivers | Where the work lands | Brief § |
 |---|---|---|---|---|
 | **29** | **Contracts on the customer page** (**built** — see §7.15) | A customer's contracts: type, reference, term, renewal, included visits, scope notes and covered cranes, with the negotiated response/resolution targets written as `SlaPolicy` rows for that contract — the rows `createJob` already reads. Retired, never deleted | `src/server/contracts/` (new), `src/lib/validation/contracts.ts` (new), the customer page's Contracts tab | §5, §8 |
 | **30** | **SLA management and the renewal board** (**built** — see §7.16) | Company-wide targets editable on a screen (they are seed-only today), and every contract renewing or overdue in one queue | `/admin/sla` (new), `/customers` | §4.3, §8 |
-| **31** | **The customer portal** (**built** — see §7.17) | The `CUSTOMER` role finally signs in: their jobs and their cranes' certificates and reports, read-only, scoped by `customerId` | `src/app/(portal)/`, `src/server/portal/`, `src/server/auth/scope.ts` | §4.1 |
+| **31** | **The customer portal** (**removed 3 Nov 2026**) | Customer logins were removed: no `CUSTOMER` role, no `customerId` scope, no `/portal`. Documents reach customers by email | — | §4.1 |
 | **32** | **Profitability reporting** (**built** — see §7.18) | Revenue against the parts cost of the jobs behind it, per customer, contract and job type, from invoices and the stock ledger. Labour is not costed, and the screen says so | `src/server/reports/profitability.ts` (new), `/reports/profitability` | §11 |
 | **33** | **Technician utilisation** (**built** — see §7.19) | Hours on the tools and on the road against the working hours available, from the job status history, less booked leave | `src/server/reports/utilisation.ts` (new), `/reports/utilisation` | §11 |
 | **34** | **Equipment calibration tracking** (**built** — see §7.20) | A calibration register beside certificates, with its own due/overdue queue | `src/server/calibrations/` (new), `/calibrations` | §4.5 |

@@ -193,7 +193,10 @@ of what each one added and what to click. Canonical decisions stay in `docs/PLAN
   booked once across two invoices, a draft excluded, an unattributed line reported as such, and a role without
   `report.financial` refused). No browser test walks the screen. **No migration.**
 
-## Slice 31 — the customer portal
+## Slice 31 — the customer portal (removed 3 Nov 2026)
+
+> The portal and customer logins were removed. This entry is kept as the build record; the code,
+> the `CUSTOMER` role, `User.customerId` and the demo login no longer exist.
 
 - **The `CUSTOMER` role finally signs in.** A `User` with a `customerId` (new nullable column, indexed, migration
   `20261030100000_slice31_portal_user`) lands on `/portal` after sign-in and is redirected there from `/dashboard`.

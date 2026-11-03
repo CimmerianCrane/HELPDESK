@@ -7,7 +7,6 @@ export const ROLE_LABELS: Record<Role, string> = {
   TECHNICIAN: 'Technician',
   STOREKEEPER: 'Storekeeper',
   FINANCE: 'Finance',
-  CUSTOMER: 'Customer',
 }
 
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
@@ -16,5 +15,4 @@ export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   TECHNICIAN: 'Their own jobs and reports, from the mobile app.',
   STOREKEEPER: 'Parts, stock and suppliers.',
   FINANCE: 'Invoices, pricing and financial reporting.',
-  CUSTOMER: 'Read-only portal: their own jobs, cranes, certificates and issued reports.',
 }

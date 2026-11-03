@@ -18,14 +18,7 @@ describe('the permission map', () => {
   })
 
   it('has an entry for every role', () => {
-    const expected: Role[] = [
-      'ADMIN',
-      'DISPATCHER',
-      'TECHNICIAN',
-      'STOREKEEPER',
-      'FINANCE',
-      'CUSTOMER',
-    ]
+    const expected: Role[] = ['ADMIN', 'DISPATCHER', 'TECHNICIAN', 'STOREKEEPER', 'FINANCE']
     expect(ROLES.sort()).toEqual(expected.sort())
   })
 
@@ -136,7 +129,6 @@ describe('the permission map', () => {
     expect(can('DISPATCHER', 'resource.write')).toBe(false)
     expect(can('TECHNICIAN', 'resource.write')).toBe(false)
     expect(can('FINANCE', 'resource.write')).toBe(false)
-    expect(can('CUSTOMER', 'resource.write')).toBe(false)
   })
 
   /**
@@ -149,7 +141,6 @@ describe('the permission map', () => {
     expect(can('DISPATCHER', 'deliveryorder.write')).toBe(true)
     expect(can('TECHNICIAN', 'deliveryorder.write')).toBe(false)
     expect(can('FINANCE', 'deliveryorder.write')).toBe(false)
-    expect(can('CUSTOMER', 'deliveryorder.write')).toBe(false)
   })
 
   /**
@@ -159,7 +150,7 @@ describe('the permission map', () => {
   it('gives invoicing to finance alone', () => {
     expect(can('FINANCE', 'invoice.read')).toBe(true)
     expect(can('FINANCE', 'invoice.write')).toBe(true)
-    for (const role of ['DISPATCHER', 'TECHNICIAN', 'STOREKEEPER', 'CUSTOMER'] as Role[]) {
+    for (const role of ['DISPATCHER', 'TECHNICIAN', 'STOREKEEPER'] as Role[]) {
       expect(can(role, 'invoice.read'), `${role} should not read invoices`).toBe(false)
       expect(can(role, 'invoice.write'), `${role} should not write invoices`).toBe(false)
     }
@@ -174,28 +165,6 @@ describe('the permission map', () => {
     expect(can('FINANCE', 'report.approve')).toBe(false)
     expect(can('FINANCE', 'stock.move')).toBe(false)
     expect(can('FINANCE', 'crane.write')).toBe(false)
-  })
-
-  /**
-   * Slice 31. The portal role is read-only and sees four things: the portal itself, cranes,
-   * certificates and its own reports. `job.read.all` is deliberately absent — scope.ts would treat
-   * it as the company-wide list — and so is every write.
-   */
-  it('gives the customer portal role its read-only portal capabilities and nothing else', () => {
-    expect(capabilitiesFor('CUSTOMER').slice().sort()).toEqual([
-      'certificate.read',
-      'crane.read',
-      'portal.read',
-      'report.read.own',
-    ])
-    expect(can('CUSTOMER', 'job.read.all')).toBe(false)
-    expect(can('CUSTOMER', 'customer.read')).toBe(false)
-    expect(can('CUSTOMER', 'report.read.all')).toBe(false)
-    expect(can('CUSTOMER', 'invoice.read')).toBe(false)
-    expect(can('CUSTOMER', 'quote.read')).toBe(false)
-    for (const capability of ['customer.write', 'crane.write', 'job.create', 'report.draft', 'stock.move', 'user.manage'] as Capability[]) {
-      expect(can('CUSTOMER', capability), `CUSTOMER should not hold ${capability}`).toBe(false)
-    }
   })
 
   it('gives every role something to do', () => {

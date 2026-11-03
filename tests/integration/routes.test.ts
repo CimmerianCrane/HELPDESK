@@ -21,7 +21,6 @@ function contextFor(user: { id: string; name: string; email: string; role: Role 
     email: user.email,
     role: user.role,
     technicianId: null,
-    customerId: null,
     ip: '203.0.113.9',
     userAgent: 'vitest',
   }

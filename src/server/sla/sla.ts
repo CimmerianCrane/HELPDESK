@@ -1,6 +1,7 @@
 import type { Priority, Prisma } from '@prisma/client'
 import { db, type Tx } from '@/lib/db'
 import { companySlaSchema, companyTargetsFrom, type CompanyTarget } from '@/lib/validation/sla'
+import { PRIORITIES } from '@/lib/validation/tickets'
 import { parseInput } from '@/lib/validation/parse'
 import { withAudit } from '@/server/audit/audit'
 import { assertCan } from '@/server/auth/permissions'
@@ -22,8 +23,6 @@ import type { AuthContext } from '@/server/auth/types'
  *   - A working timezone does not enter into it. The instant a clock starts and stops is absolute;
  *     the timezone only affects how the deadline is printed.
  */
-
-export const PRIORITIES = ['P1', 'P2', 'P3', 'P4'] as const
 
 export interface SlaTargets {
   responseMinutes: number

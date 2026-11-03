@@ -25,7 +25,6 @@ function contextFor(user: { id: string; name: string; email: string; role: Role 
     email: user.email,
     role: user.role,
     technicianId: null,
-    customerId: null,
     ip: '203.0.113.9',
     userAgent: 'vitest',
   }
@@ -188,13 +187,6 @@ describe('the notification inbox', () => {
 
       const untouched = await tx.notification.findUniqueOrThrow({ where: { id: bobsRow.id } })
       expect(untouched.readAt).toBeNull()
-    })
-  })
-
-  it('refuses a role that holds no notification.read', async () => {
-    await inRolledBackTx(async (tx) => {
-      const customerUser = await makeUser(tx, 'CUSTOMER')
-      await expect(listInbox(contextFor(customerUser), {}, tx)).rejects.toBeInstanceOf(ForbiddenError)
     })
   })
 

@@ -30,7 +30,6 @@ async function technicianUser(tx: Tx, suffix = testSuffix()) {
     email: user.email,
     role: 'TECHNICIAN',
     technicianId: technician.id,
-    customerId: null,
     ip: '203.0.113.9',
     userAgent: 'vitest',
   }

@@ -104,7 +104,6 @@ cimmerian-crane/
       (office)/            # desktop-first: dashboard, inbox, customers, cranes, tickets, jobs (+ /jobs/export),
                            # schedule, schedules, certificates, reports, admin (users, compliance rules, audit log)
       (tech)/m/            # mobile-first technician PWA: my jobs, job detail, report form (slice 8)
-      (portal)/portal/     # customer portal (slice 31): own jobs, cranes, certificates, issued reports — read-only
       offline/             # the /offline fallback: renders the deep-linked job from the Dexie cache
       sw.ts                # Serwist worker source (built to public/sw.js, which is gitignored)
       api/                 # route handlers: tech/sync, file upload, health, PDF, webhooks
@@ -113,8 +112,6 @@ cimmerian-crane/
       users/               # user administration service
       contracts/           # a customer's contracts, the SLA targets agreed on them, and the
                            # renewal queue
-      portal/              # the customer portal's read layer — its own jobs, and its reports via
-                           # the office services, narrowed by the customerId scope filter
       notifications/       # the inbox (slice 38): the in-app rows notify.ts writes, read through the
                            # caller's own userId, plus marking one read
       audit/               # audit(context, ...) — the only way to write business data; the viewer's

@@ -9,11 +9,10 @@ import { requireAuth } from '@/server/auth/context'
 import { NotFoundError } from '@/server/auth/errors'
 import { getSettings } from '@/server/settings/settings'
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/server/users/labels'
-import { listCustomers } from '@/server/customers/customers'
 import { getUser } from '@/server/users/users'
 import { PasswordResetForm } from './password-reset-form'
 import { UserEditForm } from './user-edit-form'
-import type { CustomerOption, RoleOption } from '../user-create-form'
+import type { RoleOption } from '../user-create-form'
 
 export const metadata: Metadata = { title: 'Edit user — Cimmerian Crane Services' }
 export const dynamic = 'force-dynamic'
@@ -33,16 +32,10 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
     throw error
   })
 
-  const [settings, history, customers] = await Promise.all([
+  const [settings, history] = await Promise.all([
     getSettings(),
     auditTrail(context, 'User', id, 20),
-    listCustomers(context),
   ])
-
-  const customerOptions: CustomerOption[] = customers.map((customer) => ({
-    id: customer.id,
-    name: customer.tradingName ?? customer.legalName,
-  }))
 
   return (
     <div className="space-y-8">
@@ -66,10 +59,8 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
             role: user.role,
             phone: user.phone,
             isActive: user.isActive,
-            customerId: user.customerId,
           }}
           roles={roleOptions}
-          customers={customerOptions}
           isSelf={user.id === context.userId}
         />
       </section>

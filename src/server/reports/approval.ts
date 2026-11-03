@@ -617,11 +617,7 @@ export async function reportsQueue(context: AuthContext): Promise<QueueRow[]> {
 
 /** One report with everything its screen needs, or a 404 the caller cannot tell from "not yours". */
 export async function getReport(context: AuthContext, reportId: string) {
-  if (
-    !can(context.role, 'report.read.all') &&
-    !can(context.role, 'report.read.own') &&
-    !context.customerId
-  ) {
+  if (!can(context.role, 'report.read.all') && !can(context.role, 'report.read.own')) {
     throw new ForbiddenError()
   }
 
@@ -681,7 +677,7 @@ export async function issuedPdfUrl(
 
 /** Every report on a crane, newest first — the crane timeline (brief §5). */
 export async function craneReportTimeline(context: AuthContext, craneId: string) {
-  if (!can(context.role, 'report.read.all') && !context.customerId) {
+  if (!can(context.role, 'report.read.all')) {
     return []
   }
   return db.report.findMany({
