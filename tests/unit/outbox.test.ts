@@ -29,6 +29,9 @@ const rows = vi.hoisted(() => ({
         templateVersion: 1,
         data: {},
         checklist: {},
+        grades: {
+          CM_HOIST_BRAKE_LINING: { grade: 2, comment: 'Worn', label: 'Brake lining' },
+        },
         parts: [],
         photoIds: [],
         technicianSignatureId: null,
@@ -91,6 +94,28 @@ describe('flushOutbox', () => {
     expect(result.errors).toEqual(['Template changed'])
     // A 4xx the server means is not worth the worker retrying for days.
     expect(result.retryable).toBe(false)
+  })
+
+  it('sends the grades with the report', async () => {
+    const bodies: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        if (init?.body) bodies.push(String(init.body))
+        return new Response(JSON.stringify({ results: [{ id: 'item-1', ok: true }] }), {
+          status: 200,
+        })
+      }),
+    )
+
+    await flushOutbox()
+
+    const sent = JSON.parse(bodies.find((body) => body.includes('"kind"'))!) as {
+      items: Array<{ payload: { grades: unknown } }>
+    }
+    expect(sent.items[0]?.payload.grades).toEqual({
+      CM_HOIST_BRAKE_LINING: { grade: 2, comment: 'Worn', label: 'Brake lining' },
+    })
   })
 
   it('marks a 5xx as retryable so Background Sync tries again', async () => {

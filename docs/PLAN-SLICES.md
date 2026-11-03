@@ -1269,6 +1269,7 @@ documents, not one:
    snapshotted at submission so an issued checklist re-renders as signed (rule 5). No new column on `ChecklistAnswer`.
 3. **The scale is 1–5 with meaning attached.** 5 As new, 4 Good, 3 Serviceable, 2 Repair soon, 1 Failed. Ungraded is
    `null`, never `0` — a form that cannot tell "not looked at" from "failed" is worse than paper.
+   **Superseded by §7.26:** the scale is now 1–4 (Good / Monitor / Replacement / Unsafe); a stored 5 still reads.
 4. **Every *answered* checklist line must be graded.** Answered means a result, a measurement or a note. The check is in
    `submitReport`, so a phone that skips it is refused the same way. Grading a report whose type is not a Service
    Report is refused too.
@@ -1335,3 +1336,49 @@ pressed; the alert is also delivered by email and (for a P1) phone, so the badge
 notification itself. Nothing is ever deleted from the inbox. **Mark all read writes one audit row per cleared
 notification**, which is the rule-6 reading but noisy on a large backlog (see above).
 
+
+## 7.26 Slice 46 — the Crane and Monorail checklist (**built**)
+
+The owner supplied the five paper maintenance checklists technicians carry on site. This slice digitises the first —
+**Crane and Monorail** (57 lines, six sections), the sheet on the example service report `SR 2609024` — and builds the
+machinery the other four will use.
+
+**Fixed decisions.**
+
+1. **The machine chooses the sheet, not the job type alone.** `ChecklistTemplate` keeps `jobTypeId` and gains
+   `craneTypes: CraneType[]`. A sheet applies only when both match: the job type it names, on a crane whose type it
+   lists. Empty `craneTypes` means "only a job type default", which is unchanged behaviour.
+2. **One resolver.** `src/server/templates/checklist.ts::checklistForJob` is the only place that decides. It makes a
+   single query per job — the explicit default plus active sheets naming one of the job's crane types — orders by
+   version then creation, and returns `{ fallback, byType }`. Callers use `byType.get(type) ?? fallback`. An empty
+   sheet falls back rather than rendering a blank form.
+3. **Crane types for this sheet are OVERHEAD, GANTRY and JIB, on the PM job type.** Chain Block, Dock Leveler and Cargo
+   Hoist become `CraneType` values when their sheets are seeded; nothing here precludes them. Dock Leveler's
+   hydraulic/mechanical split and checkbox lines are deferred with it.
+4. **The scale is 1–4, the paper's four words.** 4 Good, 3 Monitor, 2 Replacement, 1 Unsafe. Only Unsafe fails a line.
+   A stored 5 from a report graded earlier still reads (through `readGrades` and the stored-service-report path) as
+   the five-point scale it was given; writes are strict at 4.
+5. **Answers are checked against the resolved sheet before validation.** `z.object` strips unknown keys, so an old
+   phone bundle would otherwise store an empty checklist while its grades survived. `applyReport` refuses any
+   submitted `checklist` or `grades` key the sheet does not declare, naming the fix ("sync and fill the report in
+   again").
+6. **Codes are prefixed `CM_`.** The sync bundle's Dexie reference table dedupes by `code` alone; a shared code would
+   overwrite another template's wording on the phone.
+7. **Seeded idempotently.** `seedCraneChecklists` looks the job type up by code, creates `(CRANE_AND_MONORAIL, v1)`
+   only when absent, and backfills `jobTypeId`/`craneTypes` only when empty. It never touches items or names.
+
+**As built.** Migration `20261103043308_checklist_template_crane_types`; `src/server/templates/checklist.ts`; resolver
+calls in `src/server/tech/my-jobs.ts` (`checklistByCraneId`, optional so a pre-slice bundle still renders),
+`src/server/reports/reports.ts`, and `src/server/schedule/dispatch.ts` (union of the cranes' sheets, deduped by code);
+`CRANE_CHECKLISTS` and the 57 `craneAndMonorailItems` in `src/server/templates/definitions.ts`;
+`seedCraneChecklists` in `prisma/seed-templates.ts`; the phone's per-crane sheet in `report-form.tsx` and the union
+preview in `job-sheet.tsx`; `SERVICE_GRADES = [1,2,3,4]` and the four labels in `src/lib/validation/reports.ts`.
+The outbox's dropped `grades` field was fixed in the same change (`src/offline/outbox.ts`).
+
+**Known limits.** One active sheet per crane type; the newest version wins and the office has no screen to pick between
+two. A mixed-crane dispatch message prints the union, so three crane types can make a long email. The other four paper
+sheets are later data entries.
+
+**Migration status.** `20261103043308_checklist_template_crane_types` is applied; `npm run seed` twice is idempotent and
+leaves one CM template with 57 items. `npm run verify` (522 unit) and `npm run test:integration` (415) pass. The manual
+390px/offline check is still to do.

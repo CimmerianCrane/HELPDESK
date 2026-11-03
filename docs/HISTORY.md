@@ -6,6 +6,37 @@ in `docs/PLAN-SLICES.md`; the slice tables are `docs/PLAN.md` §7.2, §7.13 and 
 
 ## The last slices, as they landed
 
+> **Slice 46 — the Crane and Monorail checklist (3 Nov 2026).** The first of the owner's five paper
+> sheets reaches the phone, and the machine starts choosing the checklist.
+>
+> 1. **A checklist was chosen by job type alone.** `JobType.defaultChecklistTemplateId` was the only
+>    selector, read in three places, so a PM visit to an overhead crane and a PM visit to a mobile
+>    crane got the same sheet. `ChecklistTemplate` now has `craneTypes` (an enum array) beside its
+>    unused `jobTypeId`, and `src/server/templates/checklist.ts` is the single resolver: the job
+>    type's default plus any active sheet naming one of the job's crane types, newest version first.
+>    The job type half is not optional — without it any sheet naming `OVERHEAD` would override every
+>    job type on a seeded database.
+> 2. **The scale moved from 1–5 to the paper's four words.** The owner asked for the paper's
+>    GOOD / TO MONITOR / REPLACEMENT / UNSAFE as 4 / 3 / 2 / 1. `readGrades` still accepts a stored 5
+>    so a report graded before the change renders, and `serviceReportSentence` prints "of 5" for it;
+>    nothing new can be written above 4. The office's Service Report editor keeps its `<= 5` bound
+>    for the same reason.
+> 3. **The outbox was dropping `grades`.** `prepare()` rebuilt the submit payload field by field and
+>    never copied `grades`, so every queued Service Report was refused as ungraded. Fixed and pinned
+>    by a test that reads the POSTed JSON.
+> 4. **A stale bundle is refused loudly.** Answers are stripped by `z.object` if the sheet no longer
+>    declares them, which would have stored an empty checklist while the grades survived. `applyReport`
+>    now checks every submitted code against the resolved sheet first and refuses with "sync and fill
+>    the report in again".
+> 5. **The 57-line transcription came straight from the xlsx** (ExcelJS), not the PDF or the printed
+>    wording. Source typos were corrected: "Rope Sheares" → "Rope sheaves", "Overtoad" → "Overload",
+>    duplicated `d)` letters. Codes are prefixed `CM_` because the sync bundle's reference table
+>    dedupes by code alone.
+>
+> The seed is idempotent: a second run creates nothing and leaves one PM template with 57 items.
+> Gate: `npm run verify` (522 unit) and `npm run test:integration` (415) pass. Migration
+> `20261103043308_checklist_template_crane_types`. Manual 390px/offline check still to do.
+
 > **Slice 45 — a Play Store listing (31 Oct 2026).** The smallest slice in the plan, and the only
 > one whose remaining work is outside the repo.
 >

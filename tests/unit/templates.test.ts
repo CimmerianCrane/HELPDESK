@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { JOB_TYPES, TEMPLATES } from '@/server/templates/definitions'
+import { CRANE_CHECKLISTS, JOB_TYPES, TEMPLATES } from '@/server/templates/definitions'
 import {
   calibrationWarnings,
   templateFieldKeys,
@@ -90,6 +90,39 @@ describe('the seeded report templates', () => {
     expect(loadTest).toBeDefined()
     const layouts = loadTest!.report.sections.map((section) => section.layout)
     expect(layouts).toContain('table')
+  })
+})
+
+describe('slice 46: the Crane and Monorail checklist', () => {
+  const definition = CRANE_CHECKLISTS[0]!
+
+  it('seeds one sheet for the PM job type on the three crane types it covers', () => {
+    expect(CRANE_CHECKLISTS).toHaveLength(1)
+    expect(definition.code).toBe('CRANE_AND_MONORAIL')
+    expect(definition.jobTypeCode).toBe('PM')
+    expect([...definition.craneTypes].sort()).toEqual(['GANTRY', 'JIB', 'OVERHEAD'])
+  })
+
+  it('links to a seeded job type', () => {
+    expect(JOB_TYPES.map((type) => type.code)).toContain(definition.jobTypeCode)
+  })
+
+  it('transcribes the paper’s six sections and 57 lines', () => {
+    expect(new Set(definition.items.map((item) => item.section)).size).toBe(6)
+    expect(definition.items).toHaveLength(57)
+  })
+
+  it('prefixes its codes with CM_ so the flat sync bundle cannot overwrite another sheet', () => {
+    for (const item of definition.items) expect(item.code.startsWith('CM_'), item.code).toBe(true)
+  })
+
+  it('has no duplicate code within the sheet or against the report templates', () => {
+    const codes = definition.items.map((item) => item.code)
+    expect(new Set(codes).size).toBe(codes.length)
+    const elsewhere = TEMPLATES.flatMap((template) =>
+      template.checklist.items.map((item) => item.code),
+    )
+    expect(codes.filter((code) => elsewhere.includes(code))).toEqual([])
   })
 })
 

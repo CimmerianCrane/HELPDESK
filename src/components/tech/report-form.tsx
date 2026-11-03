@@ -5,6 +5,7 @@ import { craneQrValueFromPayload } from '@/lib/cranes/qr'
 import { newId } from '@/lib/id'
 import { calibrationWarnings, type TemplateField, type TemplateSection } from '@/lib/templates/schema'
 import {
+  SERVICE_GRADES,
   SERVICE_GRADE_LABELS,
   SERVICE_GRADE_SHORT,
   checklistResultForGrade,
@@ -59,6 +60,9 @@ export function ReportForm({
   technicianName?: string
 }) {
   const template = job.reportTemplate
+  // The crane decides the sheet. A bundle cached before slice 46 has no per-crane lists and falls
+  // back to the job type's sheet it was rendered from.
+  const checklist = job.checklistByCraneId?.[crane.id] ?? job.checklist
   const submitted = job.reports.find((report) => report.craneId === crane.id)
 
   const [loaded, setLoaded] = useState<Loaded | null>(null)
@@ -387,7 +391,7 @@ export function ReportForm({
     // On a long servicing checklist "Choose Pass, Fail or N/A" does not say where — name the
     // section, so a technician is not scrolling 39 lines to find the one they missed.
     if (job.isServiceReport) {
-      const missing = job.checklist.find((item) => {
+      const missing = checklist.find((item) => {
         const answer = draft.checklist[item.code] ?? {}
         const answered = Boolean(answer.result || answer.measurement !== null || answer.note)
         // N/A is an answer in itself: a part that is not fitted has no condition to grade.
@@ -398,7 +402,7 @@ export function ReportForm({
         return
       }
     }
-    const parsed = reportSubmitSchema(template.schema, job.checklist).safeParse({
+    const parsed = reportSubmitSchema(template.schema, checklist).safeParse({
       reportId: draft.id,
       jobId: draft.jobId,
       craneId: draft.craneId,
@@ -424,8 +428,11 @@ export function ReportForm({
     if (!parsed.success) {
       // A checklist issue names the line's code; the technician knows its wording, not its code.
       const issue = parsed.error.issues[0]
-      const code = issue?.path[0] === 'checklist' ? String(issue.path[1] ?? '') : ''
-      const line = job.checklist.find((item) => item.code === code)
+      const code =
+        issue?.path[0] === 'checklist' || issue?.path[0] === 'grades'
+          ? String(issue.path[1] ?? '')
+          : ''
+      const line = checklist.find((item) => item.code === code)
       setMessage(
         line
           ? `${line.label} — ${issue?.message ?? 'answer this line.'}`
@@ -534,7 +541,7 @@ export function ReportForm({
 
   const { draft } = loaded
   const findingsTable = template.schema.sections.find((section) => section.key === 'findings')
-  const gradedCount = job.checklist.filter((item) => draft.grades[item.code]?.grade != null).length
+  const gradedCount = checklist.filter((item) => draft.grades[item.code]?.grade != null).length
 
   return (
     // Two columns on a tablet: the wide template sections span both, and the pair of short panels
@@ -648,7 +655,7 @@ export function ReportForm({
         shownOnTemplate={template.schema.sections.some((section) => section.key === 'parts')}
       />
 
-      {job.checklist.length > 0 && (
+      {checklist.length > 0 && (
         <section className="rounded-lg bg-panel p-4 md:col-span-2">
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="text-base font-semibold text-ink">
@@ -656,18 +663,18 @@ export function ReportForm({
             </h2>
             {job.isServiceReport && (
               <span className="text-sm font-medium text-muted" data-num>
-                {gradedCount} / {job.checklist.length}
+                {gradedCount} / {checklist.length}
               </span>
             )}
           </div>
           {job.isServiceReport && (
             <p className="mt-1 text-sm text-muted">
-              One grade each line. <strong className="text-ink">Fail</strong> means it must not be
+              One grade each line. <strong className="text-ink">Unsafe</strong> means it must not be
               used. A note is only needed if something is wrong.
             </p>
           )}
           <div className="mt-3 space-y-2">
-            {groupChecklist(job.checklist).map((group, groupIndex) => {
+            {groupChecklist(checklist).map((group, groupIndex) => {
               const done = group.items.filter((item) => draft.grades[item.code]?.grade != null).length
               const rows = group.items.map((item) => {
                 const answer = draft.checklist[item.code] ?? {}
@@ -1108,10 +1115,10 @@ function GradeRow({
 
   return (
     <div className="mt-2">
-      {/* The five grades get the full width: at 390px five words plus two utility buttons in one row
-          is a 47px tap target, and a technician works this with gloves on. */}
+      {/* The grades get the full width: at 390px four words plus two utility buttons in one row
+          is a tap target a technician can hit with gloves on. */}
       <div className="flex gap-1" role="group" aria-label={`Condition grade: ${label}`}>
-        {[5, 4, 3, 2, 1].map((value) => (
+        {[...SERVICE_GRADES].reverse().map((value) => (
           <button
             key={value}
             type="button"
@@ -1154,12 +1161,14 @@ function GradeRow({
         )}
       </div>
       {grade === 1 && !notApplicable && (
-        <p className="mt-1 text-sm font-medium text-neg">Failed — this line will read Fail.</p>
+        <p className="mt-1 text-sm font-medium text-neg">Unsafe — this line will read Fail.</p>
       )}
       {/* The buttons say what to tap; this says what was tapped, in the words that print. */}
       {grade !== null && grade > 1 && !notApplicable && (
         <p className="mt-1 text-sm text-muted">
-          {SERVICE_GRADE_LABELS[grade]} · grade {grade} of 5
+          {grade > 4
+            ? `${SERVICE_GRADE_LABELS[grade]} on the old five-point scale — grade this line again`
+            : `${SERVICE_GRADE_LABELS[grade]} · grade ${grade} of 4`}
         </p>
       )}
       {notApplicable && (

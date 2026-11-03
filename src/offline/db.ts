@@ -67,7 +67,7 @@ export interface DraftPayload {
   templateVersion: number
   data: Record<string, unknown>
   checklist: Record<string, ChecklistAnswer>
-  /** Service Reports only: the 1–5 condition rating on every checklist line, keyed by item code. */
+  /** Service Reports only: the 1–4 condition rating on every checklist line, keyed by item code. */
   grades: Record<string, ComponentGrade>
   parts: DraftPart[]
   /** Local file ids, resolved to server File ids only when the item is flushed. */

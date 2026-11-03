@@ -9,6 +9,7 @@ import type { AuthContext } from '@/server/auth/types'
 import { emailAdapter } from '@/server/email/email'
 import { sendPushToUsers } from '@/server/notify/push'
 import { canTransition } from '@/server/jobs/status'
+import { checklistForJob } from '@/server/templates/checklist'
 import { formatDateTime } from '@/lib/format'
 import { getSettings } from '@/server/settings/settings'
 
@@ -104,6 +105,7 @@ export async function dispatchPack(
       },
       jobType: {
         select: {
+          id: true,
           name: true,
           defaultChecklistTemplateId: true,
         },
@@ -186,13 +188,21 @@ export async function dispatchPack(
     }),
   )
 
-  const checklist = job.jobType.defaultChecklistTemplateId
-    ? await client.checklistItem.findMany({
-        where: { templateId: job.jobType.defaultChecklistTemplateId },
-        orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
-        select: { section: true, code: true, label: true },
-      })
-    : []
+  // The pack describes what each crane's report will actually ask. A mixed visit is the union of
+  // those sheets, deduped by code so a shared line is printed once.
+  const craneTypes = cranes.map((crane) => crane.type)
+  const sheets = await checklistForJob(client, job.jobType, craneTypes)
+  const sheetForEachCrane =
+    craneTypes.length > 0 ? craneTypes.map((type) => sheets.byType.get(type) ?? sheets.fallback) : [sheets.fallback]
+  const checklist: DispatchChecklistItem[] = []
+  const seenCodes = new Set<string>()
+  for (const list of sheetForEachCrane) {
+    for (const item of list) {
+      if (seenCodes.has(item.code)) continue
+      seenCodes.add(item.code)
+      checklist.push({ section: item.section, code: item.code, label: item.label })
+    }
+  }
 
   const warnings: string[] = []
   for (const crane of cranes) {

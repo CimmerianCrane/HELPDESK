@@ -159,7 +159,7 @@ enum ServiceReportStatus {
 /**
  * The Service Report a site visit issues (slice 39).
  * One per job, not one per crane: the technician fills a **Servicing checklist form** on each crane
- * (`Report`, one per crane, graded 1–5), and this document turns those grades into the prose the
+ * (`Report`, one per crane, graded 1–4), and this document turns those grades into the prose the
  * customer files — a section per crane, a paragraph per part, and one `SR<yy><mm><nnn>` number for
  * the visit. It is a separate row rather than a Report because it belongs to the job, has no
  * signature of its own and a different lifecycle; see `docs/PLAN-SLICES.md` §7.25.
@@ -740,7 +740,7 @@ model JobType {
   /// Matched against `Competency.name` on the technician. Empty means no requirement. Whether a
   /// missing one blocks or only warns is the `blockAssignmentOnExpiredCompetency` setting.
   requiredCompetencies       String[] @default([])
-  /// A Service Report: every checklist line is graded 1–5 with a comment, and the report is numbered
+  /// A Service Report: every checklist line is graded 1–4 with a comment, and the report is numbered
   /// `SR<yy><mm><nnn>` instead of `RPT-…` when it is approved. Office-owned, like every other job type
   /// default — a second servicing type is a row, not a code change.
   isServiceReport            Boolean  @default(false)
@@ -938,7 +938,12 @@ model ChecklistTemplate {
   id        String   @id @default(uuid(7))
   code      String
   name      String
+  /// The job type this sheet belongs to. A crane-specific sheet names its job type and the crane
+  /// types it covers, so it only replaces that job type's default on those machines.
   jobTypeId String?
+  /// The crane types this sheet covers. Empty means the sheet is reachable only as a job type
+  /// default. Matched with `hasSome`; the table is tiny, so there is no index.
+  craneTypes CraneType[] @default([])
   version   Int      @default(1)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
