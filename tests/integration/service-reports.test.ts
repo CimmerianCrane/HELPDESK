@@ -126,7 +126,7 @@ describe('the Service Report for a visit', () => {
       expect(view?.cranes).toHaveLength(2)
       expect(view?.missingCranes).toEqual([])
       expect(view?.cranes[0]!.paragraphs[0]!.text).toBe(
-        'Hoist brake: Grade 1 of 5 — Failed. Replaced on site.',
+        'Hoist brake: Grade 1 of 4 — Unsafe. Replaced on site.',
       )
     })
   })

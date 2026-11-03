@@ -5,7 +5,7 @@ import { SERVICE_GRADE_LABELS, readGrades } from './reports'
  * The Service Report (slice 39): the words a visit's graded checklists become.
  *
  * A **Servicing checklist form** is filled in per crane on site — a `Report` whose `data.grades` holds
- * a 1–5 rating and a comment for every line. The **Service Report** is one document for the job: a
+ * a 1–4 rating and a comment for every line. The **Service Report** is one document for the job: a
  * section per crane, a paragraph per part, and one `SR<yy><mm><nnn>` number. The prose is generated
  * from the grades and the technicians' comments, and the office may reword any paragraph before
  * approving, so this file is both the generator's output shape and the office's edit contract.
@@ -53,7 +53,11 @@ export function serviceReportSentence(
   comment: string | null,
 ): string {
   const rating = grade ? SERVICE_GRADE_LABELS[grade] : null
-  const verdict = grade === null ? 'Not graded' : `Grade ${grade} of 5 — ${rating ?? 'rated'}`
+  // A stored 5 is a report graded before slice 46; it reads as the five-point scale it was given.
+  const verdict =
+    grade === null
+      ? 'Not graded'
+      : `Grade ${grade} of ${grade > 4 ? 5 : 4} — ${rating ?? 'rated'}`
   const note = comment?.trim()
   return note ? `${component}: ${verdict}. ${note}` : `${component}: ${verdict}.`
 }

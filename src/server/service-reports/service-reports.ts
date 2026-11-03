@@ -23,7 +23,7 @@ import { storage } from '@/server/storage/storage'
  * The Service Report for a site visit (slice 39).
  *
  * One per job. It is built from the visit's graded checklists — one `Report` per crane, each with a
- * 1–5 rating and a comment on every answered line — into prose the customer files, and the office may
+ * 1–4 rating and a comment on every answered line — into prose the customer files, and the office may
  * reword any sentence before approving. On approval it takes the visit's `SR<yy><mm><nnn>` number and
  * its PDF is stored; after that it is immutable, like every issued document (CLAUDE.md rules 4 and 5).
  *

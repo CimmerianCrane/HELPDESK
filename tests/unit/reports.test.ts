@@ -140,15 +140,15 @@ describe('checklist answers', () => {
 })
 
 describe('service report grades', () => {
-  it('accepts a whole 1–5 rating with a comment', () => {
+  it('accepts a whole 1–4 rating with a comment', () => {
     const parsed = serviceGradesSchema().safeParse({
       grades: { HOIST_BRAKE: { grade: 2, comment: 'Lining at 1.8 mm, replace next visit.' } },
     })
     expect(parsed.success).toBe(true)
   })
 
-  it('refuses a rating outside 1–5', () => {
-    for (const grade of [0, 6, 2.5, -1]) {
+  it('refuses a rating outside 1–4', () => {
+    for (const grade of [0, 5, 2.5, -1]) {
       expect(
         serviceGradesSchema().safeParse({ grades: { HOIST_BRAKE: { grade } } }).success,
         `grade ${grade}`,
@@ -171,12 +171,18 @@ describe('service report grades', () => {
     expect(readGrades(null)).toEqual({})
   })
 
+  it('still reads a stored grade 5 from a report graded before slice 46', () => {
+    expect(readGrades({ grades: { ROPE: { grade: 5, comment: null, label: 'Wire rope' } } })).toEqual({
+      ROPE: { grade: 5, comment: null, label: 'Wire rope' },
+    })
+  })
+
   it('carries the grades through the submit schema', () => {
     const parsed = reportSubmitSchema(template, checklist).safeParse(
-      submitInput({ grades: { 'H-01': { grade: 5, comment: 'Sound.' } } }),
+      submitInput({ grades: { 'H-01': { grade: 4, comment: 'Sound.' } } }),
     )
     expect(parsed.success).toBe(true)
-    if (parsed.success) expect(parsed.data.grades?.['H-01']?.grade).toBe(5)
+    if (parsed.success) expect(parsed.data.grades?.['H-01']?.grade).toBe(4)
   })
 })
 
@@ -258,6 +264,6 @@ describe('submitting a report', () => {
 describe('checklistResultForGrade', () => {
   it('turns a grade into the Pass/Fail answer it implies', () => {
     expect(checklistResultForGrade(1)).toBe('Fail')
-    for (const grade of [2, 3, 4, 5]) expect(checklistResultForGrade(grade)).toBe('Pass')
+    for (const grade of [2, 3, 4]) expect(checklistResultForGrade(grade)).toBe('Pass')
   })
 })

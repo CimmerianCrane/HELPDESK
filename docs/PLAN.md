@@ -826,6 +826,11 @@ been migrated since Phase 1 — **no migration is expected for the first slices.
 
 | **39** | **The Service Report** (**built** — see §7.25) | Two documents. The per-crane **Servicing checklist form** is a `Report` whose job type is flagged `isServiceReport` (seeded on PM): every answered checklist line is graded 1–5 with a comment and submission is refused while one is ungraded. The **Service Report** is its own row per job — prose generated from the graded forms, rewordable by the office — and only it is numbered `SR<yy><mm><nnn>` on approval. Two additive migrations; the monthly counter reuses `DocumentSequence` | `src/server/service-reports/` (new), `src/server/documents/service-report.ts`, `src/server/documents/sequence.ts`, `src/lib/validation/service-report.ts`, `src/lib/validation/reports.ts`, `src/components/tech/report-form.tsx` | §6, §7.1 |
 
+| **46** | **The Crane and Monorail checklist** (**built** 3 Nov 2026 — see §7.26) | The first of the owner's five paper sheets, transcribed (57 lines, six sections) and chosen by the crane's type rather than the job type alone: `ChecklistTemplate.craneTypes` plus one resolver used by the phone, report submission and dispatch. The grade scale becomes the paper's four words (1–4), superseding row 39's 1–5; reports graded before it still read. One additive migration | `src/server/templates/checklist.ts` (new), `src/server/templates/definitions.ts`, `prisma/seed-templates.ts`, `src/lib/validation/reports.ts` | §6 |
+
+Row 39's 1–5 scale is superseded by slice 46: the scale is 1–4 (Good / Monitor / Replacement / Unsafe), and a stored 5
+still reads through the legacy path. The other four paper sheets are later data entries.
+
 Slices **40–45** — the Android tablet app — are planned separately in [`PLAN-TABLET-APP.md`](PLAN-TABLET-APP.md).
 Slice 40 (**built** 31 Oct 2026) widens the technician shell to a tablet (`max-w-lg md:max-w-4xl lg:max-w-6xl`),
 moves the gate and the sign-out to an in-scope `/m/login`, makes the manifest installable (`id`, `orientation: any`,

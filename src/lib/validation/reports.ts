@@ -163,22 +163,26 @@ export function checklistAnswersSchema(items: ChecklistItemLike[]) {
 }
 
 /**
- * The Service Report grading: every checklist line gets a condition rating from 1 to 5 and a short
+ * The Service Report grading: every checklist line gets a condition rating from 1 to 4 and a short
  * comment saying what needs replacing or what is damaged. Stored under the reserved `grades` key of
  * `Report.data`, one entry per `ChecklistItem.code` — the same key the checklist answers use, because
  * the two are two halves of one line on the paper form.
  *
- * The schema accepts any number and the service checks it is a whole 1–5, so the phone's own check
+ * The schema accepts any number and the service checks it is a whole 1–4, so the phone's own check
  * (which uses the same rule) and the server agree on the wording of the refusal.
+ *
+ * **Legacy read:** reports graded before slice 46 may hold a 5. `SERVICE_GRADES` excludes it, so
+ * nothing new can be written at 5, but the label stays for displaying those stored reports.
  */
-export const SERVICE_GRADES = [1, 2, 3, 4, 5] as const
+export const SERVICE_GRADES = [1, 2, 3, 4] as const
 
 export const SERVICE_GRADE_LABELS: Record<number, string> = {
+  // Display only: the old five-point scale, for reports graded before slice 46.
   5: 'As new',
   4: 'Good',
-  3: 'Serviceable',
-  2: 'Repair soon',
-  1: 'Failed',
+  3: 'Monitor',
+  2: 'Replacement',
+  1: 'Unsafe',
 }
 
 /**
@@ -186,11 +190,10 @@ export const SERVICE_GRADE_LABELS: Record<number, string> = {
  * English is not always strong. The full label above is what prints on the Service Report.
  */
 export const SERVICE_GRADE_SHORT: Record<number, string> = {
-  5: 'New',
   4: 'Good',
-  3: 'OK',
-  2: 'Repair',
-  1: 'Fail',
+  3: 'Monitor',
+  2: 'Replace',
+  1: 'Unsafe',
 }
 
 /**
@@ -208,7 +211,12 @@ export interface ComponentGrade {
   label: string | null
 }
 
-export function serviceGradesSchema() {
+/**
+ * `maxGrade` is 4 for writes. The read path passes 5 so a report graded before slice 46 still
+ * renders; nothing in this file accepts a 5 on the way in from a phone.
+ */
+export function serviceGradesSchema(maxGrade: number = 4) {
+  const allowed = Array.from({ length: maxGrade }, (_, index) => index + 1)
   return z.object({
     grades: z
       .record(
@@ -232,11 +240,11 @@ export function serviceGradesSchema() {
       )
       .superRefine((grades, ctx) => {
         for (const [code, entry] of Object.entries(grades)) {
-          if (entry.grade !== null && !SERVICE_GRADES.includes(entry.grade as 1 | 2 | 3 | 4 | 5)) {
+          if (entry.grade !== null && !allowed.includes(entry.grade)) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
               path: [code, 'grade'],
-              message: 'Grade must be a whole number from 1 to 5.',
+              message: `Grade must be a whole number from 1 to ${maxGrade}.`,
             })
           }
         }
@@ -249,7 +257,7 @@ export function serviceGradesSchema() {
 export function readGrades(data: unknown): Record<string, ComponentGrade> {
   if (!data || typeof data !== 'object') return {}
   const raw = (data as Record<string, unknown>).grades
-  const parsed = serviceGradesSchema().safeParse({ grades: raw })
+  const parsed = serviceGradesSchema(5).safeParse({ grades: raw })
   return parsed.success ? (parsed.data.grades ?? {}) : {}
 }
 

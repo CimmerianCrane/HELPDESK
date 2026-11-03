@@ -4,6 +4,36 @@ Reference, not an introduction. `README.md` says how to run it; this file is the
 of what each one added and what to click. Canonical decisions stay in `docs/PLAN.md` §7 and
 `docs/PLAN-SLICES.md`; assumptions in `docs/ASSUMPTIONS.md`.
 
+## Slice 46 — the Crane and Monorail checklist
+
+- **The first paper sheet is on the phone.** A PM job on an **overhead, gantry or jib** crane now opens the
+  Crane and Monorail maintenance checklist: six sections (Hoist, Cross travel, Long travel, Oil lubricants,
+  Festoon, Electrical) and 57 lines transcribed from `docs/assets/Crane and Monorail Maintenance Check List.xlsx`.
+  Every line is Pass / Fail / N/A with a graded comment, and a line's grade is its answer.
+- **The crane chooses the sheet, not the job type alone.** `ChecklistTemplate` now carries `craneTypes` beside its
+  existing `jobTypeId`; `src/server/templates/checklist.ts` is the one resolver, used by the phone bundle, report
+  submission and the dispatch pack. A sheet only applies to the job type it names, and only on the crane types it
+  lists, so a mobile-crane PM keeps the generic servicing list. The newest version wins when two sheets name the
+  same type.
+- **The scale is the paper's four words.** 4 Good, 3 Monitor, 2 Replacement, 1 Unsafe; only **Unsafe** fails a
+  line. A report graded before this slice may still hold a 5, and `readGrades` plus the stored-paragraph path keep
+  reading it as the five-point scale it was given.
+- **A stale phone is refused, not silently emptied.** A bundle cached before the sheet changed submits codes the
+  resolver no longer knows; submission is refused with "The checklist for this crane has changed. Sync and fill the
+  report in again" rather than stripping the answers.
+- **It fixed an existing bug on the way.** The offline outbox rebuilt the submit payload field by field and dropped
+  `grades`, so every queued Service Report was unsendable; `prepare()` now carries them.
+- **One migration.** `20261103043308_checklist_template_crane_types` adds `ChecklistTemplate.craneTypes`.
+- **Tests** — 5 unit tests in `tests/unit/templates.test.ts` (one sheet, PM, the three crane types, six sections,
+  57 items, `CM_` prefix, no duplicate code), 7 integration tests in `tests/integration/checklists.test.ts`
+  (resolver fallback and leak, newest version, per-crane phone bundle, dispatch union, CM_ answer accepted and
+  labelled, unknown line refused), plus the updated grade tests in `reports.test.ts`, `service-report.test.ts`,
+  `service-reports.test.ts` and the outbox payload test.
+- **Known limits** — the other four paper sheets are later data entries in the same shape; Chain Block, Dock
+  Leveler and Cargo Hoist need new `CraneType` values first. The office has no screen to choose between two active
+  sheets for one crane type — newest version wins. A mixed-crane dispatch message prints the union of the sheets,
+  so three crane types can make a long email.
+
 ## Slice 39 — the Service Report
 
 - **Two documents, and the app now does both.** The **Servicing checklist form** is what a technician fills in at the

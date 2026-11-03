@@ -187,7 +187,7 @@ function GradeTable({
   return createElement(
     View,
     { style: styles.section },
-    createElement(Text, { style: styles.sectionTitle }, 'Component grades (1–5)'),
+    createElement(Text, { style: styles.sectionTitle }, 'Component grades'),
     createElement(
       View,
       { style: styles.tableHead },

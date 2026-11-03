@@ -713,6 +713,9 @@ batch. Continue this list numerically — the next item is 268.
      stale rule and the server agree on the refusal. A form that read "not looked at" as "failed" would be worse than
      the paper it replaced. *If wrong:* the labels are one constant in `validation/reports.ts`; rewording is safe,
      changing the scale would make old and new reports incomparable and is a new grading scheme, not an edit.
+     **Superseded by slice 46** — the owner chose the paper's four words, so the scale is now 1–4 (Good / Monitor /
+     Replacement / Unsafe) and only Unsafe (1) fails a line. `readGrades` still accepts a stored 5 so a report graded
+     before the change renders; nothing new can be written above 4.
 235. **Every *answered* checklist line must be graded; a line left completely blank need not be.** Answered means a
      result, a measurement or a note. Requiring every line would force a grade on a component nobody inspected, and
      requiring none would let the form be submitted with no ratings at all. The check lives in `submitReport`, so it

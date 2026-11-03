@@ -125,6 +125,9 @@ async function prepare(item: OutboxItem): Promise<unknown> {
     templateVersion: payload.templateVersion,
     data: payload.data,
     checklist: payload.checklist,
+    // Service Reports refuse any answered line that is not graded, so dropping this field here
+    // made every queued report unsendable.
+    grades: payload.grades,
     parts: payload.parts.map((part) => ({
       partNumber: part.partNumber,
       quantity: part.quantity,

@@ -49,6 +49,8 @@ export async function saveServiceReportAction(
         return [
           {
             component,
+            // A Service Report built before slice 46 may still hold a 5; the office's edit must not
+            // blank it. The phone only ever writes 1–4 now.
             grade: Number.isInteger(grade) && grade >= 1 && grade <= 5 ? grade : null,
             comment: (comments[index] ?? '').trim() || null,
             text,
