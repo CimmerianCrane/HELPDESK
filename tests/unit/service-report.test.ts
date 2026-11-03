@@ -14,17 +14,17 @@ import {
 describe('serviceReportSentence', () => {
   it('says the grade in words and keeps the technician’s note', () => {
     expect(serviceReportSentence('Hoist brake', 2, 'Lining at 1.8 mm, replace next visit.')).toBe(
-      'Hoist brake: Grade 2 of 5 — Repair soon. Lining at 1.8 mm, replace next visit.',
+      'Hoist brake: Grade 2 of 4 — Replacement. Lining at 1.8 mm, replace next visit.',
     )
   })
 
   it('is still a sentence when there is nothing to add', () => {
-    expect(serviceReportSentence('Wire rope', 5, null)).toBe(
-      'Wire rope: Grade 5 of 5 — As new.',
-    )
-    expect(serviceReportSentence('Wire rope', 5, '   ')).toBe(
-      'Wire rope: Grade 5 of 5 — As new.',
-    )
+    expect(serviceReportSentence('Wire rope', 4, null)).toBe('Wire rope: Grade 4 of 4 — Good.')
+    expect(serviceReportSentence('Wire rope', 4, '   ')).toBe('Wire rope: Grade 4 of 4 — Good.')
+  })
+
+  it('keeps a legacy grade 5 on the five-point scale it was given', () => {
+    expect(serviceReportSentence('Wire rope', 5, null)).toBe('Wire rope: Grade 5 of 5 — As new.')
   })
 })
 
@@ -52,7 +52,7 @@ describe('buildServiceReportContent', () => {
       'Limit switch',
     ])
     expect(built.cranes[0]!.paragraphs[0]!.text).toBe(
-      'Hoist brake: Grade 1 of 5 — Failed. Replaced on site.',
+      'Hoist brake: Grade 1 of 4 — Unsafe. Replaced on site.',
     )
   })
 

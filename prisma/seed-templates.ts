@@ -1,6 +1,11 @@
 import type { PrismaClient } from '@prisma/client'
 import { templateSchema, templateOutlineHtml } from '../src/lib/templates/schema'
-import { JOB_TYPES, TEMPLATES, type TemplateKey } from '../src/server/templates/definitions'
+import {
+  CRANE_CHECKLISTS,
+  JOB_TYPES,
+  TEMPLATES,
+  type TemplateKey,
+} from '../src/server/templates/definitions'
 
 /**
  * Seeds the 14 job types and the four Phase 1 templates (brief §4.1, §6.3).
@@ -196,4 +201,67 @@ export async function seedJobTypesAndTemplates(db: PrismaClient): Promise<void> 
     `Job types and templates: ${TEMPLATES.length} templates, ${JOB_TYPES.length} job types ` +
       `(${created} created; ${updatedLinks} existing job type(s) updated).`,
   )
+}
+
+/**
+ * Seeds crane-type checklists (slice 46).
+ *
+ * Runs after the job types exist, because a sheet names its job type by id. Idempotent and
+ * non-destructive: an existing sheet keeps its items and name, and only a missing job-type link or
+ * an empty crane-type list is filled — the same "fill once" policy the rest of the seed follows.
+ */
+export async function seedCraneChecklists(db: PrismaClient): Promise<void> {
+  for (const definition of CRANE_CHECKLISTS) {
+    const jobType = await db.jobType.findUnique({
+      where: { code: definition.jobTypeCode },
+      select: { id: true },
+    })
+    if (!jobType) {
+      throw new Error(
+        `No job type ${definition.jobTypeCode} for checklist ${definition.code}. Seed job types first.`,
+      )
+    }
+
+    const existing = await db.checklistTemplate.findUnique({
+      where: { code_version: { code: definition.code, version: 1 } },
+      select: { id: true, jobTypeId: true, craneTypes: true },
+    })
+
+    if (!existing) {
+      await db.checklistTemplate.create({
+        data: {
+          code: definition.code,
+          name: definition.name,
+          version: 1,
+          jobTypeId: jobType.id,
+          craneTypes: definition.craneTypes,
+          items: {
+            create: definition.items.map((item, index) => ({
+              section: item.section,
+              code: item.code,
+              label: item.label,
+              resultType: item.resultType,
+              unit: item.unit ?? null,
+              requiresMeasurement: item.requiresMeasurement ?? false,
+              sortOrder: index * 10,
+            })),
+          },
+        },
+      })
+      continue
+    }
+
+    if (!existing.jobTypeId || existing.craneTypes.length === 0) {
+      await db.checklistTemplate.update({
+        where: { id: existing.id },
+        data: {
+          jobTypeId: existing.jobTypeId ?? jobType.id,
+          craneTypes:
+            existing.craneTypes.length > 0 ? existing.craneTypes : definition.craneTypes,
+        },
+      })
+    }
+  }
+
+  console.log(`Crane checklists: ${CRANE_CHECKLISTS.length} seeded (idempotent).`)
 }

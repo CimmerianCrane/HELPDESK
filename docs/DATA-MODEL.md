@@ -528,7 +528,8 @@ model ChecklistTemplate {
   id        String @id @default(uuid(7))
   code      String
   name      String
-  jobTypeId String?
+  jobTypeId String?  // the job type whose default this sheet replaces…
+  craneTypes CraneType[] @default([]) // …on these crane types; empty = a job type default only
   version   Int    @default(1)
   isActive  Boolean @default(true)
   createdAt DateTime @default(now())

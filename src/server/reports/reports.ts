@@ -10,6 +10,7 @@ import { assertCan, can } from '@/server/auth/permissions'
 import { jobReadWhere, reportReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { issuePartForReport } from '@/server/inventory/parts'
+import { checklistForJob } from '@/server/templates/checklist'
 
 /**
  * Submitting a report from the phone (slice 8).
@@ -45,6 +46,15 @@ const envelopeSchema = z.object({
   craneId: z.string().min(1).max(64),
 })
 
+/** Item codes the phone answered, from either half of a checklist line. */
+function submittedAnswerCodes(raw: unknown): string[] {
+  if (!raw || typeof raw !== 'object') return []
+  const record = raw as Record<string, unknown>
+  return [record.checklist, record.grades].flatMap((entry) =>
+    entry && typeof entry === 'object' ? Object.keys(entry) : [],
+  )
+}
+
 /** The job as the report needs it, already narrowed to the caller's scope. */
 async function reportJob(context: AuthContext, tx: Tx, jobId: string) {
   const job = await tx.job.findFirst({
@@ -54,13 +64,14 @@ async function reportJob(context: AuthContext, tx: Tx, jobId: string) {
       number: true,
       jobType: {
         select: {
+          id: true,
           name: true,
           isServiceReport: true,
           defaultReportTemplateId: true,
           defaultChecklistTemplateId: true,
         },
       },
-      cranes: { select: { craneId: true } },
+      cranes: { select: { craneId: true, crane: { select: { type: true } } } },
     },
   })
   // Not found and not yours are the same answer for a technician's phone.
@@ -104,17 +115,24 @@ export async function applyReport(
     throw new RuleError('The report template is not valid. Ask the office to check it.')
   }
 
-  const checklistItems = job.jobType.defaultChecklistTemplateId
-    ? await tx.checklistItem.findMany({
-        where: { templateId: job.jobType.defaultChecklistTemplateId },
-        select: { code: true, label: true, resultType: true, requiresMeasurement: true },
-      })
-    : []
+  const craneType = job.cranes.find((entry) => entry.craneId === envelope.craneId)!.crane.type
+  const sheets = await checklistForJob(tx, job.jobType, [craneType])
+  const checklistItems = sheets.byType.get(craneType) ?? sheets.fallback
+
+  // A phone still holding a sheet the office has replaced would have these answers silently
+  // stripped by the schema below, storing an empty checklist. Refuse and say what to do instead.
+  const knownCodes = new Set(checklistItems.map((item) => item.code))
+  const stale = submittedAnswerCodes(raw).find((code) => !knownCodes.has(code))
+  if (stale) {
+    throw new ValidationError({
+      checklist: ['The checklist for this crane has changed. Sync and fill the report in again.'],
+    })
+  }
 
   const input = parseInput(reportSubmitSchema(template.data, checklistItems), raw)
 
   // Grading a Service Report is the point of it: every checklist line the technician answered must
-  // carry a 1–5 rating, or the sheet says nothing the paper form did not. A line marked N/A is not
+  // carry a 1–4 rating, or the sheet says nothing the paper form did not. A line marked N/A is not
   // an answer to grade — the part is not on the crane. A job type that is not a Service Report may
   // not submit grades at all — it would be a second, unsanctioned rating scheme.
   if (job.jobType.isServiceReport) {

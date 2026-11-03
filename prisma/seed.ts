@@ -13,7 +13,7 @@ import { hashPassword } from '../src/server/auth/password'
 import { DEFAULT_SLA_POLICIES } from '../src/server/sla/sla'
 import { wallTimeToUtc } from '../src/lib/time'
 import type { TemplateSection } from '../src/lib/templates/schema'
-import { seedJobTypesAndTemplates } from './seed-templates'
+import { seedCraneChecklists, seedJobTypesAndTemplates } from './seed-templates'
 
 const db = new PrismaClient()
 
@@ -1459,6 +1459,7 @@ async function main() {
 
   console.log(`Seeded ${defaults.length} settings.`)
   await seedJobTypesAndTemplates(db)
+  await seedCraneChecklists(db)
 
   const policies = await seedSlaPolicies()
   if (policies > 0) console.log(`Seeded ${policies} SLA policies.`)
