@@ -585,17 +585,21 @@ export async function assignTechnician(
         )
       }
 
-      // Already on another job at the same time.
-      const others = await tx.job.findMany({
-        where: {
-          id: { not: job.id },
-          status: { in: OPEN_STATUSES },
-          technicians: { some: { technicianId: technician.id } },
-          scheduledStart: { lt: job.scheduledEnd ?? new Date(8.64e15) },
-          scheduledEnd: { gt: job.scheduledStart ?? new Date(-8.64e15) },
-        },
-        select: { id: true, number: true, scheduledStart: true, scheduledEnd: true },
-      })
+      // Already on another job at the same time. Only the dates this job has become a clause — an
+      // open end is absence, and the max-Date stand-in it replaced is a value Prisma 6 refuses.
+      // `spansOverlap` below still makes the real call, on nulls as unbounded.
+      const others = span.start || span.end
+        ? await tx.job.findMany({
+            where: {
+              id: { not: job.id },
+              status: { in: OPEN_STATUSES },
+              technicians: { some: { technicianId: technician.id } },
+              ...(job.scheduledEnd ? { scheduledStart: { lt: job.scheduledEnd } } : {}),
+              ...(job.scheduledStart ? { scheduledEnd: { gt: job.scheduledStart } } : {}),
+            },
+            select: { id: true, number: true, scheduledStart: true, scheduledEnd: true },
+          })
+        : []
       for (const other of others) {
         if (!spansOverlap(span, { start: other.scheduledStart, end: other.scheduledEnd })) continue
         warnings.push(`${technician.user.name} is already on ${other.number} at the same time.`)

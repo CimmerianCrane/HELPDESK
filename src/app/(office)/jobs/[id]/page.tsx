@@ -465,7 +465,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                       className="flex items-center justify-between gap-3 text-sm"
                     >
                       <span className="text-ink">{resource.name}</span>
-                      <form action={async () => releaseResourceAction(job.id, resource.resourceId)}>
+                      <form action={releaseResourceAction.bind(null, job.id, resource.resourceId)}>
                         <button type="submit" className="text-muted underline hover:text-neg">
                           Release
                         </button>
