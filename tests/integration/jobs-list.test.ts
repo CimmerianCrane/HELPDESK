@@ -137,6 +137,30 @@ describe('filtering the company-wide job list', () => {
         TZ,
       )
       expect(inApril.map((row) => row.id)).not.toContain(scheduled.id)
+
+      // A half range is legal: one bound given, the other absent. It used to be encoded as a
+      // max-Date sentinel, which Prisma 6 refuses, so these threw instead of filtering.
+      const sinceMarch = await listJobs(
+        context,
+        { from: '2026-03-01' },
+        tx,
+        new Date('2026-10-27T00:00:00Z'),
+        TZ,
+      )
+      expect(sinceMarch.map((row) => row.id)).toEqual(
+        expect.arrayContaining([scheduled.id, raisedOnly.id]),
+      )
+
+      const upToMarch = await listJobs(
+        context,
+        { to: '2026-03-31' },
+        tx,
+        new Date('2026-10-27T00:00:00Z'),
+        TZ,
+      )
+      expect(upToMarch.map((row) => row.id)).toEqual(
+        expect.arrayContaining([scheduled.id, raisedOnly.id]),
+      )
     })
   })
 
