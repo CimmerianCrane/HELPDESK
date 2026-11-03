@@ -42,16 +42,20 @@ function contextFor(
   user: { id: string; name: string; email: string; role: Role },
   technicianId: string | null = null,
 ): AuthContext {
-  return {
-    userId: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    technicianId,
-    customerId: null,
-    ip: '203.0.113.9',
-    userAgent: 'vitest',
-  }
+  // Object.assign so the fixture compiles with and without `AuthContext.customerId` while the
+  // customer-portal removal is still uncommitted. Inline the field once that lands.
+  return Object.assign(
+    {
+      userId: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      technicianId,
+      ip: '203.0.113.9',
+      userAgent: 'vitest',
+    },
+    { customerId: null },
+  )
 }
 
 async function lineTemplate(
