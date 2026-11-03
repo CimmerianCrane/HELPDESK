@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { CsvError } from '@/lib/csv'
+import { readCsvText } from '@/lib/import-file'
 import type { FormState, ImportPreviewState } from '@/server/action-result'
 import { requireAuth } from '@/server/auth/context'
 import { applyCraneImport, previewCraneImport } from '@/server/cranes/import'
@@ -21,11 +22,16 @@ const MAX_FORM_BYTES = 3 * 1024 * 1024
 
 async function readFile(formData: FormData): Promise<{ text: string } | { error: string }> {
   const file = formData.get('file')
-  if (!(file instanceof File) || file.size === 0) return { error: 'Choose a CSV file first.' }
+  if (!(file instanceof File) || file.size === 0) return { error: 'Choose a CSV or Excel file first.' }
   if (file.size > MAX_FORM_BYTES) {
     return { error: 'That file is too large to upload. Split it into smaller files.' }
   }
-  return { text: await file.text() }
+  try {
+    return { text: await readCsvText(Buffer.from(await file.arrayBuffer())) }
+  } catch (error) {
+    if (error instanceof CsvError) return { error: error.message }
+    throw error
+  }
 }
 
 function customerIdFrom(formData: FormData): string | null {

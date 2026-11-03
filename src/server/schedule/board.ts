@@ -1,5 +1,5 @@
 import type { JobStatus, Priority } from '@prisma/client'
-import { wallTimeToUtc } from '@/lib/time'
+import { addDays, wallTimeToUtc } from '@/lib/time'
 
 /**
  * Scheduling rules (brief §4.4), as pure functions over the rows a board already has.
@@ -266,14 +266,7 @@ export function onCallGaps(
 // Days
 // ---------------------------------------------------------------------------
 
-export {
-  wallTimeToUtc,
-  zonedParts,
-  dayKey,
-  localWallToUtc,
-  utcToLocalInput,
-  isLocalDateTime,
-} from '@/lib/time'
+export { addDays, dayKey, wallTimeToUtc } from '@/lib/time'
 
 /** A day as a UTC midnight carrying its year, month and day. The carrier for `YYYY-MM-DD` values. */
 export function isoDay(date: Date): string {
@@ -287,14 +280,6 @@ export function parseIsoDay(value: string | undefined, now: Date = new Date()): 
     if (!Number.isNaN(parsed.getTime())) return parsed
   }
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-}
-
-/**
- * Adds whole days to a `YYYY-MM-DD` carrier. Safe because the carrier carries a calendar date rather
- * than a local instant, so there is no clock to change under it.
- */
-export function addDays(day: Date, days: number): Date {
-  return new Date(day.getTime() + days * 86_400_000)
 }
 
 // ---------------------------------------------------------------------------

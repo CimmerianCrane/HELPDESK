@@ -15,8 +15,6 @@ export interface AuthContext {
   role: Role
   /** Set for TECHNICIAN logins, so "own jobs" can be scoped without a second lookup. */
   technicianId: string | null
-  /** Set for CUSTOMER logins (Phase 4), scoping reads to their own data. */
-  customerId: string | null
   ip: string | null
   userAgent: string | null
 }

@@ -21,13 +21,11 @@ export default async function ChangePasswordPage() {
 
   // Where "back" goes depends on which shell the person came from, so it is decided here rather than
   // trusting a `?from=` that anything could set.
-  const back = context.customerId
-    ? '/portal'
-    : context.technicianId
-      ? '/m/jobs'
-      : can(context.role, 'dashboard.office')
-        ? '/dashboard'
-        : '/m/jobs'
+  const back = context.technicianId
+    ? '/m/jobs'
+    : can(context.role, 'dashboard.office')
+      ? '/dashboard'
+      : '/m/jobs'
 
   return (
     <main className="mx-auto w-full max-w-md px-4 py-10">

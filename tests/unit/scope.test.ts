@@ -15,7 +15,6 @@ function ctx(role: Role, overrides: Partial<AuthContext> = {}): AuthContext {
     email: `${role.toLowerCase()}@example.test`,
     role,
     technicianId: role === 'TECHNICIAN' ? 'tech-1' : null,
-    customerId: null,
     ip: null,
     userAgent: null,
     ...overrides,
@@ -45,17 +44,6 @@ describe('job scope', () => {
     expect(jobReadWhere(ctx('TECHNICIAN', { technicianId: null }))).toEqual(DENY)
   })
 
-  it('denies a role that holds neither read capability and is not a customer', () => {
-    expect(jobReadWhere(ctx('CUSTOMER'))).toEqual(DENY)
-  })
-
-  it('scopes a customer user to their own jobs', () => {
-    expect(jobReadWhere(ctx('CUSTOMER', { customerId: 'cust-9' }))).toEqual({
-      deletedAt: null,
-      customerId: 'cust-9',
-    })
-  })
-
   it('does not restrict office roles that hold job.read.all', () => {
     for (const role of ['ADMIN', 'DISPATCHER', 'STOREKEEPER', 'FINANCE'] as Role[]) {
       expect(jobReadWhere(ctx(role))).toEqual({ deletedAt: null })
@@ -72,12 +60,6 @@ describe('report scope', () => {
 
   it('denies a technician with no technician record', () => {
     expect(reportReadWhere(ctx('TECHNICIAN', { technicianId: null }))).toEqual(DENY)
-  })
-
-  it('scopes a customer user to reports on their own cranes', () => {
-    expect(reportReadWhere(ctx('CUSTOMER', { customerId: 'cust-9' }))).toEqual({
-      crane: { customerId: 'cust-9' },
-    })
   })
 
   it('does not filter reports by deletion, because reports are never deleted', () => {
@@ -100,17 +82,6 @@ describe('crane scope', () => {
     }
   })
 
-  /** Slice 31: a portal login holds `crane.read`, and the filter narrows it to that customer's cranes. */
-  it('scopes a customer user to their own cranes', () => {
-    expect(craneReadWhere(ctx('CUSTOMER', { customerId: 'cust-9' }))).toEqual({
-      deletedAt: null,
-      customerId: 'cust-9',
-    })
-  })
-
-  it('denies a customer user with no customer, rather than opening the register', () => {
-    expect(craneReadWhere(ctx('CUSTOMER'))).toEqual(DENY)
-  })
 })
 
 describe('customer scope', () => {
@@ -155,9 +126,6 @@ describe('notification scope', () => {
     expect(JSON.stringify(b)).not.toContain('user-a')
   })
 
-  it('denies a role without the capability', () => {
-    expect(notificationReadWhere(ctx('CUSTOMER'))).toEqual(DENY)
-  })
 })
 
 describe('every scope filter', () => {

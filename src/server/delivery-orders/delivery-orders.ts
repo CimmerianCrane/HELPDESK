@@ -6,6 +6,7 @@ import {
   isOutstandingLoan,
   receiveDeliveryOrderSchema,
   returnDeliveryOrderSchema,
+  type DeliveryStatusName,
 } from '@/lib/validation/delivery-orders'
 import { parseInput } from '@/lib/validation/parse'
 import { withAudit } from '@/server/audit/audit'
@@ -35,8 +36,6 @@ import { storage } from '@/server/storage/storage'
  * Lines are snapshotted (description, quantity, serial) when the DO is raised, so a later part rename
  * cannot rewrite paperwork a customer has signed.
  */
-
-export type DeliveryStatusName = 'DRAFT' | 'ISSUED' | 'PARTIAL' | 'DELIVERED' | 'RETURNED'
 
 export interface DeliveryLineSummary {
   id: string

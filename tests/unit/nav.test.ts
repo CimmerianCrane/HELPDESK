@@ -4,31 +4,14 @@ import { APP_NAV, FIELD_BAR, fieldNavFor, navFor } from '@/server/auth/nav'
 /**
  * The one nav list every shell renders. No database, no React — just the shape the rail relies on.
  *
- * What these pin: a customer sees the portal and nothing else, a technician sees their own list plus
- * only what their role opens, and the two lists never hand the same destination to one person twice.
+ * What these pin: a technician sees their own list plus only what their role opens, and no list hands
+ * the same destination to one person twice.
  */
 
 describe('navFor', () => {
-  it('gives a customer the portal screens and no office screen', () => {
-    const hrefs = navFor('CUSTOMER').map((item) => item.href)
-    expect(hrefs).toEqual([
-      '/portal',
-      '/portal/jobs',
-      '/portal/cranes',
-      '/portal/certificates',
-      '/portal/reports',
-    ])
-  })
-
-  it('never shows a customer an office destination', () => {
-    const office = new Set(APP_NAV.map((item) => item.href))
-    for (const item of navFor('CUSTOMER')) expect(office.has(item.href)).toBe(false)
-  })
-
-  it('gives an administrator the whole office list and no portal screen', () => {
+  it('gives an administrator the whole office list', () => {
     const hrefs = navFor('ADMIN').map((item) => item.href)
     expect(hrefs).toHaveLength(APP_NAV.length)
-    for (const href of hrefs) expect(href.startsWith('/portal')).toBe(false)
   })
 
   it('filters by capability, not by role name', () => {
@@ -40,7 +23,7 @@ describe('navFor', () => {
   })
 
   it('declares no destination twice in one list', () => {
-    for (const role of ['ADMIN', 'CUSTOMER'] as const) {
+    for (const role of ['ADMIN', 'DISPATCHER', 'TECHNICIAN', 'STOREKEEPER', 'FINANCE'] as const) {
       const hrefs = navFor(role).map((item) => item.href)
       expect(new Set(hrefs).size, `${role} nav has a duplicate`).toBe(hrefs.length)
     }

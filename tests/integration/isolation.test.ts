@@ -31,7 +31,6 @@ function context(role: Role, overrides: Partial<AuthContext> = {}): AuthContext 
     email: `${role.toLowerCase()}@example.test`,
     role,
     technicianId: null,
-    customerId: null,
     ip: '203.0.113.1',
     userAgent: 'vitest',
     ...overrides,

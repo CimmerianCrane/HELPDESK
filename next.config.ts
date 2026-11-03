@@ -37,6 +37,10 @@ const nextConfig: NextConfig = {
   // Off, so the framework version is not advertised on every response.
   poweredByHeader: false,
 
+  // exceljs reaches for Node built-ins (`fs`, `stream`) that webpack cannot resolve; leaving it
+  // external is what the importer's server action needs, and it never runs anywhere but the server.
+  serverExternalPackages: ['exceljs'],
+
   async headers() {
     return [
       {
