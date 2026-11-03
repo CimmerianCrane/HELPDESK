@@ -12,9 +12,7 @@ documents. Replaces spreadsheets, WhatsApp threads and paper forms.
 **contracts** a screen on its customer page — type, reference, term, renewal, covered cranes and the
 response/resolution targets agreed — written as the contract-scoped SLA rows a new job already
 resolves; slice 30 makes the **company-wide SLA targets** editable at `/admin/sla` and puts every
-contract renewing or overdue in a board on `/customers`; slice 31 opens the **customer portal** —
-a `CUSTOMER` login saw nothing before it, and now sees its own jobs, cranes, certificates and issued
-reports at `/portal`, read-only; and slice 32 puts **profitability** side by side with the invoices — revenue
+contract renewing or overdue in a board on `/customers`; and slice 32 puts **profitability** side by side with the invoices — revenue
 against parts cost per customer, contract and job type at `/reports/profitability`; slice 33 adds
 **technician utilisation** at `/reports/utilisation` — hours on the tools and on the road against the
 working hours available, from the job status history; and slice 34 adds the **calibration register** at
@@ -105,11 +103,9 @@ another technician's jobs" is something you can check by signing in and looking.
 | `raj@cimmeriancrane.example` | Technician |
 | `store@cimmeriancrane.example` | Storekeeper |
 | `finance@cimmeriancrane.example` | Finance |
-| `portal@cimmeriancrane.example` | Customer (portal, first demo customer) |
 
-The password is `cimmerian-dev-2026`, or whatever you set `SEED_PASSWORD` to. The customer login is
-created with the demo book, so it exists only when the demo estate does; it signs in at `/portal` and
-sees only Jurong Port Engineering's jobs, cranes, certificates and issued reports.
+The password is `cimmerian-dev-2026`, or whatever you set `SEED_PASSWORD` to. Customers do not get
+accounts; issued reports and certificates reach them by email.
 
 > **These are development accounts.** The password is published in this repository, so the seed only
 > creates them when `DATABASE_URL` points at this machine. If you are using a hosted database — the

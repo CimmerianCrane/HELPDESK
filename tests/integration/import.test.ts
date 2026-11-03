@@ -18,7 +18,6 @@ function contextFor(role: Role, userId: string): AuthContext {
     email: `${role.toLowerCase()}-import@example.test`,
     role,
     technicianId: null,
-    customerId: null,
     ip: '203.0.113.7',
     userAgent: 'vitest',
   }

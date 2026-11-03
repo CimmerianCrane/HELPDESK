@@ -29,7 +29,6 @@ function contextFor(
     email: user.email,
     role: user.role,
     technicianId: null,
-    customerId: null,
     ip: '203.0.113.7',
     userAgent: 'vitest',
     ...overrides,
@@ -89,25 +88,6 @@ describe('permissions', () => {
 })
 
 describe('row-level scope', () => {
-  it('shows a customer user only their own customer', async () => {
-    await inRolledBackTx(async (tx) => {
-      const admin = await makeUser(tx, 'ADMIN')
-      const mine = await createCustomer(contextFor(admin), customerInput(), tx)
-      await createCustomer(contextFor(admin), customerInput(), tx)
-
-      // A Phase 4 portal login: the CUSTOMER role holds no capability yet, so this asserts the
-      // scope filter alone — the branch that must exist before the portal does.
-      const portalUser = await makeUser(tx, 'CUSTOMER')
-      const portalContext = contextFor(portalUser, { role: 'CUSTOMER', customerId: mine.id })
-
-      // No customer.read capability: refused at the capability layer, before scope is reached.
-      await expect(listCustomers(portalContext, {}, tx)).rejects.toBeInstanceOf(ForbiddenError)
-
-      // Reading a single customer is equally refused.
-      await expect(getCustomer(portalContext, mine.id, tx)).rejects.toBeInstanceOf(ForbiddenError)
-    })
-  })
-
   it('cannot fetch a customer that does not exist', async () => {
     await inRolledBackTx(async (tx) => {
       const admin = await makeUser(tx, 'ADMIN')

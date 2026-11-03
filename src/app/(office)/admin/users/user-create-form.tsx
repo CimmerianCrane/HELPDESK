@@ -17,18 +17,7 @@ export interface RoleOption {
   description: string
 }
 
-export interface CustomerOption {
-  id: string
-  name: string
-}
-
-export function UserCreateForm({
-  roles,
-  customers,
-}: {
-  roles: RoleOption[]
-  customers: CustomerOption[]
-}) {
+export function UserCreateForm({ roles }: { roles: RoleOption[] }) {
   const [state, formAction, pending] = useActionState(createUserAction, IDLE_FORM)
   const [role, setRole] = useState('TECHNICIAN')
   const formRef = useRef<HTMLFormElement>(null)
@@ -98,26 +87,6 @@ export function UserCreateForm({
             </label>
             <input id="employeeNo" name="employeeNo" className={inputClass} />
             <FieldError state={state} name="employeeNo" />
-          </div>
-        ) : null}
-
-        {role === 'CUSTOMER' ? (
-          <div>
-            <label htmlFor="customerId" className={labelClass}>
-              Customer
-            </label>
-            <select id="customerId" name="customerId" required className={inputClass}>
-              <option value="">Choose a customer…</option>
-              {customers.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.name}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-muted">
-              The account this login can see in the portal. Nothing else is visible to it.
-            </p>
-            <FieldError state={state} name="customerId" />
           </div>
         ) : null}
 

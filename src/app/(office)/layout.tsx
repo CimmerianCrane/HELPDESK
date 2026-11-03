@@ -30,8 +30,6 @@ export const dynamic = 'force-dynamic'
 export default async function OfficeLayout({ children }: { children: ReactNode }) {
   const context = await getAuthContext()
   if (!context) redirect('/login')
-  // A customer login belongs in the portal, not in a shell whose nav is empty for it (slice 31).
-  if (!can(context.role, 'dashboard.office') && can(context.role, 'portal.read')) redirect('/portal')
 
   const visible = navFor(context.role)
   // The badge is the only reason the inbox is not a screen nobody opens. One extra count per office

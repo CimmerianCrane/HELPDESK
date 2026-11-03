@@ -29,7 +29,6 @@ export const TICKET_SOURCE_LABELS: Record<TicketSource, string> = {
   EMAIL: 'Email',
   WHATSAPP: 'WhatsApp',
   WEB: 'Web form',
-  PORTAL: 'Customer portal',
 }
 
 export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {

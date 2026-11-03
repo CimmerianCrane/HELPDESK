@@ -37,9 +37,6 @@ export function jobReadWhere(ctx: AuthContext): Prisma.JobWhereInput {
   if (can(ctx.role, 'job.read.own') && ctx.technicianId) {
     return { ...LIVE, ...assignedTo(ctx.technicianId) }
   }
-  // A customer user sees only their own jobs (slice 31). Deliberately below the capability checks:
-  // the portal role must never hold `job.read.all`, and this branch is what narrows it.
-  if (ctx.customerId) return { ...LIVE, customerId: ctx.customerId }
   return DENY
 }
 
@@ -54,7 +51,6 @@ export function reportReadWhere(ctx: AuthContext): Prisma.ReportWhereInput {
   if (can(ctx.role, 'report.read.own') && ctx.technicianId) {
     return { job: assignedTo(ctx.technicianId) }
   }
-  if (ctx.customerId) return { crane: { customerId: ctx.customerId } }
   return DENY
 }
 
@@ -74,7 +70,6 @@ export function craneReadWhere(ctx: AuthContext): Prisma.CraneWhereInput {
       ],
     }
   }
-  if (ctx.customerId) return { ...LIVE, customerId: ctx.customerId }
   return DENY
 }
 
@@ -95,9 +90,7 @@ export function craneScheduleReadWhere(ctx: AuthContext): Prisma.CraneScheduleWh
  *
  * Capability first, then the crane: whoever browses the register sees every live certificate, and a
  * technician — who holds `certificate.read` so they can see a crane's paperwork on a visit — sees only
- * certificates on cranes they can read. A customer user (slice 31) holds `certificate.read` too, and
- * `craneReadWhere` narrows them to their own cranes, so the portal lists their paperwork and nobody
- * else's.
+ * certificates on cranes they can read.
  */
 export function certificateReadWhere(ctx: AuthContext): Prisma.CertificateWhereInput {
   if (!can(ctx.role, 'certificate.read')) return DENY
@@ -133,11 +126,10 @@ export function deliveryOrderReadWhere(ctx: AuthContext): Prisma.DeliveryOrderWh
  * A quote is commercial paperwork for a customer, so it is read by whoever has `quote.read`: dispatch
  * raises it and finance reads what was offered. It does not follow the job because `Quote.jobId` has
  * no relation in the schema — adding one is a migration for nothing, since every role that may read a
- * quote also holds `job.read.all`. A customer user (Phase 4) sees only their own.
+ * quote also holds `job.read.all`.
  */
 export function quoteReadWhere(ctx: AuthContext): Prisma.QuoteWhereInput {
   if (can(ctx.role, 'quote.read')) return { ...LIVE }
-  if (ctx.customerId) return { ...LIVE, customerId: ctx.customerId }
   return DENY
 }
 
@@ -145,19 +137,17 @@ export function quoteReadWhere(ctx: AuthContext): Prisma.QuoteWhereInput {
  * Filter for `Invoice` (slice 20).
  *
  * Same shape as `quoteReadWhere`: it is commercial paperwork for a customer, so whoever holds
- * `invoice.read` — finance and admin today — sees every live invoice, and a customer user (Phase 4)
- * sees only their own. A void invoice stays visible: it is a cancelled bill, not a deleted one.
+ * `invoice.read` — finance and admin today — sees every live invoice. A void invoice stays visible:
+ * it is a cancelled bill, not a deleted one.
  */
 export function invoiceReadWhere(ctx: AuthContext): Prisma.InvoiceWhereInput {
   if (can(ctx.role, 'invoice.read')) return { ...LIVE }
-  if (ctx.customerId) return { ...LIVE, customerId: ctx.customerId }
   return DENY
 }
 
 /**
  * Filter for `Site`. Follows the same shape as `craneReadWhere`: a role that browses sites sees all
- * of them, a technician sees the sites their jobs are at (they need the address and access notes),
- * and a customer user sees their own.
+ * of them, and a technician sees the sites their jobs are at (they need the address and access notes).
  *
  * `crane.register.read` counts as browsing sites too, because the register is organised by site:
  * finance and the store hold the register without `site.read`, and a register whose every row says
@@ -168,7 +158,6 @@ export function siteReadWhere(ctx: AuthContext): Prisma.SiteWhereInput {
   if (ctx.technicianId) {
     return { ...LIVE, jobs: { some: assignedTo(ctx.technicianId) } }
   }
-  if (ctx.customerId) return { ...LIVE, customerId: ctx.customerId }
   return DENY
 }
 
@@ -183,15 +172,12 @@ export function siteReadWhere(ctx: AuthContext): Prisma.SiteWhereInput {
 export function ticketReadWhere(ctx: AuthContext): Prisma.TicketWhereInput {
   if (ctx.role === 'TECHNICIAN') return { createdById: ctx.userId }
   if (can(ctx.role, 'ticket.read')) return {}
-  // Phase 4: a customer user sees their own tickets.
-  if (ctx.customerId) return { customerId: ctx.customerId }
   return DENY
 }
 
 /** Filter for `Customer`. Technicians hold no customer.read capability, so they get nothing here. */
 export function customerReadWhere(ctx: AuthContext): Prisma.CustomerWhereInput {
   if (can(ctx.role, 'customer.read')) return { ...LIVE }
-  if (ctx.customerId) return { ...LIVE, id: ctx.customerId }
   return DENY
 }
 

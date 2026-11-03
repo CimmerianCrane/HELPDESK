@@ -98,7 +98,7 @@ export function ShellNavTrigger() {
 
 /**
  * The one navigation every signed-in surface renders — the office, the field shell at desk width and
- * the customer portal. One component, one list (`server/auth/nav.ts`), so no two surfaces can offer
+ * the office and the field. One component, one list (`server/auth/nav.ts`), so no two surfaces can offer
  * different destinations for the same role.
  *
  * One instance moved by CSS: a charcoal sidebar at `lg`, an off-canvas sheet below it. Two copies
@@ -205,7 +205,7 @@ export function ShellNav({
           className={`flex items-center gap-2.5 px-3 pt-4 pb-3 ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}
         >
           {/* The first destination is each audience's own front page: `/dashboard` for the office,
-              `/m/jobs` in the field, `/portal` for a customer. No second rule to keep in step. */}
+              `/m/jobs` in the field. No second rule to keep in step. */}
           <Link
             href={links[0]?.href ?? '/dashboard'}
             className="flex min-w-0 items-center gap-2.5 rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-hivis"
