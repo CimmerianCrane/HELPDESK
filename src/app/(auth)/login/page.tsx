@@ -3,7 +3,6 @@ import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { safeNext } from '@/lib/safe-next'
 import { getAuthContext } from '@/server/auth/context'
-import { can } from '@/server/auth/permissions'
 import { LoginForm } from './login-form'
 
 export const metadata: Metadata = { title: 'Sign in — Cimmerian Crane Services' }
@@ -20,13 +19,11 @@ export default async function LoginPage({
 }) {
   const { next } = await searchParams
 
-  // Already signed in? Nothing to do here. A customer login has no dashboard, so it lands on the
-  // portal instead — the same split the office layout applies.
+  // Already signed in? Nothing to do here.
   const context = await getAuthContext()
   if (context) {
-    const home = can(context.role, 'portal.read') ? '/portal' : '/dashboard'
     // The same rule the action uses. `next.startsWith('/')` alone accepts `//evil.com`.
-    redirect(safeNext(next, home))
+    redirect(safeNext(next, '/dashboard'))
   }
 
   return (

@@ -66,11 +66,19 @@ export function ImportForm({
 
         <div>
           <label htmlFor="file" className={labelClass}>
-            CSV file
+            CSV or Excel file
           </label>
-          <input id="file" name="file" type="file" accept=".csv,text/csv" required className={inputClass} />
+          <input
+            id="file"
+            name="file"
+            type="file"
+            accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            required
+            className={inputClass}
+          />
           <p className="mt-1 text-xs text-muted">
-            {fileHint ?? 'UTF-8 CSV, up to 2 MB. Excel: “Save as → CSV UTF-8”. A header row is required.'}
+            {fileHint ??
+              'A CSV (UTF-8, up to 2 MB) or an Excel .xlsx workbook. A header row is required.'}
           </p>
         </div>
 

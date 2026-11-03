@@ -554,35 +554,6 @@ async function seedWork(): Promise<void> {
   console.log(`Seeded ${customers.length} demo customer(s) and ${jobs.length} demo job(s).`)
 }
 
-/**
- * A portal login for the first demo customer (slice 31), so the portal can be tried without first
- * creating a customer account by hand. Bounded to the demo book for the same reason every other
- * demo row is: it never lands in a real register, and it shares the same published password.
- */
-async function seedPortalUser(customerLegalName: string | null): Promise<void> {
-  if (!customerLegalName) return
-
-  const customer = await db.customer.findFirst({
-    where: { legalName: customerLegalName, deletedAt: null },
-    select: { id: true },
-  })
-  if (!customer) return
-
-  const email = 'portal@cimmeriancrane.example'
-  const existing = await db.user.findUnique({ where: { email }, select: { id: true } })
-  if (existing) return
-
-  await db.user.create({
-    data: {
-      email,
-      name: 'Mei Ling Tan',
-      role: 'CUSTOMER',
-      customerId: customer.id,
-      passwordHash: await hashPassword(DEMO_PASSWORD),
-    },
-  })
-}
-
 // ---------------------------------------------------------------------------
 // §13 demo book
 // ---------------------------------------------------------------------------
@@ -1052,7 +1023,6 @@ async function seedDemoBook(): Promise<void> {
     }
   }
 
-  await seedPortalUser(craneTags.length > 0 ? DEMO_CUSTOMERS[0].legalName : null)
 
   console.log(
     `Demo book: ${customersAdded} customer(s) and ${cranesAdded} crane(s) added (${craneTags.length} in the book).`,

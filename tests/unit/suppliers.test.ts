@@ -54,7 +54,6 @@ describe('who maintains the supplier book', () => {
     expect(can('DISPATCHER', 'supplier.write')).toBe(false)
     expect(can('FINANCE', 'supplier.write')).toBe(false)
     expect(can('TECHNICIAN', 'supplier.write')).toBe(false)
-    expect(can('CUSTOMER', 'supplier.write')).toBe(false)
   })
 
   // Reads are gated on `part.read` — the book is a view of the catalogue, not a separate register —

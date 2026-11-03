@@ -21,7 +21,6 @@ function contextFor(userId: string, role: Role = 'DISPATCHER'): AuthContext {
     email: `board-${testSuffix()}@example.test`,
     role,
     technicianId: null,
-    customerId: null,
     ip: '203.0.113.9',
     userAgent: 'vitest',
   }

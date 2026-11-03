@@ -4,8 +4,8 @@ import type { IconName } from '@/components/shell/icons'
 
 /**
  * Every destination in the app and the capability that reveals it — one list, read by the one shell
- * every signed-in surface renders, so a customer never sees a screen they cannot open and the office,
- * the field and the portal cannot drift.
+ * every signed-in surface renders, so nobody sees a screen they cannot open and the office and the
+ * field cannot drift.
  *
  * `group` is the section heading in the rail. Sections are always open; the order here is the order
  * the rail shows them in. Admin is a utility and is pinned to the foot of the rail.
@@ -55,32 +55,9 @@ export const APP_NAV: readonly NavItem[] = [
   { href: '/admin/system', label: 'System', icon: 'settings', capability: 'user.manage', group: 'Admin' },
 ]
 
-/**
- * The customer portal. Its five screens are `portal.read` only, and a customer holds nothing else, so
- * `navFor` gives them exactly this list — the same filter, not a second hand-written one in a layout.
- */
-export const PORTAL_NAV: readonly NavItem[] = [
-  { href: '/portal', label: 'Overview', icon: 'home', capability: 'portal.read', group: 'Account' },
-  { href: '/portal/jobs', label: 'Jobs', icon: 'clipboard', capability: 'portal.read', group: 'Work' },
-  { href: '/portal/cranes', label: 'Cranes', icon: 'crane', capability: 'portal.read', group: 'Register' },
-  { href: '/portal/certificates', label: 'Certificates', icon: 'award', capability: 'portal.read', group: 'Register' },
-  { href: '/portal/reports', label: 'Reports', icon: 'file', capability: 'portal.read', group: 'Register' },
-]
-
-/**
- * A customer, by the same test the office layout redirects on (`portal.read` without
- * `dashboard.office`). It has to be the audience rather than a capability filter: a customer holds
- * `crane.read` and `certificate.read` too, so filtering one combined list would offer them the
- * office's `/certificates` and `/schedules`, which redirect straight back to the portal.
- */
-function isCustomer(role: Role): boolean {
-  return can(role, 'portal.read') && !can(role, 'dashboard.office')
-}
-
 /** The destinations this role may open. */
 export function navFor(role: Role): NavItem[] {
-  const list = isCustomer(role) ? PORTAL_NAV : APP_NAV
-  return list.filter((item) => !item.capability || can(role, item.capability))
+  return APP_NAV.filter((item) => !item.capability || can(role, item.capability))
 }
 
 /**

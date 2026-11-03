@@ -40,7 +40,6 @@ function contextFor(
     email: user.email,
     role: user.role,
     technicianId,
-    customerId: null,
     ip: '203.0.113.11',
     userAgent: 'vitest',
   }

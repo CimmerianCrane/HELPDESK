@@ -18,7 +18,7 @@ in the section headings; Phase 1 implements a subset.
 ## 3.1 Enums
 
 ```prisma
-enum Role            { ADMIN DISPATCHER TECHNICIAN STOREKEEPER FINANCE CUSTOMER }
+enum Role            { ADMIN DISPATCHER TECHNICIAN STOREKEEPER FINANCE }
 enum CustomerStatus  { PROSPECT ACTIVE DORMANT }
 enum ContactRole     { SITE_CONTACT ACCOUNTS SAFETY_OFFICER DECISION_MAKER }
 enum PreferredChannel{ PHONE EMAIL WHATSAPP SMS }
@@ -29,7 +29,7 @@ enum ScheduleType    { MONTHLY_SERVICE ANNUAL_EXAMINATION LOAD_TEST HOIST_EXAMIN
 enum ScheduleSource  { MANUAL RULE }
 
 enum ContractType    { AMC ADHOC WARRANTY RENTAL }
-enum TicketSource    { PHONE EMAIL WHATSAPP WEB PORTAL }
+enum TicketSource    { PHONE EMAIL WHATSAPP WEB }
 enum TicketStatus    { NEW TRIAGED CONVERTED CLOSED CANCELLED }
 
 enum Priority        { P1 P2 P3 P4 }

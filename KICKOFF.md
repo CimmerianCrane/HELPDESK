@@ -31,6 +31,13 @@ record behind it is split into the files below so no single one is a wall of tex
 > entries — Chain Block, Dock Leveler and Cargo Hoist need new `CraneType` values first. Details:
 > `docs/SLICES.md` "Slice 46" and `docs/PLAN-SLICES.md` §7.26.
 >
+> **The customer portal was removed (3 Nov 2026).** Customer logins existed only to show a
+> read-only copy of records the office already emails, and carried the cost of external accounts
+> with no self-service password reset. Gone with it: the `CUSTOMER` role, `User.customerId`,
+> `portal.read`, the `(portal)` screens and `src/server/portal/`, the demo portal login, and the
+> `PORTAL` ticket source. Migration `20261103000000_drop_portal_login`. Customers now receive
+> issued reports and certificates by email.
+>
 > **Where the next session starts — the tablet app is code-complete.** The owner's request was to
 > ship the technician side as an installable Android tablet app while the office keeps the website.
 > Slices 40–45 are all built; the plan is **[`docs/PLAN-TABLET-APP.md`](docs/PLAN-TABLET-APP.md)**.
@@ -237,7 +244,7 @@ Work through this in order:
    as dead space. **Confirmed 2 Nov 2026** — the row is one panel with a single bottom edge, and the
    shorter column does not read as empty.
 2. **Review the screens not yet seen at full resolution:** `/cranes`, `/invoices`, `/tickets`,
-   `/schedule`, `/reports`, `/admin`, `/quotes`, `/stock-takes`, the `(portal)` screens. (The
+   `/schedule`, `/reports`, `/admin`, `/quotes`, `/stock-takes`. (The
    technician app at 390px is covered by the phone project; the tablet at 800×1280 by the tablet
    project — both green as at slice 41. Check 768/1024/1280 by eye.) **Checked programmatically
    2 Nov 2026** — all ten at 1440: no console errors, no horizontal overflow. A taste pass is still

@@ -6,7 +6,7 @@ import { z } from 'zod'
  * who attends — happens later.
  */
 
-export const TICKET_SOURCES = ['PHONE', 'EMAIL', 'WHATSAPP', 'WEB', 'PORTAL'] as const
+export const TICKET_SOURCES = ['PHONE', 'EMAIL', 'WHATSAPP', 'WEB'] as const
 export const TICKET_STATUSES = ['NEW', 'TRIAGED', 'CONVERTED', 'CLOSED', 'CANCELLED'] as const
 export const PRIORITIES = ['P1', 'P2', 'P3', 'P4'] as const
 

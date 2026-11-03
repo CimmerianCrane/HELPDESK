@@ -18,7 +18,7 @@ import {
   updateContact,
   updateCustomer,
 } from '@/server/customers/customers'
-import { archiveSite, createSite, updateSite } from '@/server/sites/sites'
+import { createSite } from '@/server/sites/sites'
 
 /**
  * Thin by design: turn the form into a plain object, hand it to the service, revalidate. Every
@@ -111,33 +111,6 @@ export async function createSiteAction(
     await createSite(await requireAuth(), { ...formValuesNested(formData), customerId })
     revalidatePath(`/customers/${customerId}`)
   }, 'Site added.')
-}
-
-export async function updateSiteAction(
-  customerId: string,
-  siteId: string,
-  _previous: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  return runAction(async () => {
-    await updateSite(await requireAuth(), siteId, { ...formValuesNested(formData), customerId })
-    revalidatePath(`/customers/${customerId}`)
-    revalidatePath(`/sites/${siteId}`)
-  }, 'Site saved.')
-}
-
-export async function archiveSiteAction(
-  customerId: string,
-  siteId: string,
-  _previous: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  void formData
-
-  return runAction(async () => {
-    await archiveSite(await requireAuth(), siteId)
-    revalidatePath(`/customers/${customerId}`)
-  }, 'Site archived.')
 }
 
 export async function archiveContactAction(
