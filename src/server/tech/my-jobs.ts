@@ -7,6 +7,7 @@ import { assertCan } from '@/server/auth/permissions'
 import { jobReadWhere, resourceReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { getSettings } from '@/server/settings/settings'
+import { checklistForJob, type ChecklistLine } from '@/server/templates/checklist'
 
 /**
  * What a technician's phone reads.
@@ -54,14 +55,7 @@ export interface TechJobSummary {
   restricted: number
 }
 
-export interface TechChecklistItem {
-  section: string
-  code: string
-  label: string
-  resultType: string
-  unit: string | null
-  requiresMeasurement: boolean
-}
+export type TechChecklistItem = ChecklistLine
 
 export interface TechReportTemplate {
   id: string
@@ -86,10 +80,16 @@ export interface TechJobDetail extends TechJobSummary {
   /** Other people on the same visit, so the technician knows who to meet. */
   crew: Array<{ name: string; isLead: boolean }>
   cranes: TechCrane[]
+  /** The job type's fallback sheet. Kept for a bundle cached before slice 46. */
   checklist: TechChecklistItem[]
+  /**
+   * The sheet each crane actually uses, keyed by crane id. Optional so a bundle cached before slice
+   * 46 still renders from `checklist`.
+   */
+  checklistByCraneId?: Record<string, TechChecklistItem[]>
   /** The report the technician fills in. Null when the job type has no template attached. */
   reportTemplate: TechReportTemplate | null
-  /** A Service Report: every checklist line is graded 1–5 and commented, and it numbers `SR…`. */
+  /** A Service Report: every checklist line is graded 1–4 and commented, and it numbers `SR…`. */
   isServiceReport: boolean
   /** Already submitted for this job, so the phone can say so instead of offering a second one. */
   reports: TechReportSummary[]
@@ -165,6 +165,7 @@ const jobSelect = {
   scheduledEnd: true,
   jobType: {
     select: {
+      id: true,
       name: true,
       isServiceReport: true,
       defaultChecklistTemplateId: true,
@@ -291,21 +292,12 @@ async function toDetail(
     row.cranes.map((entry) => entry.crane.id),
   )
 
-  const [checklist, templateRow, reports] = await Promise.all([
-    row.jobType.defaultChecklistTemplateId
-      ? client.checklistItem.findMany({
-          where: { templateId: row.jobType.defaultChecklistTemplateId },
-          orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
-          select: {
-            section: true,
-            code: true,
-            label: true,
-            resultType: true,
-            unit: true,
-            requiresMeasurement: true,
-          },
-        })
-      : Promise.resolve([]),
+  const [checklists, templateRow, reports] = await Promise.all([
+    checklistForJob(
+      client,
+      row.jobType,
+      row.cranes.map(({ crane }) => crane.type),
+    ),
     row.jobType.defaultReportTemplateId
       ? client.reportTemplate.findUnique({
           where: { id: row.jobType.defaultReportTemplateId },
@@ -355,6 +347,11 @@ async function toDetail(
   const contact = row.site.contacts[0] ?? null
   if (!contact?.phone) warnings.push('No phone number is recorded for anybody at this site.')
 
+  const checklistByCraneId: Record<string, TechChecklistItem[]> = {}
+  for (const { crane } of row.cranes) {
+    checklistByCraneId[crane.id] = checklists.byType.get(crane.type) ?? checklists.fallback
+  }
+
   const mine = row.technicians.find((entry) => entry.technicianId === technicianId)
 
   return {
@@ -380,7 +377,8 @@ async function toDetail(
       name: entry.technician.user.name,
       isLead: entry.isLead,
     })),
-    checklist,
+    checklist: checklists.fallback,
+    checklistByCraneId,
     reportTemplate,
     isServiceReport: row.jobType.isServiceReport,
     reports: reports.map((report) => ({
@@ -518,10 +516,14 @@ export async function syncBundle(context: AuthContext, client: Tx = db): Promise
     }),
   ])
 
-  // The checklist is per job type, and several jobs share a type — send each item once.
+  // Several jobs share a sheet — send each item once. The per-crane lists carry the crane-specific
+  // sheets, which the fallback alone would miss.
   const checklistByCode = new Map<string, TechChecklistItem>()
   for (const detail of details) {
     for (const item of detail.checklist) checklistByCode.set(item.code, item)
+    for (const list of Object.values(detail.checklistByCraneId ?? {})) {
+      for (const item of list) checklistByCode.set(item.code, item)
+    }
   }
 
   return {

@@ -66,7 +66,18 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
   const start = job.scheduledStart ? new Date(job.scheduledStart) : null
   const end = job.scheduledEnd ? new Date(job.scheduledEnd) : null
 
-  const sections = groupChecklist(job.checklist)
+  // A mixed visit previews the union of the cranes' sheets, deduped by code. A bundle cached before
+  // slice 46 has no per-crane lists and falls back to its job type sheet.
+  const checklist = job.checklistByCraneId
+    ? [
+        ...new Map(
+          Object.values(job.checklistByCraneId)
+            .flat()
+            .map((item) => [item.code, item]),
+        ).values(),
+      ]
+    : job.checklist
+  const sections = groupChecklist(checklist)
 
   return (
     <article className="space-y-5">
@@ -273,7 +284,7 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
           <p className="mt-1 text-sm text-muted">
             {job.isServiceReport
               ? 'Grade every component on the report and note what needs replacing.'
-              : 'What this job type requires. You fill it in on the report.'}
+              : 'What the reports will ask. You fill it in on the report.'}
           </p>
           <div className="mt-3 space-y-4">
             {sections.map((section) => (

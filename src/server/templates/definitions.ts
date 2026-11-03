@@ -1,4 +1,4 @@
-import type { Priority } from '@prisma/client'
+import type { CraneType, Priority } from '@prisma/client'
 import type { TemplateField, TemplateSchema } from '@/lib/templates/schema'
 
 /**
@@ -23,7 +23,7 @@ export interface JobTypeDefinition {
   /** Which of the four built templates this type gains, if any. */
   template?: TemplateKey
   /**
-   * A Service Report: the technician grades every component 1–5 against this type's checklist, and
+   * A Service Report: the technician grades every component 1–4 against this type's checklist, and
    * the approved report is numbered `SR<yy><mm><nnn>` instead of `RPT-…`.
    */
   isServiceReport?: boolean
@@ -678,5 +678,103 @@ export const TEMPLATES: readonly TemplateDefinition[] = [
       ],
     },
     report: loadTestReport,
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Crane and Monorail maintenance checklist (slice 46)
+// ---------------------------------------------------------------------------
+
+/**
+ * A checklist the technicians carry on paper, seeded beside the four report templates because it has
+ * no report of its own: the lines are graded on the phone and the job's Service Report turns them
+ * into prose.
+ *
+ * Every line is `PASS_FAIL_NA`. The paper records a comment and a grade per line, not a measurement.
+ * Codes carry the `CM_` prefix because the sync bundle dedupes checklist items by code alone and the
+ * generic servicing sheet uses the same component names.
+ */
+export interface CraneChecklistDefinition {
+  code: string
+  name: string
+  /** The job type whose default this sheet replaces, on the crane types it names. */
+  jobTypeCode: string
+  craneTypes: CraneType[]
+  items: ChecklistSeedItem[]
+}
+
+const craneAndMonorailItems: ChecklistSeedItem[] = [
+  // Item 1 — Hoist
+  { section: 'Hoist', code: 'CM_HOIST_MAIN_MOTOR', label: 'Hoist main motor', resultType: 'PASS_FAIL_NA' },
+  { section: 'Hoist', code: 'CM_HOIST_MICRO_MOTOR', label: 'Hoist micro motor', resultType: 'PASS_FAIL_NA' },
+  { section: 'Hoist', code: 'CM_HOIST_BRAKE_LINING', label: 'Brake lining', resultType: 'PASS_FAIL_NA' },
+  { section: 'Hoist', code: 'CM_HOIST_BRAKE_RELAY', label: 'Brake relay / contactor', resultType: 'PASS_FAIL_NA' },
+  { section: 'Hoist', code: 'CM_HOIST_LIMIT_SWITCH', label: 'Limit switch', resultType: 'PASS_FAIL_NA' },
+  { section: 'Hoist', code: 'CM_HOIST_ROPE_GUIDE', label: 'Rope guide / chain guide', resultType: 'PASS_FAIL_NA' },
+  { section: 'Hoist', code: 'CM_HOIST_WIRE_ROPE', label: 'Wire rope / load chain', resultType: 'PASS_FAIL_NA' },
+  { section: 'Hoist', code: 'CM_HOIST_DRUM', label: 'Drum / chain box', resultType: 'PASS_FAIL_NA' },
+  { section: 'Hoist', code: 'CM_HOIST_SHEAVES', label: 'Rope sheaves / sprocket', resultType: 'PASS_FAIL_NA' },
+  { section: 'Hoist', code: 'CM_HOIST_BOTTOM_BLOCK', label: 'Bottom block / buffers', resultType: 'PASS_FAIL_NA' },
+  { section: 'Hoist', code: 'CM_HOIST_SAFETY_LATCH', label: 'Safety latch', resultType: 'PASS_FAIL_NA' },
+  { section: 'Hoist', code: 'CM_HOIST_FUSES', label: 'Fuses / breakers', resultType: 'PASS_FAIL_NA' },
+  { section: 'Hoist', code: 'CM_HOIST_CONTACTORS', label: 'Contactors', resultType: 'PASS_FAIL_NA' },
+  { section: 'Hoist', code: 'CM_HOIST_INVERTER', label: 'Inverter / PLC', resultType: 'PASS_FAIL_NA' },
+  // Item 2 — Cross travel
+  { section: 'Cross travel', code: 'CM_CT_TRAVEL_MOTOR', label: 'Travel motor', resultType: 'PASS_FAIL_NA' },
+  { section: 'Cross travel', code: 'CM_CT_BRAKE_LINING', label: 'Brake lining', resultType: 'PASS_FAIL_NA' },
+  { section: 'Cross travel', code: 'CM_CT_MOUNTING', label: 'Mounting', resultType: 'PASS_FAIL_NA' },
+  { section: 'Cross travel', code: 'CM_CT_TRAVEL_WHEELS', label: 'Travel wheels', resultType: 'PASS_FAIL_NA' },
+  { section: 'Cross travel', code: 'CM_CT_RUBBER_BUFFERS', label: 'Rubber buffers', resultType: 'PASS_FAIL_NA' },
+  { section: 'Cross travel', code: 'CM_CT_CONTACTORS', label: 'Contactors', resultType: 'PASS_FAIL_NA' },
+  { section: 'Cross travel', code: 'CM_CT_INVERTER', label: 'Inverter', resultType: 'PASS_FAIL_NA' },
+  { section: 'Cross travel', code: 'CM_CT_FUSES', label: 'Fuses / breaker', resultType: 'PASS_FAIL_NA' },
+  { section: 'Cross travel', code: 'CM_CT_LIMIT_ANTI_COLLISION', label: 'Limit switch / anti-collision device', resultType: 'PASS_FAIL_NA' },
+  // Item 3 — Long travel
+  { section: 'Long travel', code: 'CM_LT_TRAVEL_MOTOR', label: 'Travel motor', resultType: 'PASS_FAIL_NA' },
+  { section: 'Long travel', code: 'CM_LT_BRAKE_LINING', label: 'Brake lining', resultType: 'PASS_FAIL_NA' },
+  { section: 'Long travel', code: 'CM_LT_MOUNTING', label: 'Mounting', resultType: 'PASS_FAIL_NA' },
+  { section: 'Long travel', code: 'CM_LT_TRAVEL_WHEELS', label: 'Travel wheels', resultType: 'PASS_FAIL_NA' },
+  { section: 'Long travel', code: 'CM_LT_RUBBER_BUFFERS', label: 'Rubber buffers', resultType: 'PASS_FAIL_NA' },
+  { section: 'Long travel', code: 'CM_LT_CONTACTORS', label: 'Contactors', resultType: 'PASS_FAIL_NA' },
+  { section: 'Long travel', code: 'CM_LT_INVERTER', label: 'Inverter', resultType: 'PASS_FAIL_NA' },
+  { section: 'Long travel', code: 'CM_LT_FUSES', label: 'Fuses / breaker', resultType: 'PASS_FAIL_NA' },
+  { section: 'Long travel', code: 'CM_LT_LIMIT_SWITCH', label: 'Limit switch', resultType: 'PASS_FAIL_NA' },
+  { section: 'Long travel', code: 'CM_LT_ANTI_COLLISION', label: 'Anti-collision device', resultType: 'PASS_FAIL_NA' },
+  { section: 'Long travel', code: 'CM_LT_ALARM', label: 'Audio / visual alarm', resultType: 'PASS_FAIL_NA' },
+  // Item 4 — Oil lubricants
+  { section: 'Oil lubricants', code: 'CM_OIL_HOIST_GEARBOX', label: 'Hoisting gear box', resultType: 'PASS_FAIL_NA' },
+  { section: 'Oil lubricants', code: 'CM_OIL_CT_GEARBOX', label: 'Cross travel gear box', resultType: 'PASS_FAIL_NA' },
+  { section: 'Oil lubricants', code: 'CM_OIL_LT_GEARBOX', label: 'Long travel gear box', resultType: 'PASS_FAIL_NA' },
+  { section: 'Oil lubricants', code: 'CM_OIL_WIRE_ROPE', label: 'Wire rope', resultType: 'PASS_FAIL_NA' },
+  // Item 5 — Festoon
+  { section: 'Festoon', code: 'CM_FES_POWER_CABLES', label: 'Power cables', resultType: 'PASS_FAIL_NA' },
+  { section: 'Festoon', code: 'CM_FES_MOBILE_CONTROL_CABLES', label: 'Mobile control cables', resultType: 'PASS_FAIL_NA' },
+  { section: 'Festoon', code: 'CM_FES_PENDANT', label: 'Push button pendant', resultType: 'PASS_FAIL_NA' },
+  { section: 'Festoon', code: 'CM_FES_CONTROL_ROUND_CABLE', label: 'Control round cable', resultType: 'PASS_FAIL_NA' },
+  { section: 'Festoon', code: 'CM_FES_C_TRACK', label: 'C track', resultType: 'PASS_FAIL_NA' },
+  { section: 'Festoon', code: 'CM_FES_CABLE_CARRIERS', label: 'Cable carriers', resultType: 'PASS_FAIL_NA' },
+  { section: 'Festoon', code: 'CM_FES_STRAINER_CORD', label: 'Carrier strainer cord', resultType: 'PASS_FAIL_NA' },
+  { section: 'Festoon', code: 'CM_FES_REMOTE_CONTROL', label: 'Remote control', resultType: 'PASS_FAIL_NA' },
+  // Item 6 — Electrical
+  { section: 'Electrical', code: 'CM_ELEC_MAIN_CONTACTOR', label: 'Main contactor', resultType: 'PASS_FAIL_NA' },
+  { section: 'Electrical', code: 'CM_ELEC_OVERLOAD_DEVICE', label: 'Overload device', resultType: 'PASS_FAIL_NA' },
+  { section: 'Electrical', code: 'CM_ELEC_OPERATING_HOURS', label: 'Operating hours', resultType: 'PASS_FAIL_NA' },
+  { section: 'Electrical', code: 'CM_ELEC_LOAD_DISPLAY', label: 'Load display', resultType: 'PASS_FAIL_NA' },
+  { section: 'Electrical', code: 'CM_ELEC_PVC_POWER_CONDUCTOR', label: 'PVC power conductor', resultType: 'PASS_FAIL_NA' },
+  { section: 'Electrical', code: 'CM_ELEC_CURRENT_COLLECTOR', label: 'Current collector', resultType: 'PASS_FAIL_NA' },
+  { section: 'Electrical', code: 'CM_ELEC_CABLE_REEL', label: 'Cable reel', resultType: 'PASS_FAIL_NA' },
+  { section: 'Electrical', code: 'CM_ELEC_MAIN_BREAKER', label: 'Main breaker / fuses', resultType: 'PASS_FAIL_NA' },
+  { section: 'Electrical', code: 'CM_ELEC_CONTROL_VOLTAGE', label: 'Control voltage', resultType: 'PASS_FAIL_NA' },
+  { section: 'Electrical', code: 'CM_ELEC_PLC_UNIT', label: 'PLC unit', resultType: 'PASS_FAIL_NA' },
+  { section: 'Electrical', code: 'CM_ELEC_TRANSFORMER', label: 'Transformer', resultType: 'PASS_FAIL_NA' },
+]
+
+export const CRANE_CHECKLISTS: readonly CraneChecklistDefinition[] = [
+  {
+    code: 'CRANE_AND_MONORAIL',
+    name: 'Crane and monorail maintenance checklist',
+    jobTypeCode: 'PM',
+    craneTypes: ['OVERHEAD', 'GANTRY', 'JIB'],
+    items: craneAndMonorailItems,
   },
 ]

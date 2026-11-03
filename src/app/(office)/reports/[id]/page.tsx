@@ -312,7 +312,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         <section className={cardClass}>
           <h2 className="font-semibold text-ink">Component grades</h2>
           <p className="mt-1 text-sm text-muted">
-            Rated 1–5 on the day. Worst first, because that is what needs quoting.
+            Rated on the day. Worst first, because that is what needs quoting.
           </p>
           <ul className="mt-4 space-y-2 text-sm">
             {graded.map(([code, entry]) => (

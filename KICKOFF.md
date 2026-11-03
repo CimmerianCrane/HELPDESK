@@ -18,6 +18,19 @@ record behind it is split into the files below so no single one is a wall of tex
 | `docs/UI-REVIEW.md` | The Hi-Vis Industrial direction and its contrast rules — **read this before touching any screen** |
 | `docs/UI-REVIEW-FINDINGS.md` | The design review that produced it |
 
+> **Slice 46 is built (3 Nov 2026) — the first paper checklist reaches the phone.** A PM job on an
+> overhead, gantry or jib crane now opens the **Crane and Monorail** sheet: 57 lines in six sections,
+> transcribed from the owner's xlsx, graded with the paper's four words (4 Good · 3 Monitor ·
+> 2 Replacement · 1 Unsafe). The machine now chooses the sheet: `ChecklistTemplate.craneTypes` sits
+> beside `jobTypeId`, and `src/server/templates/checklist.ts` is the single resolver used by the phone
+> bundle, report submission and the dispatch pack. A mobile-crane PM keeps the generic servicing list.
+> The grade scale moved 1–5 → 1–4 (old reports still read); the offline outbox's dropped `grades` was
+> fixed on the way. Migration `20261103043308_checklist_template_crane_types` is applied;
+> `npm run seed` twice is idempotent. Gate: `npm run verify` (522 unit) and `npm run test:integration`
+> (415) pass. **Still to do:** the manual 390px/offline check, and the other four sheets are later data
+> entries — Chain Block, Dock Leveler and Cargo Hoist need new `CraneType` values first. Details:
+> `docs/SLICES.md` "Slice 46" and `docs/PLAN-SLICES.md` §7.26.
+>
 > **Where the next session starts — the tablet app is code-complete.** The owner's request was to
 > ship the technician side as an installable Android tablet app while the office keeps the website.
 > Slices 40–45 are all built; the plan is **[`docs/PLAN-TABLET-APP.md`](docs/PLAN-TABLET-APP.md)**.
@@ -161,7 +174,8 @@ record behind it is split into the files below so no single one is a wall of tex
 > width. Slice 40 closed the old "review the technician app at 390px" item on this list below; the
 > phone project passes, but the earlier restyle items 2–6 on that list are still open.
 >
-> The earlier feature plan (§7 in `docs/PLAN.md`) is complete through slice 39. **Slice 39 — the Service Report — is built and both
+> The earlier feature plan (§7 in `docs/PLAN.md`) is complete through slice 39, plus slice 46 (the
+> Crane and Monorail checklist). **Slice 39 — the Service Report — is built and both
 > migrations are applied (31 Oct 2026)**: `20261031100000_service_report_grades` (added `JobType.isServiceReport`,
 > flipped `PM`) and `20261031110000_service_report_documents` (added the `ServiceReport` table). The owner reviewed every screen on 31 October
 > 2026 and rejected two things outright: **the sidebar is cluttered** and **the dashboard is not the
@@ -190,13 +204,12 @@ dead, and both were found on 31 Oct 2026 (see `docs/HISTORY.md`):
   `npm run dev:lan` — it finds the machine's address and starts `next dev --hostname <it>`; it prints the
   URL to open on the phone. `npm run dev` is still right for desktop-only work.
 
-**The gates all pass** — `npm run verify` (506 unit as at 2 Nov 2026) and `npm run build` re-run after
+**The gates all pass** — `npm run verify` (522 unit as at 3 Nov 2026) and `npm run build` re-run after
 the nav and servicing-checklist work. E2E is green
 after slice 42 against the production server: technician + tablet projects **27 passed, 0 skipped**. The
 offline worker test had been skipping itself even under a build — it navigated before the sign-in
-redirect landed — and now runs for real. `npm run test:integration` was green at slice 43 for the two
-files it touched (`push`, `schedule` — 41 tests); the full integration suite last ran complete at slice
-39 (403 tests).
+redirect landed — and now runs for real. `npm run test:integration` is green complete at slice 46
+(415 tests).
 
 **Next.js 16.4.3 (31 Oct 2026).** Upgraded from 15.5.28. What it forced:
 
