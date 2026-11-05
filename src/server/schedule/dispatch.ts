@@ -8,7 +8,8 @@ import { jobReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { emailAdapter } from '@/server/email/email'
 import { sendPushToUsers } from '@/server/notify/push'
-import { canTransition } from '@/server/jobs/status'
+import { canDispatch } from '@/server/jobs/status'
+import { JOB_STATUS_LABELS } from '@/server/jobs/labels'
 import { checklistForJob } from '@/server/templates/checklist'
 import { formatDateTime } from '@/lib/format'
 import { getSettings } from '@/server/settings/settings'
@@ -353,9 +354,11 @@ export async function dispatchJob(
       if (job.technicians.length === 0) {
         throw new RuleError('Nobody is assigned to this job, so there is nobody to dispatch.')
       }
-      if (!job.status || !canTransition(job.status, 'DISPATCHED') && job.status !== 'DISPATCHED') {
+      if (!job.status || !canDispatch(job.status)) {
+        // Said as the next step, not just the refusal: the usual caller has a brand-new job and does
+        // not yet know that a date and a technician come first.
         throw new RuleError(
-          `A job has to be scheduled before it can be dispatched (this one is ${job.status}).`,
+          `A job has to be scheduled before it can be dispatched — this one is ${JOB_STATUS_LABELS[job.status]}. Set the visit dates and assign a technician first.`,
         )
       }
 

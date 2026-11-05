@@ -74,6 +74,14 @@ export function nextStatuses(from: JobStatus): readonly JobStatus[] {
   return ALLOWED_TRANSITIONS[from]
 }
 
+/**
+ * Whether dispatch may be sent. A SCHEDULED job moves to DISPATCHED; an already-dispatched one is
+ * re-sent (a technician who lost the email) without pretending it is a new lifecycle step.
+ */
+export function canDispatch(from: JobStatus): boolean {
+  return from === 'DISPATCHED' || canTransition(from, 'DISPATCHED')
+}
+
 export function isTerminal(status: JobStatus): boolean {
   return status === 'CLOSED' || status === 'CANCELLED'
 }
