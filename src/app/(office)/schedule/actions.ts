@@ -123,12 +123,18 @@ export async function bumpJobAction(
 
 /**
  * The job screen's dispatch button. A plain `<form action>` takes FormData and returns nothing, so
- * this wrapper exists purely for that shape — errors surface through the error boundary, which for a
- * refused dispatch means the page says why rather than the button silently doing nothing.
+ * this wrapper exists for that shape.
+ *
+ * It returns a `FormState` like every other form button: a refused dispatch is an expected failure —
+ * the job is not scheduled yet, or nobody is on it — and the person needs to read why. Letting a
+ * `RuleError` escape here showed the error boundary instead, so the one sentence that said what to
+ * do next was replaced by "Something went wrong" and a reference number.
  */
-export async function dispatchJobFormAction(jobId: string): Promise<void> {
-  await dispatchJob(await requireAuth(), jobId)
-  refreshBoard(jobId)
+export async function dispatchJobFormAction(jobId: string): Promise<FormState> {
+  return runAction(async () => {
+    await dispatchJob(await requireAuth(), jobId)
+    refreshBoard(jobId)
+  }, 'Sent to the crew.')
 }
 
 export async function createLeaveAction(

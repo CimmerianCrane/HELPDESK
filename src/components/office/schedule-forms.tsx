@@ -525,25 +525,26 @@ export function BookResourceForm({
   )
 }
 
-/** A single-button action: delete a leave entry, release a resource, dispatch a job. */
-export function ActionButton({
+/**
+ * The dispatch button. Its own component because it is stateful: a refused dispatch — not scheduled
+ * yet, nobody on it — is a sentence the dispatcher has to read, not a page-level failure.
+ */
+export function DispatchJobButton({
   action,
+  disabled,
   children,
-  pendingLabel,
-  variant = 'secondary',
 }: {
-  action: () => Promise<void>
+  action: FormAction
+  disabled: boolean
   children: React.ReactNode
-  pendingLabel?: string
-  variant?: 'primary' | 'secondary'
 }) {
+  const [state, formAction, pending] = useActionState(action, IDLE_FORM)
+
   return (
-    <form action={action}>
-      <button
-        type="submit"
-        className={variant === 'primary' ? buttonClass : secondaryButtonClass}
-      >
-        {pendingLabel ?? children}
+    <form action={formAction} className="space-y-2">
+      <FormMessage state={state} />
+      <button type="submit" disabled={disabled || pending} className={buttonClass}>
+        {pending ? 'Sending…' : children}
       </button>
     </form>
   )
