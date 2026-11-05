@@ -4,6 +4,7 @@ import {
   ALLOWED_TRANSITIONS,
   JOB_STATUSES,
   ON_HOLD_REASONS,
+  canDispatch,
   canTransition,
   isTerminal,
   nextStatuses,
@@ -76,6 +77,17 @@ describe('the job lifecycle', () => {
   it('allows rework from completed, but not from invoiced', () => {
     expect(canTransition('COMPLETED', 'IN_PROGRESS')).toBe(true)
     expect(canTransition('INVOICED', 'IN_PROGRESS')).toBe(false)
+  })
+
+  it('dispatches a scheduled job, re-sends a dispatched one, and nothing else', () => {
+    expect(canDispatch('SCHEDULED')).toBe(true)
+    // A technician who lost the email: re-sent without pretending it is a new lifecycle step.
+    expect(canDispatch('DISPATCHED')).toBe(true)
+    // A brand-new job is not scheduled yet — this is the refusal the dispatch button shows.
+    expect(canDispatch('NEW')).toBe(false)
+    expect(canDispatch('TRIAGED')).toBe(false)
+    expect(canDispatch('CLOSED')).toBe(false)
+    expect(canDispatch('CANCELLED')).toBe(false)
   })
 
   it('offers exactly the legal moves, and a status never offers itself', () => {

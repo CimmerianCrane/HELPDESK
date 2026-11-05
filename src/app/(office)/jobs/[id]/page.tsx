@@ -8,6 +8,7 @@ import {
   AssignTechnicianForm,
   BumpJobForm,
   BookResourceForm,
+  DispatchJobButton,
   RescheduleJobForm,
   UnassignTechnicianForm,
 } from '@/components/office/schedule-forms'
@@ -536,19 +537,16 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           </dl>
 
           <div className="mt-4">
-            <form action={dispatchJobFormAction.bind(null, job.id)}>
-              <button
-                type="submit"
-                disabled={staffing.technicians.length === 0}
-                className="rounded-md bg-accent px-4 py-2 font-medium text-white hover:bg-anchor-soft disabled:opacity-60"
-              >
-                {staffing.technicians.length === 0
-                  ? 'Nobody to dispatch to'
-                  : job.status === 'DISPATCHED'
-                    ? 'Send the details again'
-                    : 'Dispatch to the crew'}
-              </button>
-            </form>
+            <DispatchJobButton
+              action={dispatchJobFormAction.bind(null, job.id)}
+              disabled={staffing.technicians.length === 0}
+            >
+              {staffing.technicians.length === 0
+                ? 'Nobody to dispatch to'
+                : job.status === 'DISPATCHED'
+                  ? 'Send the details again'
+                  : 'Dispatch to the crew'}
+            </DispatchJobButton>
           </div>
         </section>
       ) : null}
