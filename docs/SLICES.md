@@ -4,6 +4,27 @@ Reference, not an introduction. `README.md` says how to run it; this file is the
 of what each one added and what to click. Canonical decisions stay in `docs/PLAN.md` §7 and
 `docs/PLAN-SLICES.md`; assumptions in `docs/ASSUMPTIONS.md`.
 
+## Slice 47 — grading on breakdown visits
+
+- **A breakdown call-out now grades the crane part by part.** `BREAKDOWN` gets the same 57-line Crane and
+  Monorail sheet on overhead, gantry and jib cranes, with the paper's four grades and a comment per line. A
+  breakdown on a mobile or tower crane keeps the job type's generic Pass/Fail list.
+- **One flag did two jobs, so it became two.** `JobType.isServiceReport` meant both "grade every answered
+  line" and "issue the numbered `SR…` document". It is now `isGradedChecklist` (the sheet) and `isServiceReport`
+  (the document), seeded on `PM` as before and on `BREAKDOWN` with the document half off — so a breakdown stores
+  grades but produces no `ServiceReport` row and no SR number.
+- **One sheet, two job types.** A `ChecklistTemplate` names one job type, so the paper is seeded twice
+  (`CRANE_AND_MONORAIL`, `CRANE_AND_MONORAIL_BREAKDOWN`) over the same item list; the `CM_` codes are identical
+  and the sync bundle dedupes them harmlessly.
+- **One migration.** `20261104090000_job_type_is_graded_checklist` adds the column and backfills it from
+  `isServiceReport`, so PM keeps grading between `db:deploy` and `seed`.
+- **Tests** — the flag split and both sheets in `tests/unit/templates.test.ts`; grade storage on a graded,
+  non-SR job type in `tests/integration/checklists.test.ts`; no SR for a graded breakdown in
+  `tests/integration/service-reports.test.ts`; the e2e report and happy-path specs now resolve the sheet by
+  crane type and click a grade per line.
+- **Known limits** — the other four paper sheets are still later data entries; the office still has no screen
+  to choose between two active sheets for one crane type.
+
 ## Slice 46 — the Crane and Monorail checklist
 
 - **The first paper sheet is on the phone.** A PM job on an **overhead, gantry or jib** crane now opens the
