@@ -23,8 +23,12 @@ export interface JobTypeDefinition {
   /** Which of the four built templates this type gains, if any. */
   template?: TemplateKey
   /**
-   * A Service Report: the technician grades every component 1–4 against this type's checklist, and
-   * the approved report is numbered `SR<yy><mm><nnn>` instead of `RPT-…`.
+   * Every answered checklist line is graded 1–4 with a comment.
+   */
+  isGradedChecklist?: boolean
+  /**
+   * The visit's graded checklists are issued as one `SR<yy><mm><nnn>` document, instead of the
+   * per-crane report's `RPT-…`. Independent of `isGradedChecklist`: a breakdown grades but issues no SR.
    */
   isServiceReport?: boolean
   /** Documents the office expects back for this kind of visit. Free text keys, shown as a reminder. */
@@ -48,6 +52,7 @@ export const JOB_TYPES: readonly JobTypeDefinition[] = [
     defaultPriority: 'P4',
     sortOrder: 10,
     template: 'SERVICING',
+    isGradedChecklist: true,
     isServiceReport: true,
     requiredDocumentTypes: [],
     requiredCompetencies: ['Crane servicing'],
@@ -59,6 +64,7 @@ export const JOB_TYPES: readonly JobTypeDefinition[] = [
     defaultPriority: 'P1',
     sortOrder: 20,
     template: 'BREAKDOWN',
+    isGradedChecklist: true,
     requiredDocumentTypes: [],
     requiredCompetencies: ['Crane servicing'],
   },
@@ -774,6 +780,15 @@ export const CRANE_CHECKLISTS: readonly CraneChecklistDefinition[] = [
     code: 'CRANE_AND_MONORAIL',
     name: 'Crane and monorail maintenance checklist',
     jobTypeCode: 'PM',
+    craneTypes: ['OVERHEAD', 'GANTRY', 'JIB'],
+    items: craneAndMonorailItems,
+  },
+  {
+    // The same paper, on a call-out: one `ChecklistTemplate` row names one job type, so the sheet
+    // the breakdown's crane is filled in against is its own row rather than a second resolver rule.
+    code: 'CRANE_AND_MONORAIL_BREAKDOWN',
+    name: 'Crane and monorail maintenance checklist (breakdown)',
+    jobTypeCode: 'BREAKDOWN',
     craneTypes: ['OVERHEAD', 'GANTRY', 'JIB'],
     items: craneAndMonorailItems,
   },

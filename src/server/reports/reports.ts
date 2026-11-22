@@ -66,7 +66,7 @@ async function reportJob(context: AuthContext, tx: Tx, jobId: string) {
         select: {
           id: true,
           name: true,
-          isServiceReport: true,
+          isGradedChecklist: true,
           defaultReportTemplateId: true,
           defaultChecklistTemplateId: true,
         },
@@ -131,11 +131,11 @@ export async function applyReport(
 
   const input = parseInput(reportSubmitSchema(template.data, checklistItems), raw)
 
-  // Grading a Service Report is the point of it: every checklist line the technician answered must
-  // carry a 1–4 rating, or the sheet says nothing the paper form did not. A line marked N/A is not
-  // an answer to grade — the part is not on the crane. A job type that is not a Service Report may
-  // not submit grades at all — it would be a second, unsanctioned rating scheme.
-  if (job.jobType.isServiceReport) {
+  // Grading a sheet is the point of it: every checklist line the technician answered must carry a
+  // 1–4 rating, or the sheet says nothing the paper form did not. A line marked N/A is not an answer
+  // to grade — the part is not on the crane. A job type that does not grade may not submit grades at
+  // all — it would be a second, unsanctioned rating scheme.
+  if (job.jobType.isGradedChecklist) {
     const answered = Object.keys(input.checklist).filter((code) => {
       const answer = input.checklist[code]
       // N/A is an answer in itself: a part that is not fitted has no condition to grade.
@@ -152,7 +152,7 @@ export async function applyReport(
     }
   } else if (Object.keys(input.grades ?? {}).length > 0) {
     throw new ValidationError({
-      grades: ['This job type is not a Service Report, so it does not carry condition grades.'],
+      grades: ['This job type does not grade its checklist, so it does not carry condition grades.'],
     })
   }
 
@@ -255,7 +255,7 @@ export async function applyReport(
     checklist: input.checklist,
     // The grades carry the checklist line's wording as it stood when the technician signed, for the
     // same reason the template version is stored: an issued report must re-render as issued.
-    ...(job.jobType.isServiceReport
+    ...(job.jobType.isGradedChecklist
       ? {
           grades: Object.fromEntries(
             Object.entries(input.grades ?? {}).map(([code, entry]) => [
