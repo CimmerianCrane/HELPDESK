@@ -18,6 +18,26 @@ record behind it is split into the files below so no single one is a wall of tex
 | `docs/UI-REVIEW.md` | The Hi-Vis Industrial direction and its contrast rules — **read this before touching any screen** |
 | `docs/UI-REVIEW-FINDINGS.md` | The design review that produced it |
 
+> **Released to production (22 Nov 2026).** Slice 47 and Next.js 16.4.6 went
+> `feature → dev → staging → main` (PRs #24–#27) and the production build switched — confirmed by the
+> changing `layout-*.js` chunk hash on `/login`, then `/api/health` 200, `db: up`, `X-Vercel-Id`
+> `sin1::sin1::…`. The database already carried `JobType.isGradedChecklist` and the
+> `CRANE_AND_MONORAIL_BREAKDOWN` sheet, so this release needed no `db:deploy` and no `seed`.
+>
+> **What is left is operational — one item is not cosmetic.**
+>
+> 1. **Customer email does not send.** `EMAIL_DRIVER=smtp` is a stub: `src/server/email/email.ts` falls
+>    back to the console adapter, which in production logs `email.not-sent` and returns `ok: true`. A
+>    report the office approves shows `emailedToCustomerAt` set while no message leaves the building.
+>    Needs a real transport (nodemailer or a provider API), `EMAIL_FROM`, and credentials in Vercel.
+> 2. **Confirm Vercel's `DATABASE_URL`.** The Supabase project this checkout uses holds demo-shaped
+>    data (≈10 customers, 28 cranes, 39 jobs, 7 users). Check it is the intended project before real
+>    work goes in; run `seed` only if that book belongs there.
+> 3. **Push is inert** until `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` are set. The
+>    public key is baked in at build time, so redeploy after setting them.
+> 4. **Supabase PITR / daily backups** on before real data goes in (README "Database backups").
+> 5. **Play Store wrapper** still deferred until the tablet app has had field use (README "Play Store").
+>
 > **Slice 47 is built (5 Nov 2026) — breakdown visits grade the crane part by part.** `BREAKDOWN` now
 > opens the same 57-line Crane and Monorail sheet on overhead, gantry and jib cranes, with the paper's
 > four grades and a comment per line; a breakdown on a mobile or tower crane keeps the generic list.
