@@ -1382,3 +1382,43 @@ sheets are later data entries.
 **Migration status.** `20261103043308_checklist_template_crane_types` is applied; `npm run seed` twice is idempotent and
 leaves one CM template with 57 items. `npm run verify` (522 unit) and `npm run test:integration` (415) pass. The manual
 390px/offline check is still to do.
+
+## 7.27 Slice 47 — grading on breakdown visits (**built**)
+
+The owner wants the per-part grading form on breakdown call-outs too, not only scheduled servicing: a breakdown
+technician should be able to say what is damaged and what needs replacing, part by part.
+
+**The problem.** `JobType.isServiceReport` did two unrelated things: it made every answered checklist line take a 1–4
+grade, and it made the visit's checklists issue as one numbered `SR…` document. `BREAKDOWN` had it off, so it got nine
+generic Pass/Fail lines and no grading.
+
+**Fixed decisions.**
+
+1. **Split the flag.** `JobType.isGradedChecklist` = "grade every answered line 1–4 with a comment". `isServiceReport`
+   now means only "issue the numbered Service Report". A breakdown grades but issues no SR — no `ServiceReport` row, no
+   SR number. `service-reports.ts` keeps gating on `isServiceReport` and so needed no change.
+2. **The crane sheet replaces the generic list.** On OVERHEAD, GANTRY and JIB the 57-line sheet *is* the breakdown's
+   checklist, exactly as on PM; a breakdown on a MOBILE or TOWER crane keeps the job type's generic list. The 9 generic
+   lines do not sit alongside the sheet.
+3. **Two template rows, one paper.** A `ChecklistTemplate` names one job type and `(code, version)` is unique, so the
+   sheet is seeded twice — `CRANE_AND_MONORAIL_BREAKDOWN` reuses the same `craneAndMonorailItems`. The `CM_` codes are
+   identical; the sync bundle dedupes identical codes harmlessly.
+4. **The migration backfills from the old flag.** `isGradedChecklist` is set where `isServiceReport` is, so PM never
+   loses grading in the window between `db:deploy` and `seed`; BREAKDOWN is switched on by the seed, which fills it
+   once and never overwrites an office decision.
+5. **The phone carries both flags.** `TechJobDetail.gradedChecklist` is optional; the form reads
+   `job.gradedChecklist ?? job.isServiceReport`, so a bundle cached before this slice still renders grading. The
+   section heading is now plain "Checklist".
+
+**As built.** Migration `20261104090000_job_type_is_graded_checklist`; the column in `prisma/schema.prisma`; the flag
+and second `CRANE_CHECKLISTS` entry in `src/server/templates/definitions.ts`; the fill-once block in
+`prisma/seed-templates.ts`; the grade gate and `grades` snapshot in `src/server/reports/reports.ts`; `gradedChecklist`
+in `src/server/tech/my-jobs.ts`; the form and preview in `src/components/tech/report-form.tsx` and `job-sheet.tsx`.
+The office report page and PDF needed no change — both render a grades table whenever one is stored.
+
+**Tests.** `tests/unit/templates.test.ts` (two sheets, one item list, both flags); `tests/integration/checklists.test.ts`
+(a graded, non-SR job type stores grades); `tests/integration/service-reports.test.ts` (a graded breakdown returns no
+SR); the e2e report and happy-path specs resolve the sheet by crane type and click a grade per line.
+
+**Known limits.** The other four paper sheets are still later data entries. A breakdown on a mobile or tower crane has
+no graded sheet until one is written for those types.

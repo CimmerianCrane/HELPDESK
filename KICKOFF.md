@@ -18,6 +18,15 @@ record behind it is split into the files below so no single one is a wall of tex
 | `docs/UI-REVIEW.md` | The Hi-Vis Industrial direction and its contrast rules — **read this before touching any screen** |
 | `docs/UI-REVIEW-FINDINGS.md` | The design review that produced it |
 
+> **Slice 47 is built (5 Nov 2026) — breakdown visits grade the crane part by part.** `BREAKDOWN` now
+> opens the same 57-line Crane and Monorail sheet on overhead, gantry and jib cranes, with the paper's
+> four grades and a comment per line; a breakdown on a mobile or tower crane keeps the generic list.
+> One flag was doing two jobs, so `JobType.isGradedChecklist` (grade every answered line) is now
+> separate from `isServiceReport` (issue the numbered `SR…` document) — a breakdown stores grades but
+> produces no Service Report. The sheet is seeded twice (`CRANE_AND_MONORAIL`,
+> `CRANE_AND_MONORAIL_BREAKDOWN`) over one item list. Migration
+> `20261104090000_job_type_is_graded_checklist` is applied. Details: `docs/SLICES.md` "Slice 47".
+>
 > **Slice 46 is built (3 Nov 2026) — the first paper checklist reaches the phone.** A PM job on an
 > overhead, gantry or jib crane now opens the **Crane and Monorail** sheet: 57 lines in six sections,
 > transcribed from the owner's xlsx, graded with the paper's four words (4 Good · 3 Monitor ·

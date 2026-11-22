@@ -49,7 +49,9 @@ interface Fixture {
   craneId: string
   jobTypeId: string
   technicianId: string
-  checklist: Array<{ label: string; resultType: string }>
+  checklist: Array<{ section: string; label: string; resultType: string }>
+  /** The job type grades every line 1–4; the sheet then shows grade buttons rather than Pass/Fail. */
+  graded: boolean
   sections: Array<{ key: string; layout: string; fields: Field[] }>
 }
 
@@ -61,6 +63,7 @@ test.beforeAll(async () => {
     select: {
       id: true,
       name: true,
+      isGradedChecklist: true,
       defaultChecklistTemplateId: true,
       defaultReportTemplateId: true,
     },
@@ -79,12 +82,6 @@ test.beforeAll(async () => {
     select: { schema: true },
   })
   const schema = template.schema as unknown as { sections: Fixture['sections'] }
-
-  const checklist = await db.checklistItem.findMany({
-    where: { templateId: jobType.defaultChecklistTemplateId },
-    orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
-    select: { label: true, resultType: true },
-  })
 
   const customer = await db.customer.create({
     data: {
@@ -120,6 +117,31 @@ test.beforeAll(async () => {
     },
   })
 
+  // The sheet is chosen by job type *and* crane type (slice 46), so mirror the resolver: the job
+  // type's default list is only the fallback, and answering lines the form never showed fails.
+  const sheet = await db.checklistTemplate.findFirst({
+    where: {
+      isActive: true,
+      jobTypeId: jobType.id,
+      craneTypes: { has: crane.type },
+      items: { some: {} },
+    },
+    orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
+    include: {
+      items: {
+        orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
+        select: { section: true, label: true, resultType: true },
+      },
+    },
+  })
+  const checklist =
+    sheet?.items ??
+    (await db.checklistItem.findMany({
+      where: { templateId: jobType.defaultChecklistTemplateId },
+      orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
+      select: { section: true, label: true, resultType: true },
+    }))
+
   fixture = {
     customerId: customer.id,
     siteId: site.id,
@@ -127,6 +149,7 @@ test.beforeAll(async () => {
     jobTypeId: jobType.id,
     technicianId: technician.id,
     checklist,
+    graded: jobType.isGradedChecklist,
     sections: schema.sections,
   }
 })
@@ -207,7 +230,8 @@ async function sign(page: Page, label: string): Promise<void> {
 
 test('a P1 breakdown becomes an issued customer report', async ({ page, context }) => {
   test.setTimeout(300_000)
-  const { customerId, siteId, craneId, jobTypeId, technicianId, checklist, sections } = fixture
+  const { customerId, siteId, craneId, jobTypeId, technicianId, checklist, graded, sections } =
+    fixture
 
   // --- office: record and triage the call -------------------------------------
 
@@ -303,12 +327,33 @@ test('a P1 breakdown becomes an issued customer report', async ({ page, context 
     }
   }
 
-  // Every checklist item must be answered; the server refuses a partial checklist.
+  // Every checklist item must be answered; the server refuses a partial checklist. A graded sheet
+  // folds its sections and takes one 1–4 grade per line instead of Pass/Fail.
+  if (graded)
+    for (const summary of await page.locator('summary').all()) {
+      if (!(await summary.evaluate((el) => (el.parentElement as HTMLDetailsElement).open))) {
+        await summary.click()
+      }
+    }
+
   for (const item of checklist) {
-    await page
-      .getByRole('group', { name: item.label })
-      .getByRole('button', { name: item.resultType === 'YES_NO' ? 'No' : 'Pass' })
+    // Labels repeat across the crane sheet's sections, so a graded row is found inside its section.
+    const inSection = page
+      .locator('details')
+      .filter({ has: page.locator('summary', { hasText: item.section }) })
+    await (graded
+      ? inSection.getByRole('group', { name: `Condition grade: ${item.label}`, exact: true })
+      : page.getByRole('group', { name: item.label, exact: true })
+    )
+      .getByRole('button', { name: graded ? 'Good' : item.resultType === 'YES_NO' ? 'No' : 'Pass' })
       .click()
+    // A YES/NO line is answered by its own buttons; a grade does not infer the answer.
+    if (graded && item.resultType === 'YES_NO') {
+      await inSection
+        .getByRole('group', { name: item.label, exact: true })
+        .getByRole('button', { name: 'No' })
+        .click()
+    }
   }
 
   await page.locator('input[type="file"]').setInputFiles({

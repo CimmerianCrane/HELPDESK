@@ -214,7 +214,8 @@ describe('the Service Report for a visit', () => {
       const setup = await serviceJobSetup(tx)
       await tx.jobType.update({
         where: { id: setup.jobType.id },
-        data: { isServiceReport: false },
+        // Grading the sheet is not issuing the document: a breakdown grades but has no SR.
+        data: { isServiceReport: false, isGradedChecklist: true },
       })
       expect(await serviceReportForJob(setup.user, setup.job.id, tx)).toBeNull()
     })
