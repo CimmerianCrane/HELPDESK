@@ -218,6 +218,11 @@ offline worker test had been skipping itself even under a build — it navigated
 redirect landed — and now runs for real. `npm run test:integration` is green complete at slice 46
 (415 tests).
 
+**Next.js 16.4.6 (22 Nov 2026).** A patch bump from 16.4.3 for a published advisory affecting
+16.0.0–16.4.4 (`eslint-config-next` moved with it). Everything the 16.4.3 upgrade forced below still
+holds. 16.4.3's build carried a one-time "security upgrade" stop from Next.js itself once per checkout;
+16.4.6 does not.
+
 **Next.js 16.4.3 (31 Oct 2026).** Upgraded from 15.5.28. What it forced:
 
 - **Both scripts pass `--webpack`.** `@serwist/next` integrates through a `webpack(config)` hook, and
