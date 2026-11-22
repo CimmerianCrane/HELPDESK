@@ -282,7 +282,7 @@ export function JobSheet({ job, timeZone }: { job: TechJobDetail; timeZone: stri
             Checklist
           </h2>
           <p className="mt-1 text-sm text-muted">
-            {job.isServiceReport
+            {(job.gradedChecklist ?? job.isServiceReport)
               ? 'Grade every component on the report and note what needs replacing.'
               : 'What the reports will ask. You fill it in on the report.'}
           </p>

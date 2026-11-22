@@ -64,6 +64,9 @@ export function ReportForm({
   // back to the job type's sheet it was rendered from.
   const checklist = job.checklistByCraneId?.[crane.id] ?? job.checklist
   const submitted = job.reports.find((report) => report.craneId === crane.id)
+  // A bundle cached before the flag split carries only `isServiceReport`, which was then the grading
+  // flag too — so either one grading is what the cached sheet was filled in against.
+  const gradesChecklist = job.gradedChecklist ?? job.isServiceReport
 
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [partsCatalogue, setPartsCatalogue] = useState<CachedPart[]>([])
@@ -390,7 +393,7 @@ export function ReportForm({
 
     // On a long servicing checklist "Choose Pass, Fail or N/A" does not say where — name the
     // section, so a technician is not scrolling 39 lines to find the one they missed.
-    if (job.isServiceReport) {
+    if (gradesChecklist) {
       const missing = checklist.find((item) => {
         const answer = draft.checklist[item.code] ?? {}
         const answered = Boolean(answer.result || answer.measurement !== null || answer.note)
@@ -410,7 +413,7 @@ export function ReportForm({
       templateVersion: draft.templateVersion,
       data: draft.data,
       checklist: draft.checklist,
-      grades: job.isServiceReport ? draft.grades : undefined,
+      grades: gradesChecklist ? draft.grades : undefined,
       parts: draft.parts.map((part) => ({
         partNumber: part.partNumber,
         quantity: part.quantity,
@@ -658,16 +661,14 @@ export function ReportForm({
       {checklist.length > 0 && (
         <section className="rounded-lg bg-panel p-4 md:col-span-2">
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-base font-semibold text-ink">
-              {job.isServiceReport ? 'Servicing checklist' : 'Checklist'}
-            </h2>
-            {job.isServiceReport && (
+            <h2 className="text-base font-semibold text-ink">Checklist</h2>
+            {gradesChecklist && (
               <span className="text-sm font-medium text-muted" data-num>
                 {gradedCount} / {checklist.length}
               </span>
             )}
           </div>
-          {job.isServiceReport && (
+          {gradesChecklist && (
             <p className="mt-1 text-sm text-muted">
               One grade each line. <strong className="text-ink">Unsafe</strong> means it must not be
               used. A note is only needed if something is wrong.
@@ -691,7 +692,7 @@ export function ReportForm({
                       {item.label}
                       {item.unit && <span className="text-muted"> ({item.unit})</span>}
                     </p>
-                    {job.isServiceReport ? (
+                    {gradesChecklist ? (
                       <>
                         {/* A measurement line still takes its number; everything else is graded. */}
                         {item.resultType === 'NUMBER' && (
@@ -783,7 +784,7 @@ export function ReportForm({
               // A servicing checklist is long; sections fold so the tablet shows one screenful at a
               // time. The first opens on mount; after that the browser owns the toggle — this prop
               // never changes, so React does not reset a section the technician opened.
-              return job.isServiceReport ? (
+              return gradesChecklist ? (
                 <details
                   key={group.name}
                   open={groupIndex === 0}
