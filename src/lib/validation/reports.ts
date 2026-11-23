@@ -297,7 +297,7 @@ export function reportSubmitSchema(template: TemplateSchema, checklistItems: Che
       templateVersion: z.number().int().positive(),
       data: templateDataSchema(template),
       checklist: checklistAnswersSchema(checklistItems),
-      /** Graded job types only (`JobType.isGradedChecklist`); the server refuses grades on any other. */
+      /** Service Reports only; the server refuses a grading on any other job type. */
       ...serviceGradesSchema().shape,
       parts: z
         .array(

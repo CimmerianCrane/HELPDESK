@@ -95,37 +95,21 @@ describe('the seeded report templates', () => {
 
 describe('slice 46: the Crane and Monorail checklist', () => {
   const definition = CRANE_CHECKLISTS[0]!
-  const breakdown = CRANE_CHECKLISTS[1]!
 
-  it('seeds the one sheet for PM and for breakdown, on the three crane types it covers', () => {
-    expect(CRANE_CHECKLISTS).toHaveLength(2)
+  it('seeds one sheet for the PM job type on the three crane types it covers', () => {
+    expect(CRANE_CHECKLISTS).toHaveLength(1)
     expect(definition.code).toBe('CRANE_AND_MONORAIL')
     expect(definition.jobTypeCode).toBe('PM')
-    expect(breakdown.jobTypeCode).toBe('BREAKDOWN')
-    for (const sheet of [definition, breakdown]) {
-      expect([...sheet.craneTypes].sort()).toEqual(['GANTRY', 'JIB', 'OVERHEAD'])
-    }
+    expect([...definition.craneTypes].sort()).toEqual(['GANTRY', 'JIB', 'OVERHEAD'])
   })
 
   it('links to a seeded job type', () => {
     expect(JOB_TYPES.map((type) => type.code)).toContain(definition.jobTypeCode)
   })
 
-  it('grades both a servicing and a breakdown job, but only servicing issues an SR', () => {
-    const pm = JOB_TYPES.find((type) => type.code === 'PM')!
-    const breakdownType = JOB_TYPES.find((type) => type.code === 'BREAKDOWN')!
-    expect(pm.isGradedChecklist).toBe(true)
-    expect(pm.isServiceReport).toBe(true)
-    expect(breakdownType.isGradedChecklist).toBe(true)
-    expect(breakdownType.isServiceReport).toBeUndefined()
-  })
-
-  it('transcribes the paper’s six sections and 57 lines, on both sheets', () => {
-    for (const sheet of [definition, breakdown]) {
-      expect(new Set(sheet.items.map((item) => item.section)).size, sheet.code).toBe(6)
-      expect(sheet.items, sheet.code).toHaveLength(57)
-    }
-    expect(breakdown.items).toEqual(definition.items)
+  it('transcribes the paper’s six sections and 57 lines', () => {
+    expect(new Set(definition.items.map((item) => item.section)).size).toBe(6)
+    expect(definition.items).toHaveLength(57)
   })
 
   it('prefixes its codes with CM_ so the flat sync bundle cannot overwrite another sheet', () => {
