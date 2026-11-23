@@ -18,35 +18,6 @@ record behind it is split into the files below so no single one is a wall of tex
 | `docs/UI-REVIEW.md` | The Hi-Vis Industrial direction and its contrast rules — **read this before touching any screen** |
 | `docs/UI-REVIEW-FINDINGS.md` | The design review that produced it |
 
-> **Released to production (22 Nov 2026).** Slice 47 and Next.js 16.4.6 went
-> `feature → dev → staging → main` (PRs #24–#27) and the production build switched — confirmed by the
-> changing `layout-*.js` chunk hash on `/login`, then `/api/health` 200, `db: up`, `X-Vercel-Id`
-> `sin1::sin1::…`. The database already carried `JobType.isGradedChecklist` and the
-> `CRANE_AND_MONORAIL_BREAKDOWN` sheet, so this release needed no `db:deploy` and no `seed`.
->
-> **What is left is operational — one item is not cosmetic.**
->
-> 1. **Customer email does not send.** `EMAIL_DRIVER=smtp` is a stub: `src/server/email/email.ts` falls
->    back to the console adapter, which in production logs `email.not-sent` and returns `ok: true`. A
->    report the office approves shows `emailedToCustomerAt` set while no message leaves the building.
->    Needs a real transport (nodemailer or a provider API), `EMAIL_FROM`, and credentials in Vercel.
-> 2. **Confirm Vercel's `DATABASE_URL`.** The Supabase project this checkout uses holds demo-shaped
->    data (≈10 customers, 28 cranes, 39 jobs, 7 users). Check it is the intended project before real
->    work goes in; run `seed` only if that book belongs there.
-> 3. **Push is inert** until `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` are set. The
->    public key is baked in at build time, so redeploy after setting them.
-> 4. **Supabase PITR / daily backups** on before real data goes in (README "Database backups").
-> 5. **Play Store wrapper** still deferred until the tablet app has had field use (README "Play Store").
->
-> **Slice 47 is built (5 Nov 2026) — breakdown visits grade the crane part by part.** `BREAKDOWN` now
-> opens the same 57-line Crane and Monorail sheet on overhead, gantry and jib cranes, with the paper's
-> four grades and a comment per line; a breakdown on a mobile or tower crane keeps the generic list.
-> One flag was doing two jobs, so `JobType.isGradedChecklist` (grade every answered line) is now
-> separate from `isServiceReport` (issue the numbered `SR…` document) — a breakdown stores grades but
-> produces no Service Report. The sheet is seeded twice (`CRANE_AND_MONORAIL`,
-> `CRANE_AND_MONORAIL_BREAKDOWN`) over one item list. Migration
-> `20261104090000_job_type_is_graded_checklist` is applied. Details: `docs/SLICES.md` "Slice 47".
->
 > **Slice 46 is built (3 Nov 2026) — the first paper checklist reaches the phone.** A PM job on an
 > overhead, gantry or jib crane now opens the **Crane and Monorail** sheet: 57 lines in six sections,
 > transcribed from the owner's xlsx, graded with the paper's four words (4 Good · 3 Monitor ·
@@ -246,11 +217,6 @@ after slice 42 against the production server: technician + tablet projects **27 
 offline worker test had been skipping itself even under a build — it navigated before the sign-in
 redirect landed — and now runs for real. `npm run test:integration` is green complete at slice 46
 (415 tests).
-
-**Next.js 16.4.6 (22 Nov 2026).** A patch bump from 16.4.3 for a published advisory affecting
-16.0.0–16.4.4 (`eslint-config-next` moved with it). Everything the 16.4.3 upgrade forced below still
-holds. 16.4.3's build carried a one-time "security upgrade" stop from Next.js itself once per checkout;
-16.4.6 does not.
 
 **Next.js 16.4.3 (31 Oct 2026).** Upgraded from 15.5.28. What it forced:
 

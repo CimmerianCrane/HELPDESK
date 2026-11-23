@@ -726,11 +726,8 @@ model JobType {
   /// Matched against `Competency.name` on the technician. Empty means no requirement. Whether a
   /// missing one blocks or only warns is the `blockAssignmentOnExpiredCompetency` setting.
   requiredCompetencies       String[] @default([])
-  /// Every answered checklist line is graded 1–4 with a comment. Independent of `isServiceReport`:
-  /// a breakdown call-out grades the crane part by part but issues no Service Report.
-  isGradedChecklist          Boolean  @default(false)
-  /// A Service Report: the visit's graded checklists are issued as one numbered `SR<yy><mm><nnn>`
-  /// document instead of the per-crane report's `RPT-…`. Office-owned, like every other job type
+  /// A Service Report: every checklist line is graded 1–4 with a comment, and the report is numbered
+  /// `SR<yy><mm><nnn>` instead of `RPT-…` when it is approved. Office-owned, like every other job type
   /// default — a second servicing type is a row, not a code change.
   isServiceReport            Boolean  @default(false)
   isActive                   Boolean  @default(true)

@@ -133,7 +133,6 @@ export async function seedJobTypesAndTemplates(db: PrismaClient): Promise<void> 
           sortOrder: jobType.sortOrder,
           requiredDocumentTypes: jobType.requiredDocumentTypes ?? [],
           requiredCompetencies: jobType.requiredCompetencies ?? [],
-          isGradedChecklist: jobType.isGradedChecklist ?? false,
           isServiceReport: jobType.isServiceReport ?? false,
           defaultChecklistTemplateId: templates?.checklistId ?? null,
           defaultReportTemplateId: templates?.reportId ?? null,
@@ -179,16 +178,6 @@ export async function seedJobTypesAndTemplates(db: PrismaClient): Promise<void> 
       await db.jobType.update({
         where: { id: existing.id },
         data: { isServiceReport: true },
-      })
-      updatedLinks += 1
-    }
-
-    // Same policy for grading: seeded on once for the types this module declares, and a type the
-    // office has since changed is theirs. The migration already set it on every Service Report type.
-    if (jobType.isGradedChecklist && !existing.isGradedChecklist) {
-      await db.jobType.update({
-        where: { id: existing.id },
-        data: { isGradedChecklist: true },
       })
       updatedLinks += 1
     }
