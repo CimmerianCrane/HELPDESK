@@ -89,12 +89,7 @@ export interface TechJobDetail extends TechJobSummary {
   checklistByCraneId?: Record<string, TechChecklistItem[]>
   /** The report the technician fills in. Null when the job type has no template attached. */
   reportTemplate: TechReportTemplate | null
-  /**
-   * The job type grades every answered checklist line 1–4 with a comment. Optional so a bundle cached
-   * before the flag split still renders grading from `isServiceReport`.
-   */
-  gradedChecklist?: boolean
-  /** A Service Report: the visit's graded checklists are issued as one numbered `SR…` document. */
+  /** A Service Report: every checklist line is graded 1–4 and commented, and it numbers `SR…`. */
   isServiceReport: boolean
   /** Already submitted for this job, so the phone can say so instead of offering a second one. */
   reports: TechReportSummary[]
@@ -172,7 +167,6 @@ const jobSelect = {
     select: {
       id: true,
       name: true,
-      isGradedChecklist: true,
       isServiceReport: true,
       defaultChecklistTemplateId: true,
       defaultReportTemplateId: true,
@@ -386,7 +380,6 @@ async function toDetail(
     checklist: checklists.fallback,
     checklistByCraneId,
     reportTemplate,
-    gradedChecklist: row.jobType.isGradedChecklist,
     isServiceReport: row.jobType.isServiceReport,
     reports: reports.map((report) => ({
       id: report.id,

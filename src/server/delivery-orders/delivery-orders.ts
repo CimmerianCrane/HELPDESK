@@ -15,7 +15,7 @@ import { assertCan } from '@/server/auth/permissions'
 import { deliveryOrderReadWhere, jobReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { nextDocumentNumber } from '@/server/documents/sequence'
-import { renderPdf } from '@/server/documents/render-pdf'
+import { renderDeliveryOrderPdf } from '@/server/documents/delivery-order'
 import { getSettings } from '@/server/settings/settings'
 import { storage } from '@/server/storage/storage'
 
@@ -415,7 +415,7 @@ export async function renderDeliveryOrder(
   }
 
   const settings = await getSettings(client)
-  const bytes = await renderPdf('delivery-order', {
+  const bytes = await renderDeliveryOrderPdf({
     number: order.number,
     issuedAt: order.issuedAt ?? new Date(),
     timeZone: settings.timezone,
