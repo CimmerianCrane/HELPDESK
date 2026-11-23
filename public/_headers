@@ -1,0 +1,17 @@
+# Cloudflare Static Assets headers. `next.config.ts` `headers()` only applies to responses the Worker
+# renders; files in `public/` are served directly by Cloudflare and bypass it. These three rules are
+# the ones that matter, mirrored from next.config.ts so behaviour is identical on both hosts.
+
+# Hashed build output — safe to cache forever. Cloudflare's default (max-age=0) is wrong for these.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Must stay revalidated: cached for a year, a new worker would never reach an installed phone.
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/icons/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/cimmerian-mark.png
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800

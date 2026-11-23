@@ -17,6 +17,21 @@ record behind it is split into the files below so no single one is a wall of tex
 | `docs/HISTORY.md` | The build history, the traps, and the original brief verbatim |
 | `docs/UI-REVIEW.md` | The Hi-Vis Industrial direction and its contrast rules — **read this before touching any screen** |
 | `docs/UI-REVIEW-FINDINGS.md` | The design review that produced it |
+| `docs/MIGRATION-CLOUDFLARE.md` | The Vercel → Cloudflare Workers port — built and verified on a Worker, with PDFs split into `document-service/` |
+| `docs/DEPLOY-STEP-BY-STEP.md` | **The owner chose Plan A (Cloudflare Workers). Start here on a fresh session.** Click-by-click deploy runbook |
+
+> **Cloudflare Workers port — code complete and verified (23 Nov 2026).** The app deploys to Workers
+> via `@opennextjs/cloudflare`; the Worker starts, `/login` 200, bundle 17.7 MB. `@react-pdf/renderer`
+> cannot run on workerd (its `yoga-layout` compiles WASM at runtime), so PDFs are rendered by the Node
+> service in `document-service/` through `src/server/documents/render-pdf.ts`; remote and local renders
+> are **byte-identical**. Verified by running: the Worker boots, `getCloudflareContext()` resolves inside
+> `scheduled()`, wrangler bindings reach `process.env`, and the db Proxy gives each request its own
+> client. `npm run verify` is green (**531 tests**).
+>
+> **The owner chose Plan A (Cloudflare Workers) on 23 Nov 2026 and will run the deploy with guidance.**
+> The work is **uncommitted in the working tree** — first step is the git branch/commit/PR (runbook A1;
+> `gh` is available). Then follow **`docs/DEPLOY-STEP-BY-STEP.md`** section by section, and wait at each
+> "You should see" checkpoint. Production stays on Vercel until the DNS cutover in A9.
 
 > **Released to production (22 Nov 2026).** Slice 47 and Next.js 16.4.6 went
 > `feature → dev → staging → main` (PRs #24–#27) and the production build switched — confirmed by the

@@ -19,6 +19,13 @@ dist/
 /public/sw.js
 /public/sw.js.map
 
+# Cloudflare Workers build output and local bindings
+.open-next/
+.wrangler/
+.dev.vars*
+# …but the template is committed.
+!.dev.vars.example
+
 coverage/
 .lighthouse/
 test-results/

@@ -1,0 +1,16 @@
+# Local values for `wrangler dev` / `npm run cf:preview`. Never committed (`.gitignore` keeps
+# `.dev.vars*` out except this template). Production gets these through `wrangler secret put` and
+# `wrangler.jsonc` "vars" — not from here.
+#
+# IMPORTANT: `wrangler dev` also loads any `.env*` file in this folder, and those values take
+# precedence. Keep `.env` out of the way (or empty these there) when testing the Worker locally.
+
+AUTH_SECRET="local-only-change-me"
+CRON_SECRET="local-only-change-me"
+APP_BASE_URL="http://127.0.0.1:8787"
+DOCUMENT_SERVICE_URL="http://127.0.0.1:8788"
+DOCUMENT_SERVICE_SECRET="local-only-change-me"
+
+# For a real database through Hyperdrive locally, export this before `wrangler dev` instead of
+# putting it in a file wrangler might upload:
+#   CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://..."

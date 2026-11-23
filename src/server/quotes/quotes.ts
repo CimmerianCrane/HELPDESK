@@ -18,7 +18,7 @@ import { NotFoundError, RuleError } from '@/server/auth/errors'
 import { assertCan } from '@/server/auth/permissions'
 import { jobReadWhere, quoteReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
-import { renderQuotePdf } from '@/server/documents/quote'
+import { renderPdf } from '@/server/documents/render-pdf'
 import { nextDocumentNumber } from '@/server/documents/sequence'
 import { transitionJob } from '@/server/jobs/jobs'
 import { getSettings, type Settings } from '@/server/settings/settings'
@@ -551,7 +551,7 @@ export async function renderQuote(
   const quote = await getQuote(context, quoteId, client)
   const settings = await getSettings(client)
 
-  const bytes = await renderQuotePdf({
+  const bytes = await renderPdf('quote', {
     number: quote.number,
     createdAt: quote.createdAt,
     timeZone: settings.timezone,

@@ -1,5 +1,4 @@
 import {
-  PrismaClient,
   type CraneStatus,
   type CraneType,
   type CustomerStatus,
@@ -7,6 +6,7 @@ import {
   type Priority,
   type Role,
 } from '@prisma/client'
+import { createNodePrisma } from '../src/lib/prisma-node'
 import { nextDocumentNumber } from '../src/server/documents/sequence'
 import { postMovement } from '../src/server/inventory/stock'
 import { hashPassword } from '../src/server/auth/password'
@@ -15,7 +15,7 @@ import { wallTimeToUtc } from '../src/lib/time'
 import type { TemplateSection } from '../src/lib/templates/schema'
 import { seedCraneChecklists, seedJobTypesAndTemplates } from './seed-templates'
 
-const db = new PrismaClient()
+const db = createNodePrisma()
 
 /**
  * Seeds operational settings and demo accounts. Demo data for other entities (customers, cranes,

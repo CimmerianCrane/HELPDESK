@@ -39,7 +39,28 @@ const nextConfig: NextConfig = {
 
   // exceljs reaches for Node built-ins (`fs`, `stream`) that webpack cannot resolve; leaving it
   // external is what the importer's server action needs, and it never runs anywhere but the server.
-  serverExternalPackages: ['exceljs'],
+  // Prisma is external for the same reason on Cloudflare: the OpenNext adapter patches the generated
+  // client at build time, which it can only do if it is not pre-bundled.
+  serverExternalPackages: ['exceljs', '@prisma/client', '.prisma/client'],
+
+  // The Prisma CLI's engines and the migration dev server are build-time only. Tracing follows every
+  // import — including the optional `prisma` peer — and would otherwise copy tens of MiB of Rust
+  // binaries and WASM into the Worker, which has a 64 MiB uncompressed limit.
+  outputFileTracingExcludes: {
+    '*': [
+      'node_modules/prisma/**',
+      'node_modules/@prisma/engines/**',
+      'node_modules/@prisma/dev/**',
+      'node_modules/@electric-sql/**',
+      // Native query engines left behind by earlier library-engine builds. The client-engine build
+      // only needs `query_compiler_bg.wasm`, which is deliberately not excluded.
+      'node_modules/.prisma/client/query_engine*',
+    ],
+  },
+
+  // The only image is `/cimmerian-mark.png` at five fixed sizes on static pages. Cloudflare's image
+  // optimizer needs the Images binding; there is nothing here worth paying that for.
+  images: { unoptimized: true },
 
   async headers() {
     return [

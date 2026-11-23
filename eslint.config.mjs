@@ -10,6 +10,11 @@ const eslintConfig = [
     ignores: [
       '.next/**',
       '.next-docs/**',
+      '.open-next/**',
+      // `wrangler dev` writes a bundle per run here; it is generated output, and linting it both
+      // reports a bundler's insides and can exhaust the heap.
+      '.wrangler/**',
+      'document-service/dist/**',
       'node_modules/**',
       'next-env.d.ts',
       'public/sw.js',
