@@ -15,7 +15,7 @@ import { assertCan, can } from '@/server/auth/permissions'
 import { jobReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { nextServiceReportNumber } from '@/server/documents/sequence'
-import { renderServiceReportPdf } from '@/server/documents/service-report'
+import { renderPdf } from '@/server/documents/render-pdf'
 import { getSettings } from '@/server/settings/settings'
 import { storage } from '@/server/storage/storage'
 
@@ -299,7 +299,7 @@ export async function approveServiceReport(
         timeZone: settings.timezone,
       })
 
-      const pdf = await renderServiceReportPdf({
+      const pdf = await renderPdf('service-report', {
         documentNumber,
         content,
         issuedAt: approvedAt,

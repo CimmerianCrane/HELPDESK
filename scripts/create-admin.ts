@@ -11,10 +11,10 @@
  * an operator adding a second admin by hand is not a mistake worth blocking.
  */
 import { createInterface } from 'node:readline/promises'
-import { PrismaClient } from '@prisma/client'
 import { hashPassword } from '../src/server/auth/password'
+import { createNodePrisma } from '../src/lib/prisma-node'
 
-const db = new PrismaClient()
+const db = createNodePrisma()
 const rl = createInterface({ input: process.stdin, output: process.stdout })
 
 // Read a line without echoing it, so a password does not sit on screen during a screen share.

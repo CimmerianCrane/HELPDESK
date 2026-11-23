@@ -13,6 +13,10 @@
 
 generator client {
   provider = "prisma-client-js"
+  // No Rust query engine: it cannot run on Cloudflare Workers. A client-engine client requires a
+  // driver adapter, so every construction site passes one (`src/lib/db.ts`, `src/lib/prisma-node.ts`).
+  // GA since Prisma 6.16; no previewFeatures flag is needed.
+  engineType = "client"
 }
 
 datasource db {
