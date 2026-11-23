@@ -269,8 +269,7 @@ describe('submitting a report against the resolved sheet', () => {
     })
     await tx.jobType.update({
       where: { id: base.jobType.id },
-      // Graded but not a Service Report: this is what a breakdown call-out is, and it still stores grades.
-      data: { isGradedChecklist: true, defaultReportTemplateId: reportTemplate.id },
+      data: { isServiceReport: true, defaultReportTemplateId: reportTemplate.id },
     })
 
     const job = await tx.job.create({

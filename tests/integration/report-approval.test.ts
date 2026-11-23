@@ -388,7 +388,7 @@ describe('service reports', () => {
       await tx.jobType.update({
         where: { id: base.jobType.id },
         data: {
-          isGradedChecklist: true,
+          isServiceReport: true,
           defaultChecklistTemplateId: checklist.id,
           defaultReportTemplateId: template.id,
         },
@@ -494,7 +494,7 @@ describe('service reports', () => {
       await tx.jobType.update({
         where: { id: base.jobType.id },
         data: {
-          isGradedChecklist: true,
+          isServiceReport: true,
           defaultChecklistTemplateId: checklist.id,
           defaultReportTemplateId: template.id,
         },

@@ -23,7 +23,7 @@ import { NotFoundError, RuleError } from '@/server/auth/errors'
 import { assertCan } from '@/server/auth/permissions'
 import { invoiceReadWhere, jobReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
-import { renderPdf } from '@/server/documents/render-pdf'
+import { renderInvoicePdf } from '@/server/documents/invoice'
 import { nextDocumentNumber } from '@/server/documents/sequence'
 import { canTransition } from '@/server/jobs/status'
 import { getSettings, type Settings } from '@/server/settings/settings'
@@ -781,7 +781,7 @@ export async function renderInvoice(
   const invoice = await getInvoice(context, invoiceId, client)
   const settings = await getSettings(client)
 
-  const bytes = await renderPdf('invoice', {
+  const bytes = await renderInvoicePdf({
     number: invoice.number,
     createdAt: invoice.createdAt,
     issueDate: invoice.issueDate,

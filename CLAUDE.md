@@ -57,15 +57,11 @@ declared but not yet built and fall back to console), `ACCOUNTING_DRIVER` (`none
 `XERO_CLIENT_ID` / `XERO_CLIENT_SECRET` / `XERO_TAX_TYPE` for the invoice push, `CRON_SECRET`, `DEFAULT_TIMEZONE`, `DEFAULT_CURRENCY`,
 `DEFAULT_GST_RATE`, `SEED_PASSWORD` (optional — overrides the demo password `npm run seed` uses).
 
-**Deployment: Cloudflare Workers + Supabase (with a Node document service).** The app runs on
-`@opennextjs/cloudflare`; `wrangler.jsonc` is the deployment config. Prisma reaches Postgres through a
-Hyperdrive binding, and `src/lib/db.ts` gives each request its own client (`maxUses: 1`) — never a
-module-level singleton, which Workers do not allow. `@react-pdf/renderer` **cannot run on workerd** (its
-`yoga-layout` compiles WASM at runtime), so PDFs are rendered by `document-service/`, a small Node
-server, via `src/server/documents/render-pdf.ts`. Scheduled work is a Cloudflare cron trigger calling
-`/api/cron/daily`, which requires `Authorization: Bearer $CRON_SECRET` in production. Files are uploaded
-**directly from the browser to Supabase Storage** with a signed upload URL. Vercel is no longer the
-deployment target; `vercel.json` is retained only until the DNS cutover.
+**Deployment: Vercel + Supabase.** Use the Node runtime for anything that touches Prisma — never Edge.
+There is no long-running worker and no durable local disk. Scheduled work goes in `vercel.json` and
+calls a route under `/api/cron/`, which requires `Authorization: Bearer $CRON_SECRET` in production.
+Files are uploaded **directly from the browser to Supabase Storage** with a signed upload URL; do not
+route uploads through a server action, because Vercel caps a function request body at 4.5 MB.
 
 Anything configurable by the office team lives in the `Setting` table, not in env. Env is for deployment secrets
 and infrastructure choice only.
@@ -171,8 +167,8 @@ check permission, call a service, return. Logic lives in the service, tests live
 | **Crane / asset** | The centre of the data model. Every job, report, certificate, part and reminder hangs off a crane. Each crane belongs to one site and one customer |
 | **SWL** | Safe Working Load (kg) |
 | **PM** | Preventive maintenance — scheduled servicing |
-| **Graded checklist form** | The per-crane `Report` a technician submits after a PM **or breakdown** visit (`JobType.isGradedChecklist` seeds this on both). Every answered checklist line is graded 1–4 (Good / Monitor / Replacement / Unsafe) with a short comment; grades live in `Report.data.grades` keyed by `ChecklistItem.code`, with the line's wording snapshotted. The sheet is the job type's default, or a `ChecklistTemplate` naming the crane's type (`jobTypeId` + `craneTypes`). Keeps its `RPT-…` number |
-| **Service Report** | Its own row, one per job (`ServiceReport`, `@@unique([jobId])`) — it belongs to the visit, not the crane. Generated as prose from the job's graded checklist forms, rewordable by the office but not restructurable. Numbered `SR<yy><mm><nnn>` — `SR2606001` is the first of June 2026 — on approval. `JobType.isServiceReport` issues one; it is a separate flag from `isGradedChecklist`, so a breakdown grades but issues no SR |
+| **Servicing checklist form** | The per-crane `Report` a technician submits after a PM visit (`JobType.isServiceReport` seeds this on PM). Every answered checklist line is graded 1–4 (Good / Monitor / Replacement / Unsafe) with a short comment; grades live in `Report.data.grades` keyed by `ChecklistItem.code`, with the line's wording snapshotted. The sheet is the job type's default, or a `ChecklistTemplate` naming the crane's type (`jobTypeId` + `craneTypes`). Keeps its `RPT-…` number |
+| **Service Report** | Its own row, one per job (`ServiceReport`, `@@unique([jobId])`) — it belongs to the visit, not the crane. Generated as prose from the job's graded checklist forms, rewordable by the office but not restructurable. Numbered `SR<yy><mm><nnn>` — `SR2606001` is the first of June 2026 — on approval |
 | **Statutory examination** | AE-led inspection producing a *certificate*. Not the same as our inspections |
 | **Company inspection** | Work our technicians do and report on. Never called a certificate, never implies statutory status |
 | **Finding** | A defect recorded on a report; can spawn a follow-up job |

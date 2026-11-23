@@ -15,7 +15,7 @@ import { assertCan, can } from '@/server/auth/permissions'
 import { reportReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { nextDocumentNumber } from '@/server/documents/sequence'
-import { renderPdf } from '@/server/documents/render-pdf'
+import { renderReportPdf } from '@/server/documents/render'
 import { emailAdapter } from '@/server/email/email'
 import { storage } from '@/server/storage/storage'
 import { getSettings } from '@/server/settings/settings'
@@ -132,7 +132,7 @@ export async function renderStoredReport(
     (bytes): bytes is Uint8Array => bytes !== null,
   )
 
-  return renderPdf('report', {
+  return renderReportPdf({
     documentNumber: options.documentNumber,
     template: template.data,
     templateVersion: report.templateVersion,

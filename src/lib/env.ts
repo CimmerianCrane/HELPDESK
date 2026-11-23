@@ -1,10 +1,7 @@
 import { z } from 'zod'
 
 const schema = z.object({
-  // Required outside Cloudflare (next dev, `next start`, seed, scripts, migrations). On the Worker the
-  // connection string arrives through the HYPERDRIVE binding and Prisma never reads this, so it is
-  // optional here rather than a crash on every request.
-  DATABASE_URL: z.string().min(1).optional(),
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required (see .env.example)'),
   DIRECT_URL: z.string().min(1).optional(),
 
   APP_BASE_URL: z.string().min(1).default('http://localhost:3000'),
@@ -58,13 +55,6 @@ const schema = z.object({
   /** Sent as the line's AccountCode. Some orgs require one; most have a default. */
   XERO_SALES_ACCOUNT_CODE: z.string().optional(),
 
-  // PDF rendering (Cloudflare split). `@react-pdf/renderer` cannot run on workerd, so in production
-  // the app POSTs render inputs to a small Node service instead of rendering in-process. Unset means
-  // render locally — the default for next dev, Vitest and any Node deployment. See
-  // `src/server/documents/render-pdf.ts` and `document-service/`.
-  DOCUMENT_SERVICE_URL: z.string().url().optional(),
-  DOCUMENT_SERVICE_SECRET: z.string().min(1).optional(),
-
   // Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. Required in production; see
   // src/app/api/cron/daily/route.ts.
   CRON_SECRET: z.string().min(1).optional(),
@@ -89,11 +79,6 @@ function missingInProduction(data: z.infer<typeof schema>): string[] {
 
   const missing: string[] = REQUIRED_IN_PRODUCTION.filter((key) => !data[key])
   if (/^https?:\/\/localhost[:/]/.test(data.APP_BASE_URL)) missing.push('APP_BASE_URL')
-  // On a Cloudflare Worker there is no in-process PDF renderer, so a Worker without the document
-  // service cannot issue a report, invoice, quote or delivery order. Fail at boot, not at the first
-  // approval. workerd identifies itself on `navigator.userAgent`; Node/`next start` does not.
-  const onWorkerd = typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers'
-  if (onWorkerd && !data.DOCUMENT_SERVICE_URL) missing.push('DOCUMENT_SERVICE_URL')
   return missing
 }
 
@@ -123,12 +108,4 @@ export function env(): Env {
     cached = parsed.data
   }
   return cached
-}
-
-/**
- * Drops the cached environment. Exported for tests that change `process.env` after `env()` has been
- * read once — production code never needs it.
- */
-export function resetEnvCache(): void {
-  cached = undefined
 }
