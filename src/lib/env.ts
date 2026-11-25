@@ -23,6 +23,10 @@ const schema = z.object({
 
   EMAIL_DRIVER: z.enum(['console', 'smtp']).default('console'),
   EMAIL_FROM: z.string().default('helpdesk@cimmeriancrane.example'),
+  SMTP_HOST: z.string().min(1).optional(),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  SMTP_USER: z.string().min(1).optional(),
+  SMTP_PASSWORD: z.string().min(1).optional(),
 
   // SMS and WhatsApp (slice 36). Like `smtp` above, the named production drivers are declared and
   // not yet implemented: naming one falls back to console with a warning rather than refusing to

@@ -311,6 +311,11 @@ SUPABASE_STORAGE_BUCKET=cimmerian-files, CRON_SECRET, EMAIL_DRIVER, EMAIL_FROM,
 SMS_DRIVER, WHATSAPP_DRIVER, DEFAULT_TIMEZONE, DEFAULT_CURRENCY, DEFAULT_GST_RATE
 ```
 
+**Customer email** needs `EMAIL_DRIVER=smtp` plus `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` and
+`SMTP_PASSWORD` (any relay: SES, SendGrid, Postmark, a company mail server). With the default
+`EMAIL_DRIVER=console` nothing is sent in production — reports stay in the "approved but not emailed"
+queue and the daily cron keeps retrying, so nothing is silently marked as delivered.
+
 Then:
 
 1. `npm run db:deploy` from your machine once, to apply migrations to the production database. The

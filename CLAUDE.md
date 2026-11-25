@@ -52,7 +52,7 @@ the gate for finishing a slice, since it is the only version that exercises the 
 `.env.example` is the source of truth for required variables; `.env` is gitignored. Key ones:
 `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `APP_BASE_URL`, `STORAGE_DRIVER` (`disk` | `supabase`),
 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`, `EMAIL_DRIVER`
-(`console` | `smtp`), `SMS_DRIVER` and `WHATSAPP_DRIVER` (`console`, or the named drivers `twilio` / `meta` which are
+(`console` | `smtp` — `smtp` needs `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD`), `SMS_DRIVER` and `WHATSAPP_DRIVER` (`console`, or the named drivers `twilio` / `meta` which are
 declared but not yet built and fall back to console), `ACCOUNTING_DRIVER` (`none` | `xero`) with
 `XERO_CLIENT_ID` / `XERO_CLIENT_SECRET` / `XERO_TAX_TYPE` for the invoice push, `CRON_SECRET`, `DEFAULT_TIMEZONE`, `DEFAULT_CURRENCY`,
 `DEFAULT_GST_RATE`, `SEED_PASSWORD` (optional — overrides the demo password `npm run seed` uses).

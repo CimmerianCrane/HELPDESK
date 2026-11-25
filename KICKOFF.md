@@ -18,6 +18,21 @@ record behind it is split into the files below so no single one is a wall of tex
 | `docs/UI-REVIEW.md` | The Hi-Vis Industrial direction and its contrast rules — **read this before touching any screen** |
 | `docs/UI-REVIEW-FINDINGS.md` | The design review that produced it |
 
+> **The tree is the 5 Nov 2026 state, by the owner's decision (25 Nov 2026).** Everything built after
+> 5 Nov — the 22 Nov release (slice 47 graded breakdown checklists, Next 16.4.6) and the reverted
+> Cloudflare Workers port — is scrapped. `main` carries `496b2d5`'s tree plus this note; the
+> `feature/cloudflare-workers` branch is deleted. Production still serves the 22 Nov build until the
+> next deploy from `main` rolls it back — that is intended.
+>
+> **Customer email is real (25 Nov 2026).** `EMAIL_DRIVER=smtp` now sends through nodemailer with
+> `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD`; `SMTP_PORT=465` means implicit TLS. The
+> console driver, which used to return `ok: true` in production and mark reports emailed while sending
+> nothing, now returns `ok: false` there — so an unconfigured deploy leaves reports in the "approved
+> but not emailed" queue for the daily retry instead of lying. Next.js is patched to 16.4.6 on the same
+> branch (16.4.3 is in a published advisory's affected range and stops the build). Gate: `npm run verify`
+> (527 unit) and `npm run build` pass. **Still to do:** set the four SMTP vars in Vercel and confirm one
+> real delivery.
+>
 > **Slice 46 is built (3 Nov 2026) — the first paper checklist reaches the phone.** A PM job on an
 > overhead, gantry or jib crane now opens the **Crane and Monorail** sheet: 57 lines in six sections,
 > transcribed from the owner's xlsx, graded with the paper's four words (4 Good · 3 Monitor ·
@@ -218,7 +233,8 @@ offline worker test had been skipping itself even under a build — it navigated
 redirect landed — and now runs for real. `npm run test:integration` is green complete at slice 46
 (415 tests).
 
-**Next.js 16.4.3 (31 Oct 2026).** Upgraded from 15.5.28. What it forced:
+**Next.js 16.4.3 (31 Oct 2026), now 16.4.6 (25 Nov 2026 — the security patch; 16.4.3 is
+in the affected range of a published advisory and stops the build).** Upgraded from 15.5.28. What it forced:
 
 - **Both scripts pass `--webpack`.** `@serwist/next` integrates through a `webpack(config)` hook, and
   Next 16 fails a build that finds one unless you opt out of its new Turbopack default.
