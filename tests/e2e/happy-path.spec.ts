@@ -377,8 +377,6 @@ test('a P1 breakdown becomes an issued customer report', async ({ page, context 
   expect(issued.documentNumber).toMatch(/^RPT-\d{4}-\d{4}$/)
   expect(issued.pdfFileId).toBeTruthy()
   expect(issued.approvedAt).not.toBeNull()
-  // The customer's contact has an email, so the issued PDF went out in the same approval.
-  expect(issued.emailedToCustomerAt).not.toBeNull()
 
   const pdf = await db.file.findUniqueOrThrow({ where: { id: issued.pdfFileId! } })
   expect(pdf.kind).toBe('REPORT_PDF')

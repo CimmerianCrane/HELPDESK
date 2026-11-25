@@ -159,7 +159,8 @@ job, crane, report or customer reads.
 - On-device customer summary (offline-viewable before sync)
 
 *Customer (Phase 4)* — ~~portal: own cranes, reports, certificates, due dates, raise ticket.~~
-Removed 3 Nov 2026: documents reach customers by email; no customer logins.
+Removed 3 Nov 2026: no customer logins. Customer delivery removed 25 Nov 2026: nothing is emailed to
+a customer; reports and certificates are internal records.
 
 ---
 
@@ -235,9 +236,8 @@ in `ASSUMPTIONS.md` items 62–71:
    experimentally, not from documentation.
 3. **`RETURNED` is a new status.** Approve / return / correct are three decisions, and a return has to be
    distinguishable from "not looked at" without giving the report a number it never earned.
-4. **The email is outside the transaction, the PDF inside it.** A dead mail server must not undo an issued
-   document; an issued document must not exist without its PDF. `emailedToCustomerAt` null after `approvedAt` is
-   the retry signal `/api/cron/daily` sweeps.
+4. **The PDF is inside the approval transaction.** An issued document must not exist without its PDF. The
+   customer email that used to sit outside it was removed on 25 Nov 2026; nothing is sent to a customer.
 5. **Photos are snapshotted as `Report.data.photoFileIds`.** Slice 8 validated them and dropped them; without
    this the issued document could not embed the photographs that were attached when it was signed.
 
@@ -415,7 +415,7 @@ dashboard row of the fourth, and slice 13 has closed the `Certificate` row.** Fo
 |---|---|---|
 | `CraneSchedule` | Rows exist only because `seedDemoBook()` writes two per demo crane ([prisma/seed.ts:1009](../prisma/seed.ts)) | No write path, no screen. Its **only** reader is the dashboard count ([dashboard.ts:118](../src/server/dashboard/dashboard.ts)) |
 | Next-due recompute | Nothing writes `lastDoneDate`/`nextDueDate` after a job fires | Completing a PM or a load test does not roll the schedule on. The crane page has no next-due block |
-| `/api/cron/daily` | Prunes `RateLimitBucket`, retries failed report emails | No reminder evaluation, no due-date scan |
+| `/api/cron/daily` | Prunes `RateLimitBucket` and runs the schedule reminder scan | No due-date scan |
 | `Certificate` | Model only | No service, no upload (`FileKind.CERTIFICATE` unused), no screen. `certificatesExpiring` counts a table nothing writes, so the tile is honestly 0 |
 | `ComplianceRule` | Model + `compliancerule.manage` capability granted | No screen; rule 2 (compliance is data, with the MOM notice) is currently unprovable in the UI |
 | `Finding` | Written on report submit, rendered on the report page | No status flow, no follow-up job, no list on the crane page. `finding.followUpJob` is granted and unused |

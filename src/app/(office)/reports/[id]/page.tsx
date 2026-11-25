@@ -229,17 +229,6 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
               {report.template.name} · v{report.templateVersion}
             </dd>
           </div>
-          <div>
-            <dt className="text-xs font-medium text-muted">
-              Emailed to customer
-            </dt>
-            <dd className="text-ink">
-              {formatDateTime(report.emailedToCustomerAt, settings.timezone)}
-              {report.approvedAt && !report.emailedToCustomerAt
-                ? ' · waiting for the daily retry'
-                : ''}
-            </dd>
-          </div>
         </dl>
       </section>
 

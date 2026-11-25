@@ -4,17 +4,14 @@ import { logger } from '@/lib/logger'
 import { internalError } from '@/server/auth/errors'
 import { pruneRateLimitBuckets } from '@/server/auth/rate-limit'
 import { runScheduleReminders } from '@/server/reminders/reminders'
-import { resendUnemailedReports } from '@/server/reports/email-retry'
 
 /**
  * The daily maintenance run, triggered by Vercel Cron (see vercel.json).
  *
  * Vercel has no long-running process, so the plan's `npm run worker` and pg-boss queue are gone.
  * Anything that must happen on a schedule becomes a protected route here and is listed in
- * vercel.json. The report PDF is rendered in the request that approves it, because it takes a second
- * and belongs in that transaction; this run only retries the customer email, which is the one part of
- * approval that deliberately happens after the commit. It also evaluates every crane schedule that has
- * reached one of its reminder offsets (slice 15) — the reminder engine the brief asks for in §8.
+ * vercel.json. This run evaluates every crane schedule that has reached one of its reminder offsets
+ * (slice 15) — the reminder engine the brief asks for in §8.
  *
  * Requests must carry `Authorization: Bearer $CRON_SECRET`. Vercel adds that header automatically
  * when the variable is set. In production a missing secret refuses every request rather than
@@ -43,19 +40,16 @@ export async function GET(request: Request) {
 
   try {
     const pruned = await pruneRateLimitBuckets()
-    const emailed = await resendUnemailedReports()
     // Slice 15: the scan is idempotent per (schedule, threshold, due date), so a Vercel retry of
     // this run cannot email the office twice.
     const reminders = await runScheduleReminders()
     logger.info('cron.daily.completed', {
       prunedRateLimitBuckets: pruned,
-      resendAttempts: emailed,
       reminders,
     })
     return Response.json({
       ok: true,
       prunedRateLimitBuckets: pruned,
-      resendAttempts: emailed,
       reminders,
     })
   } catch (error) {

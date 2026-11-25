@@ -604,7 +604,6 @@ model Report {
   submittedAt DateTime?
   approvedAt  DateTime?
   approvedById String?
-  emailedToCustomerAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   createdById String?

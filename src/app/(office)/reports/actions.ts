@@ -31,9 +31,7 @@ export async function approveReportAction(
 
   try {
     const result = await approveReport(await requireAuth(), reportId)
-    message = result.emailedToCustomerAt
-      ? `Issued as ${result.documentNumber} and emailed to the customer.`
-      : `Issued as ${result.documentNumber}. ${result.emailSkippedReason ?? ''}`.trim()
+    message = `Issued as ${result.documentNumber}.`
     revalidatePath('/reports')
     revalidatePath(`/reports/${reportId}`)
   } catch (error) {

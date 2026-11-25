@@ -52,7 +52,7 @@ the gate for finishing a slice, since it is the only version that exercises the 
 `.env.example` is the source of truth for required variables; `.env` is gitignored. Key ones:
 `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `APP_BASE_URL`, `STORAGE_DRIVER` (`disk` | `supabase`),
 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`, `EMAIL_DRIVER`
-(`console` | `smtp`), `SMS_DRIVER` and `WHATSAPP_DRIVER` (`console`, or the named drivers `twilio` / `meta` which are
+(`console` | `smtp` — `smtp` needs `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD`), `SMS_DRIVER` and `WHATSAPP_DRIVER` (`console`, or the named drivers `twilio` / `meta` which are
 declared but not yet built and fall back to console), `ACCOUNTING_DRIVER` (`none` | `xero`) with
 `XERO_CLIENT_ID` / `XERO_CLIENT_SECRET` / `XERO_TAX_TYPE` for the invoice push, `CRON_SECRET`, `DEFAULT_TIMEZONE`, `DEFAULT_CURRENCY`,
 `DEFAULT_GST_RATE`, `SEED_PASSWORD` (optional — overrides the demo password `npm run seed` uses).
@@ -124,9 +124,9 @@ cimmerian-crane/
       reminders/           # the daily scan: which schedule is due, who to tell, and the draft job
       certificates/        # the certificate register and the expiring/overdue queue
       calibrations/        # the equipment register (Resource) and its calibration due dates and scans
-      documents/           # numbering, PDF render, email-on-close
+      documents/           # numbering, PDF render
       tech/                # the field phone's read layer and its one-call sync bundle
-      reports/             # report queue, approval/return/amendment, issued-PDF lookup, email retry;
+      reports/             # report queue, approval/return/amendment, issued-PDF lookup;
                            # profitability (invoices against parts cost) and utilisation (job status
                            # history against working hours)
       inventory/           # the parts book, locations, the supplier book, the stock ledger, reorder

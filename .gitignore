@@ -5,6 +5,11 @@ out/
 build/
 dist/
 
+# Cloudflare build output and local state left behind by the scrapped Workers port
+.wrangler/
+.open-next/
+document-service/
+
 .env
 .env.local
 .env*.local

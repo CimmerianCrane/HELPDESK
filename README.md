@@ -105,7 +105,7 @@ another technician's jobs" is something you can check by signing in and looking.
 | `finance@cimmeriancrane.example` | Finance |
 
 The password is `cimmerian-dev-2026`, or whatever you set `SEED_PASSWORD` to. Customers do not get
-accounts; issued reports and certificates reach them by email.
+accounts, and nothing is emailed to them — reports and certificates are internal office records.
 
 > **These are development accounts.** The password is published in this repository, so the seed only
 > creates them when `DATABASE_URL` points at this machine. If you are using a hosted database — the
@@ -310,6 +310,11 @@ STORAGE_DRIVER=supabase, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 SUPABASE_STORAGE_BUCKET=cimmerian-files, CRON_SECRET, EMAIL_DRIVER, EMAIL_FROM,
 SMS_DRIVER, WHATSAPP_DRIVER, DEFAULT_TIMEZONE, DEFAULT_CURRENCY, DEFAULT_GST_RATE
 ```
+
+**Email** needs `EMAIL_DRIVER=smtp` plus `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` and `SMTP_PASSWORD`
+(any relay: SES, SendGrid, Postmark, a company mail server). It carries staff P1 alerts and technician
+dispatches only — nothing is emailed to customers. With the default `EMAIL_DRIVER=console` nothing is
+sent in production, and the send is reported as failed rather than silently marked as delivered.
 
 Then:
 
