@@ -24,14 +24,14 @@ record behind it is split into the files below so no single one is a wall of tex
 > `feature/cloudflare-workers` branch is deleted. Production still serves the 22 Nov build until the
 > next deploy from `main` rolls it back — that is intended.
 >
-> **Customer email is real (25 Nov 2026).** `EMAIL_DRIVER=smtp` now sends through nodemailer with
-> `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD`; `SMTP_PORT=465` means implicit TLS. The
-> console driver, which used to return `ok: true` in production and mark reports emailed while sending
-> nothing, now returns `ok: false` there — so an unconfigured deploy leaves reports in the "approved
-> but not emailed" queue for the daily retry instead of lying. Next.js is patched to 16.4.6 on the same
-> branch (16.4.3 is in a published advisory's affected range and stops the build). Gate: `npm run verify`
-> (527 unit) and `npm run build` pass. **Still to do:** set the four SMTP vars in Vercel and confirm one
-> real delivery.
+> **Email is SMTP for internal alerts (25 Nov 2026).** `EMAIL_DRIVER=smtp` sends through nodemailer
+> with `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD`; `SMTP_PORT=465` means implicit TLS.
+> It serves staff P1 alerts and technician dispatch only — customer delivery was removed the same day
+> (below). The console driver, which used to return `ok: true` in production while sending nothing,
+> now returns `ok: false` there, so nothing is recorded as sent when it was not. Next.js is patched to
+> 16.4.6 on the same branch (16.4.3 is in a published advisory's affected range and stops the build).
+> Gate: `npm run verify` (527 unit) and `npm run build` pass. **Still to do:** set the four SMTP vars
+> in Vercel and confirm one real alert.
 >
 > **Slice 46 is built (3 Nov 2026) — the first paper checklist reaches the phone.** A PM job on an
 > overhead, gantry or jib crane now opens the **Crane and Monorail** sheet: 57 lines in six sections,
@@ -50,8 +50,14 @@ record behind it is split into the files below so no single one is a wall of tex
 > read-only copy of records the office already emails, and carried the cost of external accounts
 > with no self-service password reset. Gone with it: the `CUSTOMER` role, `User.customerId`,
 > `portal.read`, the `(portal)` screens and `src/server/portal/`, the demo portal login, and the
-> `PORTAL` ticket source. Migration `20261103000000_drop_portal_login`. Customers now receive
-> issued reports and certificates by email.
+> `PORTAL` ticket source. Migration `20261103000000_drop_portal_login`.
+>
+> **Customer delivery was removed entirely (25 Nov 2026).** There is no customer-facing report or
+> certificate path at all: approving a report numbers it, renders the PDF and moves the job to
+> REVIEWED, and that is the end of it. Gone with it: `Report.emailedToCustomerAt` (migration
+> `20261125120000_remove_customer_email`), `src/server/reports/email-retry.ts`, and the daily cron's
+> resend pass. Reports and certificates are internal office records. The `EmailAdapter` remains for
+> staff P1 alerts and technician dispatches only.
 >
 > **Where the next session starts — the tablet app is code-complete.** The owner's request was to
 > ship the technician side as an installable Android tablet app while the office keeps the website.

@@ -154,8 +154,7 @@ test('a submitted report is approved, numbered and shown on the crane timeline',
   expect(pdf.sizeBytes).toBeGreaterThan(1000)
   created.fileIds.push(pdf.id)
 
-  // The job moved on by itself, and the customer was recorded as emailed (the console adapter
-  // succeeds in development, so `emailedToCustomerAt` is set rather than waiting for the cron).
+  // The job moved on by itself. Reports are internal records — nothing is emailed to the customer.
   const job = await db.job.findUniqueOrThrow({ where: { id: created.jobId } })
   expect(job.status).toBe('REVIEWED')
 

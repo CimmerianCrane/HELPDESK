@@ -1,7 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { createHash, randomUUID } from 'node:crypto'
 import { db, type Tx } from '@/lib/db'
-import { formatDateTime } from '@/lib/format'
 import { templateSchema } from '@/lib/templates/schema'
 import {
   amendReportSchema,
@@ -16,7 +15,6 @@ import { reportReadWhere } from '@/server/auth/scope'
 import type { AuthContext } from '@/server/auth/types'
 import { nextDocumentNumber } from '@/server/documents/sequence'
 import { renderReportPdf } from '@/server/documents/render'
-import { emailAdapter } from '@/server/email/email'
 import { storage } from '@/server/storage/storage'
 import { getSettings } from '@/server/settings/settings'
 import { CRANE_TYPE_LABELS } from '@/lib/cranes/labels'
@@ -25,10 +23,8 @@ import { CRANE_TYPE_LABELS } from '@/lib/cranes/labels'
  * Approval, the lock, and the PDF (slice 9).
  *
  * Approving is one transaction: the number, the rendered PDF, the File row, the status, the job move
- * to REVIEWED and the audit entries either all land or none do. The one thing that happens outside it
- * is the email, for the same reason `notify.ts` sends after writing its rows — a report that is
- * approved and stored but whose mail failed is recoverable; a mail about an approval that rolled back
- * is a lie. `emailedToCustomerAt` is the retry marker the daily cron sweeps.
+ * to REVIEWED and the audit entries either all land or none do. Nothing leaves the building — the
+ * owner removed customer delivery, so a report is an internal record.
  *
  * **Locking is by status, not by a flag.** Every mutation here checks the status inside the
  * transaction, so an approved report cannot be edited, and the only way to change one is `amendReport`,
@@ -60,11 +56,6 @@ export async function loadReport(context: AuthContext, tx: Tx, reportId: string)
             select: {
               legalName: true,
               tradingName: true,
-              contacts: {
-                where: { deletedAt: null },
-                orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
-                select: { email: true },
-              },
             },
           },
           site: { select: { name: true, address: true } },
@@ -186,16 +177,10 @@ export interface ApprovalResult {
   reportId: string
   documentNumber: string
   pdfFileId: string
-  emailedToCustomerAt: Date | null
-  emailSkippedReason: string | null
 }
 
 /**
- * Approves a submitted report: number, PDF, lock, job to REVIEWED, and the customer told.
- *
- * The customer email is the brief's "email to the customer on job close" (§6.7). It is sent after the
- * transaction commits, so a send failure leaves the report approved with `emailedToCustomerAt` null —
- * which is exactly the row the daily cron picks up.
+ * Approves a submitted report: number, PDF, lock, job to REVIEWED.
  */
 export async function approveReport(
   context: AuthContext,
@@ -342,68 +327,11 @@ export async function approveReport(
     client,
   )
 
-  // Outside the transaction: the customer is told only about something that definitely happened.
-  const recipient = result.report.job.customer.contacts.find((contact) => contact.email)
-  const email = await sendIssuedReport({
-    to: recipient?.email ?? null,
-    jobNumber: result.report.job.number,
-    documentNumber: result.documentNumber,
-    party: result.report.job.customer.tradingName ?? result.report.job.customer.legalName,
-    approvedAt: result.approvedAt,
-    timeZone: (await getSettings(client)).timezone,
-  })
-
-  if (email.sentAt) {
-    // Through the caller's client when there is one: the transaction is still open then, and a write
-    // through `db` would wait on the row the transaction itself holds.
-    await (client ?? db).report.update({
-      where: { id: result.reportId },
-      data: { emailedToCustomerAt: email.sentAt },
-    })
-  }
-
   return {
     reportId: result.reportId,
     documentNumber: result.documentNumber,
     pdfFileId: result.pdfFileId,
-    emailedToCustomerAt: email.sentAt,
-    emailSkippedReason: email.skippedReason,
   }
-}
-
-/**
- * Sends the "your report is ready" mail. Returns rather than throws: a dead mail server must not undo
- * an approval, and the null `emailedToCustomerAt` is the record that it still has to go.
- */
-async function sendIssuedReport(input: {
-  to: string | null
-  jobNumber: string
-  documentNumber: string
-  party: string
-  approvedAt: Date
-  timeZone: string
-}): Promise<{ sentAt: Date | null; skippedReason: string | null }> {
-  if (!input.to) {
-    return { sentAt: null, skippedReason: 'The customer has no contact with an email address.' }
-  }
-
-  const result = await emailAdapter().send({
-    to: input.to,
-    subject: `Report ${input.documentNumber} — ${input.jobNumber}`,
-    text: [
-      `${input.party},`,
-      '',
-      `The report for job ${input.jobNumber} has been approved and issued on ${formatDateTime(input.approvedAt, input.timeZone)}.`,
-      `Document number: ${input.documentNumber}.`,
-      '',
-      'It is available from the Cimmerian Crane helpdesk. This is a company inspection report; it is',
-      'not a statutory certificate of test and examination.',
-    ].join('\n'),
-  })
-
-  return result.ok
-    ? { sentAt: new Date(), skippedReason: null }
-    : { sentAt: null, skippedReason: result.error ?? 'The email could not be sent.' }
 }
 
 /** Sends a report back to the technician with a reason. It stays unnumbered and unapproved. */

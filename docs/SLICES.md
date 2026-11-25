@@ -691,9 +691,8 @@ of what each one added and what to click. Canonical decisions stay in `docs/PLAN
   the field has signed, oldest first, and what was sent back.
 - **Approving issues a document.** One transaction assigns the next `RPT-2026-0001` number, renders
   the PDF with both signatures and the photographs embedded, stores it, locks the report, moves the
-  job from COMPLETED to REVIEWED, and writes an audit entry for each. The customer is emailed
-  afterwards — a dead mail server cannot undo an issued document, and `emailedToCustomerAt` left null
-  is what `/api/cron/daily` retries.
+  job from COMPLETED to REVIEWED, and writes an audit entry for each. Nothing leaves the building —
+  customer delivery was removed on 25 Nov 2026, so an approved report is an internal record.
 - **The PDF is reproducible.** It is rendered from the template *version stored on the report* and
   the answers stored with it, with the document timestamps pinned, so an old report re-renders exactly
   as issued even after the office has superseded its template. The integration test proves it by

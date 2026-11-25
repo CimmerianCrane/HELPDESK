@@ -124,9 +124,9 @@ cimmerian-crane/
       reminders/           # the daily scan: which schedule is due, who to tell, and the draft job
       certificates/        # the certificate register and the expiring/overdue queue
       calibrations/        # the equipment register (Resource) and its calibration due dates and scans
-      documents/           # numbering, PDF render, email-on-close
+      documents/           # numbering, PDF render
       tech/                # the field phone's read layer and its one-call sync bundle
-      reports/             # report queue, approval/return/amendment, issued-PDF lookup, email retry;
+      reports/             # report queue, approval/return/amendment, issued-PDF lookup;
                            # profitability (invoices against parts cost) and utilisation (job status
                            # history against working hours)
       inventory/           # the parts book, locations, the supplier book, the stock ledger, reorder
